@@ -1,4 +1,5 @@
 #[macro_use] extern crate log;
+#[macro_use] extern crate anyhow;
 
 mod catalog;
 pub mod datasets;
@@ -6,7 +7,7 @@ mod nc;
 
 use datasets::{Data, Dataset};
 
-fn main() -> Result<(), std::io::Error> {
+fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_LOG", "dredds=debug");
     env_logger::init();
 
@@ -35,6 +36,6 @@ fn main() -> Result<(), std::io::Error> {
      * - ascii (optional)
      */
 
-    dr.serve("127.0.0.1:8001")
+    dr.serve("127.0.0.1:8001").or_else(|_e| Err(anyhow!("Failed to run server")))
 }
 

@@ -59,6 +59,8 @@ pub trait Dataset {
     fn name(&self) -> String;
 
     fn das(&self, cx: &tide::Context<Data>) -> tide::EndpointResult {
+        // Get all attributes (query string does not matter)
+
         Err(StatusCode::NOT_IMPLEMENTED)?
     }
 

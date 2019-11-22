@@ -1,36 +1,54 @@
+#[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
 #[macro_use] extern crate anyhow;
 
+use std::sync::{Arc,RwLock};
 use hyper::{
-    Server, Body, Response, Error,
+    Server, Body, Response, Error, Request, Method, StatusCode,
     service::{service_fn, make_service_fn}
 };
 
-// mod catalog;
-// pub mod datasets;
-// mod nc;
+pub mod datasets;
+mod nc;
 
-// use datasets::{Data, Dataset};
+use datasets::{Data, Dataset};
+
+lazy_static! {
+    pub static ref DATA: Arc<RwLock<Data>> = Arc::new(RwLock::new(Data::init()));
+}
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    std::env::set_var("RUST_LOG", "dredds=debug");
+    std::env::set_var("RUST_LOG", "dars=debug");
     env_logger::init();
 
     info!("Hello, world!");
 
-    // let mut data = Data::init();
+    {
+        let rdata = DATA.clone();
+        let mut data = rdata.write().unwrap();
 
-    // data.datasets.push(
-    //     Box::new(
-    //         nc::NcDataset::open("data/coads_climatology.nc".to_string()).unwrap()));
+        data.datasets.push(
+            Box::new(
+                nc::NcDataset::open("data/coads_climatology.nc".to_string()).unwrap()));
+    }
 
     let addr = ([127, 0, 0, 1], 8001).into();
 
-    let msvc = make_service_fn(|_| async {
+    let msvc = make_service_fn(|_| async move {
         Ok::<_, Error>(
-            service_fn(|req| async {
-                Ok::<_, Error>(Response::new(Body::from("Hello World")))
+            service_fn(|req| async move {
+                match (req.method(), req.uri().path()) {
+                    (&Method::GET, "/catalog.xml") => Response::builder().status(StatusCode::NOT_IMPLEMENTED).body(Body::empty()),
+                    (&Method::GET, "/") => Response::builder().body(Body::from("Hello world")),
+                    _ => {
+                        if req.uri().path().starts_with("/data/") {
+                            Data::dataset(req).await
+                        } else {
+                            Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
+                        }
+                    }
+                }
             }))
     });
 

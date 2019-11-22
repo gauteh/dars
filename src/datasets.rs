@@ -1,7 +1,4 @@
-use http::status::StatusCode;
-use tide::error::ResultExt;
-use http_service::Body;
-use futures::stream;
+use hyper::{Response, Body, StatusCode};
 
 pub struct Data {
     pub root: String,
@@ -37,22 +34,28 @@ impl Data {
         }
     }
 
-    pub async fn dataset(cx: tide::Context<Data>) -> tide::EndpointResult {
-        let ds: String = cx.param("dataset").client_err()?;
+    pub async fn dataset(req: hyper::Request<Body>) -> Result<Response<Body>, hyper::http::Error> {
+        use super::DATA;
+
+        let ds: String = req.uri().path().trim_start_matches("/data/").to_string();
         let DsRequest(ds, dst) = Data::parse_request(ds);
 
         debug!("looking for dataset: {}", ds);
+        let rdata = DATA.clone();
+        let data = rdata.read().unwrap();
 
-        let ds = match cx.state().datasets.iter().find(|&d| d.name() == ds) {
-            Some(dataset) => Ok(dataset),
-            None => Err(StatusCode::NOT_FOUND)
-        }?;
-
-        debug!("found dataset: {}", ds.name());
-
-        match dst {
-            DsRequestType::Das => Ok(ds.das(&cx)),
-            _ => Err(StatusCode::NOT_IMPLEMENTED)?
+        match data.datasets.iter().find(|&d| d.name() == ds) {
+            Some(ds) => {
+                debug!("found dataset: {}", ds.name());
+                match dst {
+                    DsRequestType::Das => ds.das(),
+                    _ => Response::builder().status(StatusCode::NOT_IMPLEMENTED).body(Body::empty())
+                }
+            },
+            None => {
+                debug!("dataset not found.");
+                Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
+            }
         }
     }
 }
@@ -61,20 +64,25 @@ pub trait Dataset {
     fn name(&self) -> String;
     // fn attributes(&self) -> impl Iterator<Item=String>;
 
-    fn das(&self, cx: &tide::Context<Data>) -> tide::Response {
-        // Get all attributes (query string does not matter)
+    fn das(&self) -> Result<Response<Body>, hyper::http::Error> {
+        debug!("building Data Attribute Structure (DAS)");
+
         use std::iter;
+        use futures_util::stream::{self, StreamExt};
+        use std::io::Error;
+        use itertools::Itertools;
 
-        // Ok(iter::once("Attributes {").chain(iter::once("}")))
-        // tide::Response::new(
-        //     Body::from_stream(
-        //         stream::iter(vec![1, 2, 3])))
+        let attrs = iter::once(
+            "Attributes {").chain(iter::once(
+            "}"))
+            .intersperse("\n")
+            .map(|c| Ok::<_,Error>(c));
 
-        let s = Body::from_stream(stream::iter("asdf".as_bytes()));
+        let s = stream::iter(attrs);
+        let body = Body::wrap_stream(s);
 
-        tide::Response::new(Body::from("asdf"))
 
-        // tide::Response::with_err_status(StatusCode::NOT_IMPLEMENTED)
+        Response::builder().body(body)
     }
 
     fn dds(&self) -> String {

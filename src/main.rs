@@ -1,29 +1,51 @@
 #[macro_use] extern crate log;
 #[macro_use] extern crate anyhow;
 
-mod catalog;
-pub mod datasets;
-mod nc;
+use hyper::{
+    Server, Body, Response, Error,
+    service::{service_fn, make_service_fn}
+};
 
-use datasets::{Data, Dataset};
+// mod catalog;
+// pub mod datasets;
+// mod nc;
 
-fn main() -> anyhow::Result<()> {
+// use datasets::{Data, Dataset};
+
+#[tokio::main]
+async fn main() -> Result<(), anyhow::Error> {
     std::env::set_var("RUST_LOG", "dredds=debug");
     env_logger::init();
 
     info!("Hello, world!");
 
-    let mut data = Data::init();
+    // let mut data = Data::init();
 
-    data.datasets.push(
-        Box::new(
-            nc::NcDataset::open("data/coads_climatology.nc".to_string())?));
+    // data.datasets.push(
+    //     Box::new(
+    //         nc::NcDataset::open("data/coads_climatology.nc".to_string()).unwrap()));
 
-    let mut dr = tide::App::with_state(data);
-    dr.middleware(tide::middleware::RootLogger::new());
+    let addr = ([127, 0, 0, 1], 8001).into();
 
-    dr.at("/catalog.xml").get(catalog::catalog);
-    dr.at("/data/:dataset").get(datasets::Data::dataset);
+    let msvc = make_service_fn(|_| async {
+        Ok::<_, Error>(
+            service_fn(|req| async {
+                Ok::<_, Error>(Response::new(Body::from("Hello World")))
+            }))
+    });
+
+
+    let server = Server::bind(&addr)
+        .serve(msvc);
+
+    info!("Listening on http://{}", addr);
+    server.await.map_err(|e| anyhow!("SDf"))
+
+    // let mut dr = tide::App::with_state(data);
+    // dr.middleware(tide::middleware::RootLogger::new());
+
+    // dr.at("/catalog.xml").get(catalog::catalog);
+    // dr.at("/data/:dataset").get(datasets::Data::dataset);
     // dr.at("/data").nest(
     //     |r| data.datasets.iter().for_each(
     //         |d| d.at(r) ));
@@ -36,6 +58,6 @@ fn main() -> anyhow::Result<()> {
      * - ascii (optional)
      */
 
-    dr.serve("127.0.0.1:8001").or_else(|_e| Err(anyhow!("Failed to run server")))
+    // dr.serve("127.0.0.1:8001").or_else(|_e| Err(anyhow!("Failed to run server")))
 }
 

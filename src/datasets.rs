@@ -1,5 +1,7 @@
 use http::status::StatusCode;
 use tide::error::ResultExt;
+use http_service::Body;
+use futures::stream;
 
 pub struct Data {
     pub root: String,
@@ -49,7 +51,7 @@ impl Data {
         debug!("found dataset: {}", ds.name());
 
         match dst {
-            DsRequestType::Das => ds.das(&cx),
+            DsRequestType::Das => Ok(ds.das(&cx)),
             _ => Err(StatusCode::NOT_IMPLEMENTED)?
         }
     }
@@ -57,11 +59,22 @@ impl Data {
 
 pub trait Dataset {
     fn name(&self) -> String;
+    // fn attributes(&self) -> impl Iterator<Item=String>;
 
-    fn das(&self, cx: &tide::Context<Data>) -> tide::EndpointResult {
+    fn das(&self, cx: &tide::Context<Data>) -> tide::Response {
         // Get all attributes (query string does not matter)
+        use std::iter;
 
-        Err(StatusCode::NOT_IMPLEMENTED)?
+        // Ok(iter::once("Attributes {").chain(iter::once("}")))
+        // tide::Response::new(
+        //     Body::from_stream(
+        //         stream::iter(vec![1, 2, 3])))
+
+        let s = Body::from_stream(stream::iter("asdf".as_bytes()));
+
+        tide::Response::new(Body::from("asdf"))
+
+        // tide::Response::with_err_status(StatusCode::NOT_IMPLEMENTED)
     }
 
     fn dds(&self) -> String {

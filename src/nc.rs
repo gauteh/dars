@@ -13,6 +13,16 @@ impl Dataset for NcDataset {
     fn name(&self) -> String {
         self.filenames[0].clone()
     }
+
+    fn attributes(&self) -> Box<dyn Iterator<Item=Result<&str, std::io::Error>>> {
+        use std::iter;
+
+        Box::new(
+            iter::once("NC_GLOBAL {\n")
+            .chain(iter::once("}"))
+            .map(|c| Ok::<_, std::io::Error>(c))
+        )
+    }
 }
 
 impl NcDataset {

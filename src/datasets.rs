@@ -62,7 +62,7 @@ impl Data {
 
 pub trait Dataset {
     fn name(&self) -> String;
-    // fn attributes(&self) -> impl Iterator<Item=String>;
+    fn attributes(&self) -> Box<dyn Iterator<Item=Result<&str, std::io::Error>>>;
 
     fn das(&self) -> Result<Response<Body>, hyper::http::Error> {
         debug!("building Data Attribute Structure (DAS)");
@@ -73,14 +73,14 @@ pub trait Dataset {
         use itertools::Itertools;
 
         let attrs = iter::once(
-            "Attributes {").chain(iter::once(
-            "}"))
+            "Attributes {")
+            .chain(self.attributes().map(|c| c.unwrap()))
+            .chain(iter::once("}"))
             .intersperse("\n")
             .map(|c| Ok::<_,Error>(c));
 
         let s = stream::iter(attrs);
         let body = Body::wrap_stream(s);
-
 
         Response::builder().body(body)
     }

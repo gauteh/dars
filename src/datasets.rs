@@ -1,8 +1,9 @@
 use hyper::{Response, Body, StatusCode};
+use super::nc::NcDataset;
 
 pub struct Data {
     pub root: String,
-    pub datasets: Vec<Box<dyn Dataset + Send + Sync>>
+    pub datasets: Vec<NcDataset>
 }
 
 enum DsRequestType {
@@ -49,6 +50,7 @@ impl Data {
                 debug!("found dataset: {}", ds.name());
                 match dst {
                     DsRequestType::Das => ds.das(),
+
                     _ => Response::builder().status(StatusCode::NOT_IMPLEMENTED).body(Body::empty())
                 }
             },
@@ -62,28 +64,6 @@ impl Data {
 
 pub trait Dataset {
     fn name(&self) -> String;
-    fn attributes(&self) -> Box<dyn Iterator<Item=Result<&str, std::io::Error>>>;
-
-    fn das(&self) -> Result<Response<Body>, hyper::http::Error> {
-        debug!("building Data Attribute Structure (DAS)");
-
-        use std::iter;
-        use futures_util::stream::{self, StreamExt};
-        use std::io::Error;
-        use itertools::Itertools;
-
-        let attrs = iter::once(
-            "Attributes {")
-            .chain(self.attributes().map(|c| c.unwrap()))
-            .chain(iter::once("}"))
-            .intersperse("\n")
-            .map(|c| Ok::<_,Error>(c));
-
-        let s = stream::iter(attrs);
-        let body = Body::wrap_stream(s);
-
-        Response::builder().body(body)
-    }
 
     fn dds(&self) -> String {
         panic!("Not implemented.")

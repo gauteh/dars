@@ -29,8 +29,7 @@ async fn main() -> Result<(), anyhow::Error> {
         let mut data = rdata.write().unwrap();
 
         data.datasets.push(
-            Box::new(
-                nc::NcDataset::open("data/coads_climatology.nc".to_string()).unwrap()));
+                nc::NcDataset::open("data/coads_climatology.nc".to_string()).unwrap());
     }
 
     let addr = ([127, 0, 0, 1], 8001).into();

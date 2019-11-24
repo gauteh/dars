@@ -17,6 +17,9 @@ lazy_static! {
     pub static ref DATA: Arc<RwLock<Data>> = Arc::new(RwLock::new(Data::init()));
 }
 
+// TODO: experiment with a larger thread-pool. a lot of requests will rely on file IO which
+// are just going to be blocking anyway. or are these handled by blocking_threads(..)
+// anyways?
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     use env_logger::Env;

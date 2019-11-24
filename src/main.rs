@@ -19,8 +19,8 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    std::env::set_var("RUST_LOG", "dars=debug");
-    env_logger::init();
+    use env_logger::Env;
+    env_logger::from_env(Env::default().default_filter_or("dars=debug")).init();
 
     info!("Hello, world!");
 
@@ -57,24 +57,5 @@ async fn main() -> Result<(), anyhow::Error> {
 
     info!("Listening on http://{}", addr);
     server.await.map_err(|e| anyhow!("SDf"))
-
-    // let mut dr = tide::App::with_state(data);
-    // dr.middleware(tide::middleware::RootLogger::new());
-
-    // dr.at("/catalog.xml").get(catalog::catalog);
-    // dr.at("/data/:dataset").get(datasets::Data::dataset);
-    // dr.at("/data").nest(
-    //     |r| data.datasets.iter().for_each(
-    //         |d| d.at(r) ));
-
-    /* - cache datasets
-     * - das
-     * - dds
-     * - dods (netcdf)
-     * - full file
-     * - ascii (optional)
-     */
-
-    // dr.serve("127.0.0.1:8001").or_else(|_e| Err(anyhow!("Failed to run server")))
 }
 

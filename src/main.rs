@@ -1,3 +1,23 @@
+/* Some notes:
+ *
+ * host env:
+ * - Allow lots of open files in host env
+ * - chroot process
+ * - not root, not even in docker
+ * - mount data RO into chroot
+ *
+ * design:
+ * - probably preload meta-data like attributes and variables in order
+ *   to avoid file opens.
+ * - need a way to determine if file has changed (mtime), is this
+ *   syscall as slow as open? hopefully not.
+ * - use mtime on dir to track new files.
+ *
+ * testing:
+ * - use wrk or ab to test, w/o file open wrk gives about 70k request/sec. even including the
+ * arc and locks.
+ *
+ */
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
 #[macro_use] extern crate anyhow;
@@ -7,6 +27,7 @@ use hyper::{
     Server, Body, Response, Error, Request, Method, StatusCode,
     service::{service_fn, make_service_fn}
 };
+use futures::FutureExt;
 
 pub mod datasets;
 mod nc;
@@ -51,7 +72,8 @@ async fn main() -> Result<(), anyhow::Error> {
                         }
                     }
                 }
-            }))
+            }
+            ))
     });
 
 

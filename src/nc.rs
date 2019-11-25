@@ -1,16 +1,19 @@
 use hyper::{Response, Body, StatusCode};
 use futures_util::stream::{self, Stream, StreamExt};
-use futures::task::{Context, Poll};
-use futures::{Future, FutureExt, future::Ready};
-use futures::stream::FuturesOrdered;
+use futures::{Future, FutureExt};
 use std::iter::FromIterator;
-use futures_util::future::*;
 use std::sync::{Arc, Mutex};
-use std::pin::Pin;
 use netcdf;
 use anyhow;
+use async_trait::async_trait;
 
 use super::Dataset;
+
+fn ok<S>(x: S) -> Result<String, std::io::Error>
+    where S: Into<String>
+{
+    Ok::<_, std::io::Error>(x.into())
+}
 
 struct NcDas {
     f: Arc<Mutex<netcdf::file::File>>
@@ -44,17 +47,6 @@ pub struct NcDataset {
     pub mtime: std::time::SystemTime
 }
 
-impl Dataset for NcDataset {
-    fn name(&self) -> String {
-        self.filenames[0].clone()
-    }
-}
-
-fn ok<S>(x: S) -> Result<String, std::io::Error>
-    where S: Into<String>
-{
-    Ok::<_, std::io::Error>(x.into())
-}
 
 impl NcDataset {
     pub fn open(filename: String) -> anyhow::Result<NcDataset> {
@@ -78,8 +70,15 @@ impl NcDataset {
             mtime: mtime
         })
     }
+}
 
-    pub fn das(&self) -> Result<Response<Body>, hyper::http::Error> {
+#[async_trait]
+impl Dataset for NcDataset {
+    fn name(&self) -> String {
+        self.filenames[0].clone()
+    }
+
+    async fn das(&self) -> Result<Response<Body>, hyper::http::Error> {
         debug!("building Data Attribute Structure (DAS)");
 
         let s = stream::once(
@@ -92,7 +91,6 @@ impl NcDataset {
 
         Response::builder().body(body)
     }
-
 }
 
 #[cfg(test)]

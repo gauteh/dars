@@ -1,9 +1,10 @@
 use hyper::{Response, Body, StatusCode};
-use super::nc::NcDataset;
+use async_trait::async_trait;
+use std::sync::Arc;
 
 pub struct Data {
     pub root: String,
-    pub datasets: Vec<NcDataset>
+    pub datasets: Vec<Arc<dyn Dataset + Send + Sync>>
 }
 
 enum DsRequestType {
@@ -42,14 +43,21 @@ impl Data {
         let DsRequest(ds, dst) = Data::parse_request(ds);
 
         debug!("looking for dataset: {}", ds);
-        let rdata = DATA.clone();
-        let data = rdata.read().unwrap();
+        let ds = {
+            let rdata = DATA.clone();
+            let data = rdata.read().unwrap();
 
-        match data.datasets.iter().find(|&d| d.name() == ds) {
+            match data.datasets.iter().find(|&d| d.name() == ds) {
+                Some(ds) => Some(ds.clone()),
+                _ => None
+            }
+        };
+
+        match ds {
             Some(ds) => {
                 debug!("found dataset: {}", ds.name());
                 match dst {
-                    DsRequestType::Das => ds.das(),
+                    DsRequestType::Das => ds.das().await,
 
                     _ => Response::builder().status(StatusCode::NOT_IMPLEMENTED).body(Body::empty())
                 }
@@ -62,8 +70,11 @@ impl Data {
     }
 }
 
+#[async_trait]
 pub trait Dataset {
     fn name(&self) -> String;
+
+    async fn das(&self) -> Result<Response<Body>, hyper::http::Error>;
 
     fn dds(&self) -> String {
         panic!("Not implemented.")

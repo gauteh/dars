@@ -5,7 +5,6 @@ name = "dars"
 version = "0.1.0"
 [dependencies]
 anyhow = "1.0.22"
-async-std = "*"
 async-trait = "*"
 env_logger = "0.7.1"
 futures = "0.3.1"
@@ -20,3 +19,7 @@ tokio = "0.2.0-alpha.6"
 [dependencies.hyper]
 features = ["unstable-stream"]
 git = "https://github.com/hyperium/hyper"
+
+[dependencies.async-std]
+version = "*"
+features = ["unstable"]

@@ -3,9 +3,11 @@ use futures_util::stream::{self, Stream, StreamExt};
 use futures::{Future, FutureExt};
 use std::iter::FromIterator;
 use std::sync::{Arc, Mutex};
+use std::pin::Pin;
 use netcdf;
 use anyhow;
 use async_trait::async_trait;
+use async_std::task;
 
 use super::Dataset;
 
@@ -17,50 +19,51 @@ fn ok<S>(x: S) -> Result<String, std::io::Error>
 
 struct NcDas {
     f: String,
-    mtime: std::time::SystemTime
+    globals:Arc<Mutex<Vec<String>>>,
 }
 
 impl NcDas {
-    pub async fn build(ds: &NcDataset) -> std::io::Result<NcDas> {
+    fn format_attr(a: &netcdf::Attribute) -> String {
+        use netcdf::attribute::AttrValue::*;
+
+        match a.value() {
+            Ok(Str(s)) => format!("String {} \"{}\"\n", a.name(), s), // TODO: escape
+
+            _ => "".to_string()
+        }
+    }
+
+    pub async fn build(ds: &NcDataset) -> anyhow::Result<NcDas> {
         debug!("opening: {} to build das", ds.filenames[0]);
         let p = format!("data/{}", ds.filenames[0]);
 
+        let k = p.clone();
+        let nc = task::spawn_blocking(move || {
+            netcdf::open(k)
+        }).await?;
+
+
         let mut n = NcDas {
-            f: p,
-            mtime: ds.mtime
+            f: p.clone(),
+            globals: Arc::new(Mutex::new(nc.attributes().map(NcDas::format_attr).collect()))
+
         };
-        n.rebuild().await?;
 
         Ok(n)
     }
 
-    async fn rebuild(&mut self) -> std::io::Result<()> {
-        use async_std::fs;
-
-        let mt = fs::metadata(&self.f).await?;
-        self.mtime = mt.modified().unwrap();
-
-
-        Ok(())
-    }
-
     pub async fn stream(&self) -> impl Stream<Item=Result<String, std::io::Error>> + 'static {
-        use async_std::fs;
+        // let globals: Vec<Result<String, std::io::Error>> = self.globals.iter().map(ok).collect();
 
-        let mt = fs::metadata(&self.f).await.unwrap();
+        let gl = self.globals.lock().unwrap();
+        let g = gl.clone();
 
-        if mt.modified().unwrap() > self.mtime {
-            // self.rebuild().await;
-        }
-        // let f = self.f.clone();
-        // let m = f.lock().unwrap();
-        // let globals: Vec<Result<String, std::io::Error>> = m.attributes().map(|a|
-        //     ok(format!("\t\tString {} {:?}\n", a.name(), a.value().unwrap()))
-        //     ).collect();
+        let globals = g.iter().map(ok);
 
-        stream::once(async { ok("\tNC_GLOBAL {\n") })
-        // .chain(stream::iter(globals))
-        .chain(stream::once(async { ok("\t}\n") }))
+
+        stream::once(async { ok("   NC_GLOBAL {\n") })
+        .chain(stream::iter(globals))
+        .chain(stream::once(async { ok("   }\n") }))
     }
 }
 

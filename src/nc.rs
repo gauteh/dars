@@ -18,7 +18,7 @@ fn ok<S>(x: S) -> Result<String, std::io::Error>
 }
 
 struct NcDas {
-    das: String
+    das: Arc<Mutex<String>>
 }
 
 impl NcDas {
@@ -49,7 +49,7 @@ impl NcDas {
         das.push_str("}");
 
         Ok(NcDas {
-            das: das
+            das: Arc::new(Mutex::new(das))
         })
     }
 }
@@ -90,8 +90,12 @@ impl Dataset for NcDataset {
         debug!("building Data Attribute Structure (DAS)");
 
         // XXX: is it possible to get rid of this clone?
+        let f = Arc::clone(&self.das.das);
+        let k: String = f.lock().unwrap().to_string();
 
-        Response::builder().body(Body::from(self.das.das.clone()))
+        let b = Body::from(k);
+
+        Response::builder().body(b)
     }
 }
 

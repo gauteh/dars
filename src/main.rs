@@ -55,6 +55,9 @@ async fn main() -> Result<(), anyhow::Error> {
         data.datasets.push(
             Arc::new(
                 nc::NcDataset::open("data/coads_climatology.nc".to_string()).unwrap()));
+        data.datasets.push(
+            Arc::new(
+                nc::NcDataset::open("data/testData.nc".to_string()).unwrap()));
     }
 
     let addr = ([127, 0, 0, 1], 8001).into();

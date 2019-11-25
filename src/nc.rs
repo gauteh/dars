@@ -16,28 +16,51 @@ fn ok<S>(x: S) -> Result<String, std::io::Error>
 }
 
 struct NcDas {
-    f: Arc<Mutex<netcdf::file::File>>
+    f: String,
+    mtime: std::time::SystemTime
 }
 
 impl NcDas {
-    pub fn build(ds: &NcDataset) -> NcDas {
+    pub async fn build(ds: &NcDataset) -> std::io::Result<NcDas> {
         debug!("opening: {} to build das", ds.filenames[0]);
         let p = format!("data/{}", ds.filenames[0]);
-        NcDas {
-            f: Arc::new(Mutex::new(netcdf::open(p).unwrap()))
-        }
+
+        let mut n = NcDas {
+            f: p,
+            mtime: ds.mtime
+        };
+        n.rebuild().await?;
+
+        Ok(n)
     }
 
-    pub fn stream(&self) -> impl Stream<Item=Result<String, std::io::Error>> + 'static {
-        let f = self.f.clone();
-        let m = f.lock().unwrap();
-        let globals: Vec<Result<String, std::io::Error>> = m.attributes().map(|a|
-            ok(format!("\t\tString {} {:?}\n", a.name(), a.value().unwrap()))
-            ).collect();
+    async fn rebuild(&mut self) -> std::io::Result<()> {
+        use async_std::fs;
 
-        stream::once(async { ok("\tNC_GLOBAL {\n") }).chain(
-        stream::iter(globals)).chain(
-        stream::once(async { ok("\t}\n") }))
+        let mt = fs::metadata(&self.f).await?;
+        self.mtime = mt.modified().unwrap();
+
+
+        Ok(())
+    }
+
+    pub async fn stream(&self) -> impl Stream<Item=Result<String, std::io::Error>> + 'static {
+        use async_std::fs;
+
+        let mt = fs::metadata(&self.f).await.unwrap();
+
+        if mt.modified().unwrap() > self.mtime {
+            // self.rebuild().await;
+        }
+        // let f = self.f.clone();
+        // let m = f.lock().unwrap();
+        // let globals: Vec<Result<String, std::io::Error>> = m.attributes().map(|a|
+        //     ok(format!("\t\tString {} {:?}\n", a.name(), a.value().unwrap()))
+        //     ).collect();
+
+        stream::once(async { ok("\tNC_GLOBAL {\n") })
+        // .chain(stream::iter(globals))
+        .chain(stream::once(async { ok("\t}\n") }))
     }
 }
 
@@ -46,7 +69,6 @@ pub struct NcDataset {
     pub filenames: Vec<String>,
     pub mtime: std::time::SystemTime
 }
-
 
 impl NcDataset {
     pub fn open(filename: String) -> anyhow::Result<NcDataset> {
@@ -83,7 +105,7 @@ impl Dataset for NcDataset {
 
         let s = stream::once(
             async { ok(String::from("Attributes {\n")) })
-            .chain(NcDas::build(self).stream())
+            .chain(NcDas::build(self).await.unwrap().stream().await)
             .chain(stream::once(
                 async { ok(String::from("}\n")) }));
 

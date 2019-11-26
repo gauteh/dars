@@ -24,10 +24,9 @@
 
 use std::sync::{Arc,RwLock};
 use hyper::{
-    Server, Body, Response, Error, Request, Method, StatusCode,
+    Server, Body, Response, Error, Method, StatusCode,
     service::{service_fn, make_service_fn}
 };
-use futures::FutureExt;
 
 pub mod datasets;
 mod nc;
@@ -46,7 +45,7 @@ async fn main() -> Result<(), anyhow::Error> {
     use env_logger::Env;
     env_logger::from_env(Env::default().default_filter_or("dars=debug")).init();
 
-    info!("Hello, world!");
+    info!("Hello DAP World!");
 
     {
         let rdata = DATA.clone();
@@ -58,6 +57,9 @@ async fn main() -> Result<(), anyhow::Error> {
         data.datasets.push(
             Arc::new(
                 nc::NcDataset::open("data/testData.nc".to_string()).unwrap()));
+        data.datasets.push(
+            Arc::new(
+                nc::NcDataset::open("data/meps_det_vc_2_5km_latest.nc".to_string()).unwrap()));
     }
 
     let addr = ([127, 0, 0, 1], 8001).into();
@@ -85,6 +87,6 @@ async fn main() -> Result<(), anyhow::Error> {
         .serve(msvc);
 
     info!("Listening on http://{}", addr);
-    server.await.map_err(|e| anyhow!("SDf"))
+    server.await.map_err(|e| anyhow!(e))
 }
 

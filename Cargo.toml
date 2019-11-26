@@ -14,12 +14,13 @@ itertools = "*"
 lazy_static = "*"
 log = "0.4.8"
 netcdf = "0.3.1"
+netcdf-sys = "*"
 tokio = "0.2.0-alpha.6"
+
+[dependencies.async-std]
+features = ["unstable"]
+version = "*"
 
 [dependencies.hyper]
 features = ["unstable-stream"]
 git = "https://github.com/hyperium/hyper"
-
-[dependencies.async-std]
-version = "*"
-features = ["unstable"]

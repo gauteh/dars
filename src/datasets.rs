@@ -58,6 +58,7 @@ impl Data {
                 debug!("found dataset: {}", ds.name());
                 match dst {
                     DsRequestType::Das => ds.das().await,
+                    DsRequestType::Dds => ds.dds(req.uri().query().map(|s| s.to_string())).await,
 
                     _ => Response::builder().status(StatusCode::NOT_IMPLEMENTED).body(Body::empty())
                 }
@@ -76,9 +77,7 @@ pub trait Dataset {
 
     async fn das(&self) -> Result<Response<Body>, hyper::http::Error>;
 
-    fn dds(&self) -> String {
-        panic!("Not implemented.")
-    }
+    async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
 
     fn dods(&self) -> String {
         panic!("Not implemented.")
@@ -89,6 +88,7 @@ pub trait Dataset {
     }
 
     fn nc(&self) -> String {
+        // serve file
         panic!("Not implemented.")
     }
 }

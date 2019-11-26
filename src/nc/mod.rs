@@ -1,15 +1,13 @@
-use hyper::{Response, Body, StatusCode};
-use futures_util::stream::{self, Stream, StreamExt};
-use futures::{Future, FutureExt};
-use std::iter::FromIterator;
-use std::sync::{Arc, Mutex};
-use std::pin::Pin;
+use hyper::{Response, Body};
+use std::sync::Arc;
 use netcdf;
 use anyhow;
 use async_trait::async_trait;
-use async_std::task;
 
 use super::Dataset;
+
+mod dds;
+use dds::*;
 
 struct NcDas {
     das: Arc<String>
@@ -76,7 +74,8 @@ impl NcDas {
 pub struct NcDataset {
     pub filename: String,
     pub mtime: std::time::SystemTime,
-    das: NcDas
+    das: NcDas,
+    dds: NcDds
 }
 
 impl NcDataset {
@@ -89,11 +88,13 @@ impl NcDataset {
         debug!("{}: mtime: {:?}", filename, mtime.elapsed().unwrap());
 
         let das = NcDas::build(filename.clone())?;
+        let dds = NcDds::build(filename.clone())?;
 
         Ok(NcDataset {
             filename: String::from(filename.trim_start_matches("data/")),
             mtime: mtime,
-            das: das
+            das: das,
+            dds: dds
         })
     }
 }
@@ -108,6 +109,11 @@ impl Dataset for NcDataset {
         let a = self.das.das.clone();
 
         Response::builder().body(Body::from(a.to_string()))
+    }
+
+    async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
+        let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
+        Response::builder().body(Body::from(self.dds.dds(query)))
     }
 }
 

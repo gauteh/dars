@@ -24,8 +24,10 @@ impl NcDas {
         match a.value() {
             Ok(Str(s)) =>   format!("{}String {} \"{}\";\n", " ".repeat(indent), a.name(), s),
             Ok(Float(f)) => format!("{}Float32 {} {:+E};\n", " ".repeat(indent), a.name(), f),
+            Ok(Double(f)) => format!("{}Float64 {} {:+E};\n", " ".repeat(indent), a.name(), f),
 
-            _ => "".to_string()
+            Ok(v) => format!("{}Unimplemented {} {:?};\n", " ".repeat(indent), a.name(), v),
+            Err(_) => "Err".to_string()
         }
     }
 

@@ -18,7 +18,7 @@ fn ok<S>(x: S) -> Result<String, std::io::Error>
 }
 
 struct NcDas {
-    das: Arc<Mutex<String>>
+    das: Arc<String>
 }
 
 impl NcDas {
@@ -49,7 +49,7 @@ impl NcDas {
         das.push_str("}");
 
         Ok(NcDas {
-            das: Arc::new(Mutex::new(das))
+            das: Arc::new(das)
         })
     }
 }
@@ -89,13 +89,9 @@ impl Dataset for NcDataset {
     async fn das(&self) -> Result<Response<Body>, hyper::http::Error> {
         debug!("building Data Attribute Structure (DAS)");
 
-        // XXX: is it possible to get rid of this clone?
-        let f = Arc::clone(&self.das.das);
-        let k: String = f.lock().unwrap().to_string();
+        let a = self.das.das.clone();
 
-        let b = Body::from(k);
-
-        Response::builder().body(b)
+        Response::builder().body(Body::from(a.to_string()))
     }
 }
 

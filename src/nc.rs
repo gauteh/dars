@@ -60,8 +60,7 @@ impl NcDas {
 }
 
 pub struct NcDataset {
-    /* a dataset may consist of several files */
-    pub filenames: Vec<String>,
+    pub filename: String,
     pub mtime: std::time::SystemTime,
     das: NcDas
 }
@@ -78,7 +77,7 @@ impl NcDataset {
         let das = NcDas::build(filename.clone())?;
 
         Ok(NcDataset {
-            filenames: vec![String::from(filename.trim_start_matches("data/"))],
+            filename: String::from(filename.trim_start_matches("data/")),
             mtime: mtime,
             das: das
         })
@@ -88,7 +87,7 @@ impl NcDataset {
 #[async_trait]
 impl Dataset for NcDataset {
     fn name(&self) -> String {
-        self.filenames[0].clone()
+        self.filename.clone()
     }
 
     async fn das(&self) -> Result<Response<Body>, hyper::http::Error> {

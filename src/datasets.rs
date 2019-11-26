@@ -79,16 +79,10 @@ pub trait Dataset {
 
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
 
-    fn dods(&self) -> String {
-        panic!("Not implemented.")
-    }
+    async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
 
-    fn ascii(&self) -> String {
-        panic!("Not implemented.")
-    }
-
-    fn nc(&self) -> String {
-        // serve file
-        panic!("Not implemented.")
-    }
+    // async fn nc(&self) -> String {
+    //     // serve full file
+    //     unimplemented!();
+    // }
 }

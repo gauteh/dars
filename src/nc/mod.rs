@@ -7,7 +7,10 @@ use async_trait::async_trait;
 use super::Dataset;
 
 mod dds;
+mod dods;
+
 use dds::*;
+use dods::*;
 
 struct NcDas {
     das: Arc<String>
@@ -113,7 +116,21 @@ impl Dataset for NcDataset {
 
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
         let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
-        Response::builder().body(Body::from(self.dds.dds(query)))
+        Response::builder().body(Body::from(self.dds.dds(&query)))
+    }
+
+    async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
+        let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
+
+        let dds = self.dds.dds(&query);
+
+        use futures::stream::{self, Stream, StreamExt};
+        let i = (1..5).map(|x| async move { Ok::<_, std::io::Error>(x.to_string()) });
+        let f: futures::stream::FuturesOrdered<_> = i.collect();
+
+        let b = Body::wrap_stream(f);
+
+        Response::builder().body(b)
     }
 }
 

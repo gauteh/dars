@@ -84,7 +84,7 @@ impl NcDds {
         Ok(NcDds { f: f, vars: Arc::new(map) })
     }
 
-    pub fn dds(&self, vars: Option<Vec<String>>) -> String {
+    pub fn dds(&self, vars: &Option<Vec<String>>) -> String {
         let dds: String = {
             if let Some(vars) = vars {
                 vars.iter().map(|v| self.vars[v].clone()).collect::<String>()

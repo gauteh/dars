@@ -19,8 +19,10 @@ impl NcDas {
     fn format_attr(indent: usize, a: &netcdf::Attribute) -> String {
         use netcdf::attribute::AttrValue::*;
 
+        // TODO: escape names and values
+
         match a.value() {
-            Ok(Str(s)) =>   format!("{}String {} \"{}\";\n", " ".repeat(indent), a.name(), s), // TODO: escape
+            Ok(Str(s)) =>   format!("{}String {} \"{}\";\n", " ".repeat(indent), a.name(), s),
             Ok(Float(f)) => format!("{}Float32 {} {:+E};\n", " ".repeat(indent), a.name(), f),
 
             _ => "".to_string()
@@ -48,6 +50,16 @@ impl NcDas {
         for var in nc.variables() {
             das.push_str(&format!("    {} {{\n", var.name()));
             NcDas::push_attr(2*indent, &mut das, var.attributes());
+            das.push_str("    }\n");
+        }
+
+        // TODO: Groups
+
+        if nc.dimensions().any(|d| d.is_unlimited()) {
+            das.push_str("    DODS_EXTRA {\n");
+            for dim in nc.dimensions() {
+                das.push_str(&format!("        String Unlimited_Dimension \"{}\";\n", dim.name()));
+            }
             das.push_str("    }\n");
         }
 

@@ -58,13 +58,14 @@ impl NcDas {
 
         // TODO: Groups
 
-        if nc.dimensions().any(|d| d.is_unlimited()) {
-            das.push_str("    DODS_EXTRA {\n");
-            for dim in nc.dimensions() {
-                das.push_str(&format!("        String Unlimited_Dimension \"{}\";\n", dim.name()));
-            }
-            das.push_str("    }\n");
-        }
+        // XXX: maybe not needed for RO?
+        // if nc.dimensions().any(|d| d.is_unlimited()) {
+        //     das.push_str("    DODS_EXTRA {\n");
+        //     for dim in nc.dimensions() {
+        //         das.push_str(&format!("        String Unlimited_Dimension \"{}\";\n", dim.name()));
+        //     }
+        //     das.push_str("    }\n");
+        // }
 
         das.push_str("}");
 
@@ -109,17 +110,20 @@ impl Dataset for NcDataset {
     }
 
     async fn das(&self) -> Result<Response<Body>, hyper::http::Error> {
+        debug!("get DAS: {}", self.name());
         let a = self.das.das.clone();
 
         Response::builder().body(Body::from(a.to_string()))
     }
 
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
+        debug!("get DDS: {}", self.name());
         let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
         Response::builder().body(Body::from(self.dds.dds(&query)))
     }
 
     async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
+        debug!("get DODS: {}", self.name());
         let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
 
         let dds = self.dds.dds(&query);

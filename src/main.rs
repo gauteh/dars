@@ -67,6 +67,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let msvc = make_service_fn(|_| async move {
         Ok::<_, Error>(
             service_fn(|req| async move {
+                debug!("{} {}", req.method(), req.uri());
                 match (req.method(), req.uri().path()) {
                     (&Method::GET, "/catalog.xml") => Response::builder().status(StatusCode::NOT_IMPLEMENTED).body(Body::empty()),
                     (&Method::GET, "/") => Response::builder().body(Body::from("Hello world")),

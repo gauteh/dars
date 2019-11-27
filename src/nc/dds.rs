@@ -23,7 +23,7 @@ impl NcDds {
 
     fn format_var(indent: usize, var: &netcdf::Variable) -> String {
         if var.dimensions().len() >= 1 {
-            format!("{}{} {}[{} = {}]",
+            format!("{}{} {}[{} = {}];",
                     " ".repeat(indent),
                     NcDds::vartype_str(var.vartype()),
                     var.name(),

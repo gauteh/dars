@@ -87,7 +87,7 @@ impl NcDds {
     pub fn dds(&self, vars: &Option<Vec<String>>) -> String {
         let dds: String = {
             if let Some(vars) = vars {
-                vars.iter().map(|v| self.vars[v].clone()).collect::<String>()
+                vars.iter().map(|v| self.vars[v.split("[").next().unwrap_or(v)].clone()).collect::<String>()
             } else {
                 self.vars.values().map(|v| v.clone()).collect::<String>()
             }

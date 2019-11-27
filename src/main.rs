@@ -27,6 +27,7 @@ use hyper::{
     Server, Body, Response, Error, Method, StatusCode,
     service::{service_fn, make_service_fn}
 };
+use colored::Colorize;
 
 pub mod datasets;
 mod nc;
@@ -67,8 +68,10 @@ async fn main() -> Result<(), anyhow::Error> {
     let msvc = make_service_fn(|_| async move {
         Ok::<_, Error>(
             service_fn(|req| async move {
-                debug!("{} {}", req.method(), req.uri());
-                match (req.method(), req.uri().path()) {
+                let m = req.method().clone();
+                let u = req.uri().clone();
+
+                let r = match (req.method(), req.uri().path()) {
                     (&Method::GET, "/catalog.xml") => Response::builder().status(StatusCode::NOT_IMPLEMENTED).body(Body::empty()),
                     (&Method::GET, "/") => Response::builder().body(Body::from("Hello world")),
                     _ => {
@@ -78,7 +81,19 @@ async fn main() -> Result<(), anyhow::Error> {
                             Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
                         }
                     }
-                }
+                };
+
+                let s = match &r {
+                    Ok(ir) => match ir.status().is_success() {
+                        true => ir.status().to_string().yellow(),
+                        false => ir.status().to_string().red()
+                    },
+                    Err(e) => e.to_string().red()
+                };
+
+                debug!("{} {} -> {}", m.to_string().blue(), u, s);
+
+                r
             }
             ))
     });

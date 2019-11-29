@@ -31,6 +31,7 @@ use colored::Colorize;
 
 pub mod datasets;
 mod nc;
+mod dap2;
 
 use datasets::{Data, Dataset};
 

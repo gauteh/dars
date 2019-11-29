@@ -123,16 +123,21 @@ impl Dataset for NcDataset {
     }
 
     async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
+        use futures::stream::{self, Stream, StreamExt};
+
         debug!("get DODS: {}", self.name());
         let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
 
         let dds = self.dds.dds(&query);
 
-        use futures::stream::{self, Stream, StreamExt};
-        let i = (1..5).map(|x| async move { Ok::<_, std::io::Error>(x.to_string()) });
-        let f: futures::stream::FuturesOrdered<_> = i.collect();
+        let s = stream::once(async { Ok::<_,std::io::Error>(dds) }).chain(
+                stream::once(async { Ok::<_,std::io::Error>("Data:\r\n".to_string()) }));
 
-        let b = Body::wrap_stream(f);
+
+        // let i = (1..5).map(|x| async move { Ok::<_, std::io::Error>(x.to_string()) });
+        // let f: futures::stream::FuturesOrdered<_> = i.collect();
+
+        let b = Body::wrap_stream(s);
 
         Response::builder().body(b)
     }

@@ -129,14 +129,22 @@ impl Dataset for NcDataset {
         let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
 
         let dds = self.dds.dds(&query).into_bytes();
-        let data = query.unwrap().iter().map(|v|
+        let data = query.clone().unwrap().iter().map(|v|
             dods::var_xdr(&self.filename, v)).flatten().collect();
+
+        let f = self.filename.clone();
+        let q = query.unwrap().clone();
+
+        // let dataa = dods::xdr(f.clone(), q);
 
         let s = stream::once(async move {
             Ok::<_,std::io::Error>(dds)
         }).chain(
-                stream::once(async { Ok::<_,std::io::Error>(String::from("\nData:\r\n").into_bytes()) })).chain(
-                stream::once(async { Ok::<_,std::io::Error>(data) }));
+                stream::once(async { Ok::<_,std::io::Error>(String::from("\nData:\r\n").into_bytes()) }))
+        .chain(
+            stream::once(async { Ok::<_,std::io::Error>(data) }));
+        // .chain(
+        //         dataa.map(|v| Ok::<_,std::io::Error>(v)));
 
 
         // let i = (1..5).map(|x| async move { Ok::<_, std::io::Error>(x.to_string()) });

@@ -18,6 +18,7 @@ netcdf = "0.3.1"
 netcdf-sys = "*"
 tokio = "0.2.0-alpha.6"
 xdr-codec = "0.4.4"
+async-stream = "0.2.0"
 
 [dependencies.async-std]
 features = ["unstable"]

@@ -18,6 +18,7 @@
  * arc and locks.
  *
  */
+#![recursion_limit="256"]
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
 #[macro_use] extern crate anyhow;

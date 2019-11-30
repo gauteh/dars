@@ -14,4 +14,4 @@ def test_fetch_time_variable():
 def test_slice_time_variable():
   d = Dataset("http://localhost:8001/data/coads_climatology.nc")
   t = d.variables['TIME']
-  print (t[0:5])
+  print (t[:])

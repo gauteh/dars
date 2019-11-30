@@ -59,7 +59,7 @@ impl Data {
                 match dst {
                     DsRequestType::Das => ds.das().await,
                     DsRequestType::Dds => ds.dds(req.uri().query().map(|s| s.to_string())).await,
-                    DsRequestType::Dods => ds.dds(req.uri().query().map(|s| s.to_string())).await,
+                    DsRequestType::Dods => ds.dods(req.uri().query().map(|s| s.to_string())).await,
 
                     _ => Response::builder().status(StatusCode::NOT_IMPLEMENTED).body(Body::empty())
                 }

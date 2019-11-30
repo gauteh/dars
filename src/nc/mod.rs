@@ -128,10 +128,15 @@ impl Dataset for NcDataset {
         debug!("get DODS: {}", self.name());
         let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
 
-        let dds = self.dds.dds(&query);
+        let dds = self.dds.dds(&query).into_bytes();
+        let data = query.unwrap().iter().map(|v|
+            dods::var_xdr(&self.filename, v)).flatten().collect();
 
-        let s = stream::once(async { Ok::<_,std::io::Error>(dds) }).chain(
-                stream::once(async { Ok::<_,std::io::Error>("Data:\r\n".to_string()) }));
+        let s = stream::once(async move {
+            Ok::<_,std::io::Error>(dds)
+        }).chain(
+                stream::once(async { Ok::<_,std::io::Error>(String::from("\nData:\r\n").into_bytes()) })).chain(
+                stream::once(async { Ok::<_,std::io::Error>(data) }));
 
 
         // let i = (1..5).map(|x| async move { Ok::<_, std::io::Error>(x.to_string()) });
@@ -156,7 +161,29 @@ mod test {
     fn open_dataset() {
         init();
 
-        let f = NcDataset::open("data/coads_climatology.nc".to_string()).unwrap();
+        NcDataset::open("data/coads_climatology.nc".to_string()).unwrap();
+    }
+
+    #[test]
+    fn serialize_to_xdr() {
+        use std::io::Cursor;
+        use xdr_codec;
+
+        let f = netcdf::open("data/coads_climatology.nc".to_string()).unwrap();
+
+        let v = f.variable("TIME").unwrap();
+        println!("variable length: {}", v.len());
+
+        let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        let mut vbuf: Vec<f32> = vec![0.0; 12];
+        // let mut bf = Vec::new();
+        // let a = v.values::<f32>(Some(&[0, 1]), Some(&[5])).unwrap();
+        v.values_to(&mut vbuf, Some(&[0]), Some(&[12])).unwrap();
+        println!("array: {:?}", vbuf);
+
+        xdr_codec::pack_array(&vbuf, vbuf.len(), &mut buf, None).unwrap();
+        println!("serialized: {:?}", buf.into_inner());
+
     }
 }
 

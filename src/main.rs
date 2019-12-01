@@ -19,6 +19,10 @@
  *
  */
 #![recursion_limit="256"]
+
+#![feature(test)]
+extern crate test;
+
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
 #[macro_use] extern crate anyhow;
@@ -48,7 +52,7 @@ async fn main() -> Result<(), anyhow::Error> {
     use env_logger::Env;
     env_logger::from_env(Env::default().default_filter_or("dars=debug")).init();
 
-    info!("Hello DAP World!");
+    info!("DAP?!");
 
     {
         let rdata = DATA.clone();

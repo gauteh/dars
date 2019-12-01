@@ -76,3 +76,87 @@ pub fn var_xdr(f: &str, v: &str) -> Vec<u8> {
     buf.into_inner()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test::Bencher;
+
+    #[bench]
+    fn open_nc(b: &mut Bencher) {
+        b.iter(|| {
+            let f = netcdf::open("data/coads_climatology.nc").unwrap();
+        });
+    }
+
+    #[bench]
+    fn open_nc_native(b: &mut Bencher) {
+        use std::fs::File;
+        use std::io::prelude::*;
+
+        b.iter(|| {
+            let f = File::open("data/coads_climatology.nc").unwrap();
+
+            f
+        });
+    }
+
+    #[bench]
+    fn read_native_all(b: &mut Bencher) {
+        use std::fs::File;
+        use std::io::prelude::*;
+
+        b.iter(|| {
+            std::fs::read("data/coads_climatology.nc").unwrap()
+        });
+    }
+
+    #[bench]
+    fn read_var_preopen(b: &mut Bencher) {
+        let f = netcdf::open("data/coads_climatology.nc").unwrap();
+        b.iter(|| {
+            let v = f.variable("SST").unwrap();
+
+            let mut vbuf: Vec<f64> = vec![0.0; v.len()];
+            v.values_to(&mut vbuf, None, None).expect("could not read values");
+
+            vbuf
+        });
+    }
+
+    #[bench]
+    fn read_var(b: &mut Bencher) {
+        b.iter(|| {
+            let f = netcdf::open("data/coads_climatology.nc").unwrap();
+            let v = f.variable("SST").unwrap();
+
+            let mut vbuf: Vec<f64> = vec![0.0; v.len()];
+            v.values_to(&mut vbuf, None, None).expect("could not read values");
+
+            vbuf
+        });
+    }
+
+    #[bench]
+    fn xdr_var(b: &mut Bencher) {
+        b.iter(|| {
+            let v = var_xdr(
+                "coads_climatology.nc",
+                "SST");
+        });
+    }
+
+    #[bench]
+    fn xdr_stream(b: &mut Bencher) {
+        use futures::pin_mut;
+        use futures::executor::block_on_stream;
+
+        b.iter(|| {
+            let v = xdr(
+                "coads_climatology.nc".to_string(),
+                vec![ "SST".to_string() ]);
+
+            pin_mut!(v);
+            block_on_stream(v).flatten().collect::<Vec<u8>>()
+        });
+    }
+}

@@ -5,20 +5,22 @@ name = "dars"
 version = "0.1.0"
 [dependencies]
 anyhow = "1.0.22"
+async-stream = "0.2.0"
 async-trait = "*"
 colored = "*"
 env_logger = "0.7.1"
 futures = "0.3.1"
 futures-core = "0.3.1"
 futures-util = "0.3.1"
+hdf5 = "*"
 itertools = "*"
 lazy_static = "*"
 log = "0.4.8"
 netcdf = "0.3.1"
 netcdf-sys = "*"
+serde-xdr = "*"
 tokio = "0.2.0-alpha.6"
 xdr-codec = "0.4.4"
-async-stream = "0.2.0"
 
 [dependencies.async-std]
 features = ["unstable"]

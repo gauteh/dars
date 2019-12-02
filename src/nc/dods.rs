@@ -6,27 +6,51 @@ use futures_util::pin_mut;
 use futures_util::stream::{Stream, StreamExt};
 use std::io::Cursor;
 
-pub fn xdr(f: String, vs: Vec<String>) -> impl Stream<Item = Vec<u8>> {
-    debug!("XDR: {}:{:?}", f, vs);
-
-    let f = f.to_string();
-    // let v = f.to_string();
-
+pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Vec<u8>> {
     stream! {
-        // let nc = Arc::new(task::spawn_blocking(move || {
-        //     netcdf::open(format!("data/{}", f)).expect("could not open file")
-        // }).await);
-        let nc = netcdf::open(format!("data/{}", f)).expect("could not open file");
-
         for v in vs {
-            // let nnc = nc.clone();
-            // let vbuf = task::spawn_blocking(move || {
-                let vv = nc.variable(&v).expect("could not open variable");
-                let mut vbuf: Vec<f64> = vec![0.0; vv.len()];
-                vv.values_to(&mut vbuf, None, None).expect("could not read values");
+            let vv = nc.variable(&v).expect("could not open variable");
+            let mut vbuf: Vec<f64> = vec![0.0; vv.len()];
+            vv.values_to(&mut vbuf, None, None).expect("could not read values");
 
-                // vbuf
-            // }).await;
+            let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(1024*1024*3));
+
+            use xdr_codec::pack;
+
+            pack(&vbuf.len(), &mut buf).expect("could not pack length of array");
+            pack(&vbuf, &mut buf).expect("could not pack XDR");
+
+            yield buf.into_inner();
+        }
+    }
+}
+
+struct NcDods {
+    f: Arc<netcdf::File>,
+    v: Arc<Vec<String>>,
+    i: usize
+}
+
+impl NcDods {
+    pub fn make(f: &str, v: Vec<String>) -> NcDods {
+        NcDods {
+            f: Arc::new(netcdf::open(format!("data/{}", f)).expect("could not open file")),
+            v: Arc::new(v),
+            i: 0
+        }
+    }
+}
+
+impl Iterator for NcDods {
+    type Item = Vec<u8>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.i < self.v.len() {
+
+            let vv = self.f.variable(&self.v[self.i]).expect("could not open variable");
+            let mut vbuf: Vec<f32> = vec![0.0; vv.len()];
+            vv.values_to(&mut vbuf, None, None).expect("could not read values");
+
 
             let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::new());
             use xdr_codec::pack;
@@ -34,30 +58,18 @@ pub fn xdr(f: String, vs: Vec<String>) -> impl Stream<Item = Vec<u8>> {
             pack(&vbuf.len(), &mut buf).unwrap();
             xdr_codec::pack(&vbuf, &mut buf).expect("could not pack XDR");
 
-            yield buf.into_inner();
+            self.i += 1;
+
+            Some(buf.into_inner())
+
+        } else {
+            self.i = 0;
+            None
         }
     }
 }
 
-// struct NcDods;
-
-// constraints
-//
-// * variables
-// * hyperslabs
-
-// impl NcDods {
-    // pub fn parse_hyberslab(q: &str) -> Vec<usize> {
-    //     // [0:10][1:30]
-
-    // }
-
-    // Stream {
-    //     async read; poll ready
-    // }
-// }
 pub fn var_xdr(f: &str, v: &str) -> Vec<u8> {
-    // XXX: Float32 is apparently f64 in xdr world.
     debug!("XDR: {}:{}", f, v);
 
     let f = netcdf::open(format!("data/{}", f)).expect("could not open file");
@@ -129,10 +141,20 @@ mod tests {
             let f = netcdf::open("data/coads_climatology.nc").unwrap();
             let v = f.variable("SST").unwrap();
 
-            let mut vbuf: Vec<f64> = vec![0.0; v.len()];
+            let mut vbuf: Vec<f32> = vec![0.0; v.len()];
             v.values_to(&mut vbuf, None, None).expect("could not read values");
 
             vbuf
+        });
+    }
+
+    #[bench]
+    fn read_var_hdf5(b: &mut Bencher) {
+        let f = hdf5::File::open("data/coads.hdf5.nc", "r").unwrap();
+
+        b.iter(|| {
+            let d = f.dataset("SST").unwrap();
+            let v: Vec<f32> = d.read_raw().unwrap();
         });
     }
 
@@ -156,7 +178,28 @@ mod tests {
                 vec![ "SST".to_string() ]);
 
             pin_mut!(v);
-            block_on_stream(v).flatten().collect::<Vec<u8>>()
+            block_on_stream(v).collect::<Vec<Vec<u8>>>()
+        });
+    }
+
+    #[bench]
+    fn xdr_iter(b: &mut Bencher) {
+        b.iter(|| {
+            let v = NcDods::make("coads_climatology.nc", vec!["SST".to_string()]);
+            v.into_iter().collect::<Vec<Vec<u8>>>()
+        });
+    }
+
+    #[bench]
+    fn pack_xdr(b: &mut Bencher) {
+        let f = netcdf::open("data/coads_climatology.nc").unwrap();
+        let v = f.variable("SST").unwrap();
+
+        let mut vbuf: Vec<f32> = vec![0.0; v.len()];
+        v.values_to(&mut vbuf, None, None).expect("could not read values");
+
+        b.iter(|| {
+            let b = serde_xdr::to_bytes(&vbuf);
         });
     }
 }

@@ -78,6 +78,7 @@ impl NcDas {
 pub struct NcDataset {
     pub filename: String,
     pub mtime: std::time::SystemTime,
+    f: Arc<netcdf::File>,
     das: NcDas,
     dds: NcDds
 }
@@ -97,6 +98,7 @@ impl NcDataset {
         Ok(NcDataset {
             filename: String::from(filename.trim_start_matches("data/")),
             mtime: mtime,
+            f: Arc::new(netcdf::open(filename).unwrap()),
             das: das,
             dds: dds
         })
@@ -129,22 +131,23 @@ impl Dataset for NcDataset {
         let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
 
         let dds = self.dds.dds(&query).into_bytes();
-        let data = query.clone().unwrap().iter().map(|v|
-            dods::var_xdr(&self.filename, v)).flatten().collect();
+        // let data = query.clone().unwrap().iter().map(|v|
+        //     dods::var_xdr(&self.filename, v)).flatten().collect();
 
-        let f = self.filename.clone();
+        // let f = self.filename.clone();
+        let f = self.f.clone();
         let q = query.unwrap().clone();
 
-        // let dataa = dods::xdr(f.clone(), q);
+        let dataa = dods::xdr(f, q);
 
         let s = stream::once(async move {
             Ok::<_,std::io::Error>(dds)
         }).chain(
                 stream::once(async { Ok::<_,std::io::Error>(String::from("\nData:\r\n").into_bytes()) }))
-        .chain(
-            stream::once(async { Ok::<_,std::io::Error>(data) }));
         // .chain(
-        //         dataa.map(|v| Ok::<_,std::io::Error>(v)));
+        //     stream::once(async { Ok::<_,std::io::Error>(data) }));
+        .chain(
+                dataa.map(|v| Ok::<_,std::io::Error>(v)));
 
 
         // let i = (1..5).map(|x| async move { Ok::<_, std::io::Error>(x.to_string()) });

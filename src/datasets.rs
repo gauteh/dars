@@ -1,10 +1,11 @@
 use hyper::{Response, Body, StatusCode};
 use async_trait::async_trait;
 use std::sync::Arc;
+use std::collections::HashMap;
 
 pub struct Data {
     pub root: String,
-    pub datasets: Vec<Arc<dyn Dataset + Send + Sync>>
+    pub datasets: HashMap<String, Arc<dyn Dataset + Send + Sync>>
 }
 
 enum DsRequestType {
@@ -20,7 +21,7 @@ impl Data {
     pub fn init() -> Data {
         Data {
             root: String::from("./data"),
-            datasets: vec![]
+            datasets: HashMap::new()
         }
     }
 
@@ -43,15 +44,9 @@ impl Data {
         let DsRequest(ds, dst) = Data::parse_request(ds);
 
         debug!("looking for dataset: {}", ds);
-        let ds = {
-            let rdata = DATA.clone();
-            let data = rdata.read().unwrap();
 
-            match data.datasets.iter().find(|&d| d.name() == ds) {
-                Some(ds) => Some(ds.clone()),
-                _ => None
-            }
-        };
+        let data = DATA.clone();
+        let ds = data.datasets.get(&ds);
 
         match ds {
             Some(ds) => {

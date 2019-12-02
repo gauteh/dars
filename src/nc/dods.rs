@@ -1,7 +1,7 @@
 use async_stream::stream;
 use std::sync::Arc;
 
-use futures_util::stream::Stream;
+use futures::stream::Stream;
 use std::io::Cursor;
 
 pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {

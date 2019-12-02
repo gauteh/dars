@@ -10,7 +10,6 @@ mod dds;
 mod dods;
 
 use dds::*;
-use dods::*;
 
 struct NcDas {
     das: Arc<String>
@@ -112,50 +111,33 @@ impl Dataset for NcDataset {
     }
 
     async fn das(&self) -> Result<Response<Body>, hyper::http::Error> {
-        debug!("get DAS: {}", self.name());
-        let a = self.das.das.clone();
-
-        Response::builder().body(Body::from(a.to_string()))
+        Response::builder().body(Body::from(self.das.das.to_string()))
     }
 
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
-        debug!("get DDS: {}", self.name());
         let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
         Response::builder().body(Body::from(self.dds.dds(&query)))
     }
 
     async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
-        use futures::stream::{self, Stream, StreamExt};
+        use futures::stream::{self, StreamExt};
 
-        debug!("get DODS: {}", self.name());
-        let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
+        let query: Vec<String> = match query {
+            Some(q) => q.split(",").map(|s| s.to_string()).collect(),
+            None =>    self.dds.vars.keys().map(|s| s.to_string()).collect()
+        };
 
-        let dds = self.dds.dds(&query).into_bytes();
-        // let data = query.clone().unwrap().iter().map(|v|
-        //     dods::var_xdr(&self.filename, v)).flatten().collect();
+        let squery = Some(query.clone()); // not pretty
+        let dds = self.dds.dds(&squery).into_bytes();
 
-        // let f = self.filename.clone();
-        let f = self.f.clone();
-        let q = query.unwrap().clone();
+        let dods = dods::xdr(self.f.clone(), query);
 
-        let dataa = dods::xdr(f, q);
+        let s = stream::once(async move { Ok::<_,anyhow::Error>(dds) })
+            .chain(
+                stream::once(async { Ok::<_,anyhow::Error>(String::from("\nData:\r\n").into_bytes()) }))
+            .chain(dods);
 
-        let s = stream::once(async move {
-            Ok::<_,std::io::Error>(dds)
-        }).chain(
-                stream::once(async { Ok::<_,std::io::Error>(String::from("\nData:\r\n").into_bytes()) }))
-        // .chain(
-        //     stream::once(async { Ok::<_,std::io::Error>(data) }));
-        .chain(
-                dataa.map(|v| Ok::<_,std::io::Error>(v)));
-
-
-        // let i = (1..5).map(|x| async move { Ok::<_, std::io::Error>(x.to_string()) });
-        // let f: futures::stream::FuturesOrdered<_> = i.collect();
-
-        let b = Body::wrap_stream(s);
-
-        Response::builder().body(b)
+        Response::builder().body(Body::wrap_stream(s))
     }
 }
 
@@ -173,28 +155,6 @@ mod test {
         init();
 
         NcDataset::open("data/coads_climatology.nc".to_string()).unwrap();
-    }
-
-    #[test]
-    fn serialize_to_xdr() {
-        use std::io::Cursor;
-        use xdr_codec;
-
-        let f = netcdf::open("data/coads_climatology.nc".to_string()).unwrap();
-
-        let v = f.variable("TIME").unwrap();
-        println!("variable length: {}", v.len());
-
-        let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        let mut vbuf: Vec<f32> = vec![0.0; 12];
-        // let mut bf = Vec::new();
-        // let a = v.values::<f32>(Some(&[0, 1]), Some(&[5])).unwrap();
-        v.values_to(&mut vbuf, Some(&[0]), Some(&[12])).unwrap();
-        println!("array: {:?}", vbuf);
-
-        xdr_codec::pack_array(&vbuf, vbuf.len(), &mut buf, None).unwrap();
-        println!("serialized: {:?}", buf.into_inner());
-
     }
 }
 

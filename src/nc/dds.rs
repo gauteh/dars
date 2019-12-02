@@ -8,7 +8,7 @@ use super::*;
 
 pub struct NcDds {
     f: String,
-    vars: Arc<HashMap<String, String>>
+    pub vars: Arc<HashMap<String, String>>
 }
 
 impl NcDds {

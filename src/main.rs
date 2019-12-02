@@ -48,9 +48,9 @@ lazy_static! {
             Arc::new(
                 nc::NcDataset::open("data/coads_climatology.nc".to_string()).unwrap()));
 
-        data.datasets.insert("testData.nc".to_string(),
-            Arc::new(
-                nc::NcDataset::open("data/testData.nc".to_string()).unwrap()));
+        // data.datasets.insert("testData.nc".to_string(),
+        //     Arc::new(
+        //         nc::NcDataset::open("data/testData.nc".to_string()).unwrap()));
         // data.datasets.push(
         //     Arc::new(
         //         nc::NcDataset::open("data/meps_det_vc_2_5km_latest.nc".to_string()).unwrap()));

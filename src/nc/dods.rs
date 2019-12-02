@@ -7,7 +7,12 @@ use std::io::Cursor;
 pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
     stream! {
         for v in vs {
-            let vv = nc.variable(&v).ok_or(anyhow!("variable not found"))?;
+            let mv = match v.find(".") {
+                Some(i) => &v[i+1..],
+                None => &v
+            };
+
+            let vv = nc.variable(mv).ok_or(anyhow!("variable not found"))?;
             let mut vbuf: Vec<f64> = vec![0.0; vv.len()];
             vv.values_to(&mut vbuf, None, None)?;
 

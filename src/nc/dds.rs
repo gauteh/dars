@@ -63,6 +63,21 @@ impl NcDds {
         grid.join("\n")
     }
 
+    fn format_struct(indent: usize, _nc: &netcdf::File, var: &netcdf::Variable, dim: &netcdf::Variable) -> String {
+        let mut grid: Vec<String> = Vec::new();
+
+        grid.push(format!("{}Structure {{", " ".repeat(indent)));
+        grid.push(format!("{}{} {}{};", " ".repeat(2*indent),
+            NcDds::vartype_str(dim.vartype()),
+            dim.name(),
+            dim.dimensions().iter().map(|d|
+                format!("[{} = {}]", d.name(), d.len())).collect::<String>())
+            );
+        grid.push(format!("{}}} {};\n", " ".repeat(indent), var.name()));
+
+        grid.join("\n")
+    }
+
     pub fn build(f: String) -> anyhow::Result<NcDds> {
         debug!("building Data Descriptor Structure (DDS) for {}", f);
         let nc = netcdf::open(f.clone())?;
@@ -78,6 +93,12 @@ impl NcDds {
                 map.insert(var.name().to_string(), v);
             } else {
                 map.insert(var.name().to_string(), NcDds::format_grid(indent, &nc, var));
+
+                map.insert(format!("{}.{}", var.name(), var.name()), NcDds::format_struct(indent, &nc, var, var));
+
+                for d in var.dimensions() {
+                    map.insert(format!("{}.{}", var.name(), d.name()), NcDds::format_struct(indent, &nc, var, nc.variable(d.name()).unwrap()));
+                }
             }
         }
 
@@ -89,7 +110,7 @@ impl NcDds {
             if let Some(vars) = vars {
                 vars.iter().map(|v| self.vars[v.split("[").next().unwrap_or(v)].clone()).collect::<String>()
             } else {
-                self.vars.values().map(|v| v.clone()).collect::<String>()
+                self.vars.iter().filter(|(k,v)| !k.contains(".")).values().map(|v| v.clone()).collect::<String>()
             }
         };
 

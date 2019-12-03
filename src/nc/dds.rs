@@ -96,9 +96,12 @@ impl NcDds {
 
                 map.insert(format!("{}.{}", var.name(), var.name()), NcDds::format_struct(indent, &nc, var, var));
 
-                // for d in var.dimensions() {
-                //     map.insert(format!("{}.{}", var.name(), d.name()), NcDds::format_struct(indent, &nc, var, nc.variable(d.name()).unwrap()));
-                // }
+                for d in var.dimensions() {
+                    match nc.variable(d.name()) {
+                        Some(dvar) => map.insert(format!("{}.{}", var.name(), d.name()), NcDds::format_struct(indent, &nc, var, dvar)),
+                        _ => None
+                    };
+                }
             }
         }
 

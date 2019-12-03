@@ -1,4 +1,4 @@
-use hyper::{Response, Body};
+use hyper::{Response, Body, StatusCode};
 use std::sync::Arc;
 use netcdf;
 use anyhow;
@@ -116,7 +116,10 @@ impl Dataset for NcDataset {
 
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
         let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
-        Response::builder().body(Body::from(self.dds.dds(&query)))
+        match self.dds.dds(&query) {
+            Ok(dds) => Response::builder().body(Body::from(dds)),
+            _ => Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
+        }
     }
 
     async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
@@ -128,7 +131,13 @@ impl Dataset for NcDataset {
         };
 
         let squery = Some(query.clone()); // not pretty
-        let dds = self.dds.dds(&squery).into_bytes();
+
+        let dds = if let Ok(r) = self.dds.dds(&squery) {
+            r.into_bytes()
+        } else {
+            return Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty());
+        };
+
 
         let dods = dods::xdr(self.f.clone(), query);
 

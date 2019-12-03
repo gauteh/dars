@@ -36,7 +36,7 @@ use colored::Colorize;
 
 pub mod datasets;
 mod nc;
-mod dap2;
+// mod dap2;
 
 use datasets::{Data, Dataset};
 
@@ -51,20 +51,22 @@ lazy_static! {
         // data.datasets.insert("testData.nc".to_string(),
         //     Arc::new(
         //         nc::NcDataset::open("data/testData.nc".to_string()).unwrap()));
-        // data.datasets.push(
-        //     Arc::new(
-        //         nc::NcDataset::open("data/meps_det_vc_2_5km_latest.nc".to_string()).unwrap()));
+        data.datasets.insert("meps_det_vc_2_5km_latest.nc".to_string(),
+            Arc::new(
+                nc::NcDataset::open("data/meps_det_vc_2_5km_latest.nc".to_string()).unwrap()));
 
         Arc::new(data)
     };
 }
+
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     use env_logger::Env;
     env_logger::from_env(Env::default().default_filter_or("dars=debug")).init();
 
-    info!("𓆣 𓃢");
+    info!("𓆣 𓃢  (DARS DAP v{})", VERSION);
 
     let addr = ([127, 0, 0, 1], 8001).into();
 

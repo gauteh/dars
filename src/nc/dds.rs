@@ -96,25 +96,31 @@ impl NcDds {
 
                 map.insert(format!("{}.{}", var.name(), var.name()), NcDds::format_struct(indent, &nc, var, var));
 
-                for d in var.dimensions() {
-                    map.insert(format!("{}.{}", var.name(), d.name()), NcDds::format_struct(indent, &nc, var, nc.variable(d.name()).unwrap()));
-                }
+                // for d in var.dimensions() {
+                //     map.insert(format!("{}.{}", var.name(), d.name()), NcDds::format_struct(indent, &nc, var, nc.variable(d.name()).unwrap()));
+                // }
             }
         }
 
         Ok(NcDds { f: f, vars: Arc::new(map) })
     }
 
-    pub fn dds(&self, vars: &Option<Vec<String>>) -> String {
+    pub fn dds(&self, vars: &Option<Vec<String>>) -> Result<String, anyhow::Error> {
         let dds: String = {
             if let Some(vars) = vars {
-                vars.iter().map(|v| self.vars[v.split("[").next().unwrap_or(v)].clone()).collect::<String>()
+                vars.iter()
+                    .map(|v|
+                        self.vars
+                        .get(v.split("[").next().unwrap_or(v))
+                        .map(|s| s.to_string()))
+                    .collect::<Option<String>>()
+                    .ok_or(anyhow!("variable not found"))?
             } else {
-                self.vars.iter().filter(|(k,v)| !k.contains(".")).values().map(|v| v.clone()).collect::<String>()
+                self.vars.iter().filter(|(k,_)| !k.contains(".")).map(|(_,v)| v.clone()).collect::<String>()
             }
         };
 
-        format!("Dataset {{\n{}}} {};", dds, self.f)
+        Ok(format!("Dataset {{\n{}}} {};", dds, self.f))
     }
 }
 

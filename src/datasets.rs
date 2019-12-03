@@ -43,14 +43,11 @@ impl Data {
         let ds: String = req.uri().path().trim_start_matches("/data/").to_string();
         let DsRequest(ds, dst) = Data::parse_request(ds);
 
-        debug!("looking for dataset: {}", ds);
-
         let data = DATA.clone();
         let ds = data.datasets.get(&ds);
 
         match ds {
             Some(ds) => {
-                debug!("found dataset: {}", ds.name());
                 match dst {
                     DsRequestType::Das => ds.das().await,
                     DsRequestType::Dds => ds.dds(req.uri().query().map(|s| s.to_string())).await,
@@ -60,7 +57,6 @@ impl Data {
                 }
             },
             None => {
-                debug!("dataset not found.");
                 Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
             }
         }

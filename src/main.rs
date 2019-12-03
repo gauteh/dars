@@ -18,7 +18,7 @@
  * arc and locks.
  *
  */
-#![recursion_limit="256"]
+#![recursion_limit="512"]
 
 #![feature(test)]
 extern crate test;

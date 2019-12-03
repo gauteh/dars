@@ -13,18 +13,6 @@ pub struct NcDds {
 }
 
 impl NcDds {
-    fn count_slab(slab: &Vec<usize>) -> usize {
-        if slab.len() == 1 {
-            1
-        } else if slab.len() == 2 {
-            slab[1] - slab[0]
-        } else if slab.len() == 3 {
-            slab[2] - slab[0] / slab[1]
-        } else {
-            panic!("too much slabs");
-        }
-    }
-
     fn vartype_str(t: netcdf_sys::nc_type) -> String {
         match t {
             netcdf_sys::NC_FLOAT => "Float32".to_string(),
@@ -134,7 +122,7 @@ impl NcDds {
 
         debug!("slab: {:?}", slab);
 
-        let slab: Vec<usize> = slab.iter().map(NcDds::count_slab).collect();
+        let slab: Vec<usize> = slab.iter().map(dap2::count_slab).collect();
 
         match var.find(".") {
             Some(i) =>
@@ -163,7 +151,11 @@ impl NcDds {
                 vars.iter()
                     .map(|v|
                         match v.find("[") {
-                            Some(i) => NcDds::build_var(nc, &v[..i], dap2::parse_hyberslab(&v[i..]).unwrap()),
+                            Some(i) =>
+                                match dap2::parse_hyberslab(&v[i..]) {
+                                    Ok(slab) => NcDds::build_var(nc, &v[..i], slab),
+                                    _ => None
+                                },
                             None =>
                                 self.vars
                                 .get(v.split("[").next().unwrap_or(v))

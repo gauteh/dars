@@ -4,6 +4,8 @@ use std::sync::Arc;
 use futures::stream::Stream;
 use std::io::Cursor;
 
+use crate::dap2;
+
 pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
     stream! {
         for v in vs {
@@ -13,13 +15,33 @@ pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<
             };
 
             let vv = nc.variable(mv).ok_or(anyhow!("variable not found"))?;
-            let mut vbuf: Vec<f64> = vec![0.0; vv.len()];
-            vv.values_to(&mut vbuf, None, None)?;
+
+            let mut vbuf = if let Some(i) = mv.find("[") {
+                let slab = dap2::parse_hyberslab(&v[i..])?;
+
+                let counts = slab.iter().map(dap2::count_slab).collect::<Vec<usize>>();
+                let n = counts.iter().product::<usize>();
+
+                if n > vv.len() {
+                    Err(anyhow!("slab too great"))?;
+                }
+
+                let indices = slab.iter().map(|slab| slab[0]).collect::<Vec<usize>>();
+
+                let mut vbuf: Vec<f64> = vec![0.0; n];
+                vv.values_to(&mut vbuf, Some(&indices), Some(&counts))?;
+
+                vbuf
+            } else {
+                let mut vbuf: Vec<f64> = vec![0.0; vv.len()];
+                vv.values_to(&mut vbuf, None, None)?;
+
+                vbuf
+            };
+
 
             let sz: usize = 2*vbuf.len() + vbuf.len()*8;
-
             let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(sz));
-
             use xdr_codec::pack;
 
             pack(&vbuf.len(), &mut buf)?;

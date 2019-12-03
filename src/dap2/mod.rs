@@ -1,5 +1,18 @@
 use anyhow;
 
+pub fn count_slab(slab: &Vec<usize>) -> usize {
+    if slab.len() == 1 {
+        1
+    } else if slab.len() == 2 {
+        slab[1] - slab[0]
+    } else if slab.len() == 3 {
+        slab[2] - slab[0] / slab[1]
+    } else {
+        panic!("too much slabs");
+    }
+}
+
+
 fn parse_slice(s: &str) -> anyhow::Result<Vec<usize>> {
     match s.split(":").map(|h| h.parse::<usize>())
         .collect::<Result<Vec<usize>,_>>()

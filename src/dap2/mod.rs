@@ -20,7 +20,6 @@ pub fn parse_hyberslab(s: &str) -> anyhow::Result<Vec<Vec<usize>>> {
     s.split("]")
         .filter(|slab| slab.len() != 0)
         .map(|slab| {
-            println!("slab: {}", slab);
             if slab.starts_with("[") {
                 parse_slice(&slab[1..])
             } else {

@@ -116,7 +116,7 @@ impl Dataset for NcDataset {
 
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
         let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
-        match self.dds.dds(&query) {
+        match self.dds.dds(&self.f.clone(), &query) {
             Ok(dds) => Response::builder().body(Body::from(dds)),
             _ => Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
         }
@@ -132,7 +132,7 @@ impl Dataset for NcDataset {
 
         let squery = Some(query.clone()); // not pretty
 
-        let dds = if let Ok(r) = self.dds.dds(&squery) {
+        let dds = if let Ok(r) = self.dds.dds(&self.f.clone(), &squery) {
             r.into_bytes()
         } else {
             return Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty());

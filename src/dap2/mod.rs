@@ -4,9 +4,9 @@ pub fn count_slab(slab: &Vec<usize>) -> usize {
     if slab.len() == 1 {
         1
     } else if slab.len() == 2 {
-        slab[1] - slab[0]
+        slab[1] - slab[0] + 1
     } else if slab.len() == 3 {
-        slab[2] - slab[0] / slab[1]
+        (slab[2] - slab[0] + 1)/ slab[1]
     } else {
         panic!("too much slabs");
     }
@@ -39,6 +39,41 @@ pub fn parse_hyberslab(s: &str) -> anyhow::Result<Vec<Vec<usize>>> {
                 return Err(anyhow!("Missing start bracket"));
             }
         }).collect()
+}
+
+pub mod xdr {
+    pub trait XdrSize {
+        fn size() -> usize;
+    }
+
+    impl XdrSize for f32 {
+        fn size() -> usize { 4 }
+    }
+
+    impl XdrSize for f64 {
+        fn size() -> usize { 8 }
+    }
+
+    fn xdr_size<T>() -> usize
+        where T: XdrSize
+    {
+        T::size()
+    }
+
+    pub fn pack_xdr<T>(v: Vec<T>) -> Result<Vec<u8>, anyhow::Error>
+        where T: xdr_codec::Pack<std::io::Cursor<Vec<u8>>> + Sized + XdrSize
+    {
+        use std::io::Cursor;
+
+        let sz: usize = 2*v.len() + v.len()*xdr_size::<T>();
+        let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(sz));
+        use xdr_codec::pack;
+
+        pack(&v.len(), &mut buf)?;
+        pack(&v, &mut buf)?;
+
+        Ok(buf.into_inner())
+    }
 }
 
 #[cfg(test)]

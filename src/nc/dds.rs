@@ -120,8 +120,6 @@ impl NcDds {
     fn build_var(nc: &netcdf::File, var: &str, slab: Vec<Vec<usize>>) -> Option<String> {
         let indent: usize = 4;
 
-        debug!("slab: {:?}", slab);
-
         let slab: Vec<usize> = slab.iter().map(dap2::count_slab).collect();
 
         match var.find(".") {

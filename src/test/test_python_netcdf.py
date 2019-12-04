@@ -13,8 +13,8 @@ def test_fetch_time_variable():
 
 def test_slice_time_variable():
   d = Dataset("http://localhost:8001/data/coads_climatology.nc")
-  t = d.variables['TIME']
-  print (t[1:5])
+  t = d.variables['TIME'][1:5]
+  print (t)
 
 def test_grid_var():
   d = Dataset("http://localhost:8001/data/coads_climatology.nc")
@@ -30,5 +30,6 @@ def test_grid_var_read():
 def test_grid_index():
   d = Dataset("http://localhost:8001/data/coads_climatology.nc")
   sst = d.variables['SST']
-  v = sst[0,:,:]
+  v = sst[:].sum()
+  print(v)
 

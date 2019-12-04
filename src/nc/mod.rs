@@ -138,7 +138,6 @@ impl Dataset for NcDataset {
             return Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty());
         };
 
-
         let dods = dods::xdr(self.f.clone(), query);
 
         let s = stream::once(async move { Ok::<_,anyhow::Error>(dds) })

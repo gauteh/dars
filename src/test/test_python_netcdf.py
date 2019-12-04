@@ -33,3 +33,9 @@ def test_grid_index():
   v = sst[:].sum()
   print(v)
 
+def test_error():
+  d = Dataset("http://localhost:8001/data/coads_climatology.nc")
+  sst = d.variables['SST']
+  v = sst[40,:,:].sum()
+  print(v)
+

@@ -1,62 +1,66 @@
-use async_stream::stream;
 use std::sync::Arc;
-
 use futures::stream::Stream;
+use async_stream::stream;
 
 use crate::dap2;
+
+fn xdr_chunk<T>(v: &netcdf::Variable, slab: Option<(Vec<usize>, Vec<usize>)>) -> Result<Vec<u8>, anyhow::Error>
+    where T:    netcdf::variable::Numeric +
+                xdr_codec::Pack<std::io::Cursor<Vec<u8>>> +
+                Sized +
+                dap2::xdr::XdrSize +
+                std::default::Default +
+                std::clone::Clone
+{
+    let n = match &slab {
+        Some((_, c)) => c.iter().product::<usize>(),
+        None => v.len()
+    };
+
+    if n > v.len() {
+        Err(anyhow!("slab too great"))?;
+    }
+
+    let mut vbuf: Vec<T> = vec![T::default(); n];
+
+    match slab {
+        Some((indices, counts)) => v.values_to(&mut vbuf, Some(&indices), Some(&counts)),
+        None => v.values_to(&mut vbuf, None, None)
+    }?;
+
+    dap2::xdr::pack_xdr(vbuf)
+}
 
 pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
     stream! {
         for v in vs {
-            let mv = match v.find(".") {
+            let mut mv = match v.find(".") {
                 Some(i) => &v[i+1..],
                 None => &v
             };
 
-            let vbuf = if let Some(i) = mv.find("[") {
-                let vv = nc.variable(&mv[..i]).ok_or(anyhow!("variable not found"))?;
-                let slab = dap2::parse_hyberslab(&mv[i..])?;
+            let slab = match mv.find("[") {
+                Some(i) => {
+                    let slab = dap2::parse_hyberslab(&mv[i..])?;
+                    mv = &mv[..i];
 
-                let counts = slab.iter().map(dap2::count_slab).collect::<Vec<usize>>();
-                let n = counts.iter().product::<usize>();
+                    let counts = slab.iter().map(dap2::count_slab).collect::<Vec<usize>>();
 
-                if n > vv.len() {
-                    Err(anyhow!("slab too great"))?;
-                }
+                    let indices = slab.iter().map(|slab| slab[0]).collect::<Vec<usize>>();
 
-                let indices = slab.iter().map(|slab| slab[0]).collect::<Vec<usize>>();
+                    Some((indices, counts))
+                },
 
-                match vv.vartype() {
-                    netcdf_sys::NC_FLOAT => {
-                        let mut vbuf: Vec<f32> = vec![0.0; n];
-                        vv.values_to(&mut vbuf, Some(&indices), Some(&counts))?;
-                        dap2::xdr::pack_xdr(vbuf)
-                    },
-                    netcdf_sys::NC_DOUBLE => {
-                        let mut vbuf: Vec<f64> = vec![0.0; n];
-                        vv.values_to(&mut vbuf, Some(&indices), Some(&counts))?;
-                        dap2::xdr::pack_xdr(vbuf)
-                    },
-                    _ => unimplemented!()
-                }
-            } else {
-                let vv = nc.variable(mv).ok_or(anyhow!("variable not found"))?;
-                match vv.vartype() {
-                    netcdf_sys::NC_FLOAT => {
-                        let mut vbuf: Vec<f32> = vec![0.0; vv.len()];
-                        vv.values_to(&mut vbuf, None, None)?;
-                        dap2::xdr::pack_xdr(vbuf)
-                    },
-                    netcdf_sys::NC_DOUBLE => {
-                        let mut vbuf: Vec<f64> = vec![0.0; vv.len()];
-                        vv.values_to(&mut vbuf, None, None)?;
-                        dap2::xdr::pack_xdr(vbuf)
-                    },
-                    _ => unimplemented!()
-                }
+                None => None
             };
 
-            yield vbuf;
+            let vv = nc.variable(mv).ok_or(anyhow!("variable not found"))?;
+
+            yield match vv.vartype() {
+                netcdf_sys::NC_FLOAT => xdr_chunk::<f32>(vv, slab),
+                netcdf_sys::NC_DOUBLE => xdr_chunk::<f64>(vv, slab),
+                _ => unimplemented!()
+            };
         }
     }
 }
@@ -102,22 +106,17 @@ mod tests {
         });
     }
 
-    #[test]
-    fn read_var() {
-        // b.iter(|| {
+    #[bench]
+    fn read_var(b: &mut Bencher) {
+        b.iter(|| {
             let f = netcdf::open("data/coads_climatology.nc").unwrap();
             let v = f.variable("SST").unwrap();
 
-            let mut vbuf: Vec<f32> = vec![0.0; 1];
-            v.values_to(&mut vbuf, Some(&[1, 1, 1]), Some(&[1,1,1])).unwrap();
+            let mut vbuf: Vec<f32> = vec![0.0; v.len()];
+            v.values_to(&mut vbuf, None, None).unwrap();
 
-            // let vbuf = v.values::<f32>(Some(&[0, 0, 0]), Some(&[1,5,1])).unwrap();
-
-
-            println!("vbuf: {:?}", vbuf);
-
-            // vbuf
-        // });
+            vbuf
+        });
     }
 
     #[bench]

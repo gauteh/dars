@@ -63,14 +63,27 @@ pub mod xdr {
         T::size()
     }
 
-    pub fn pack_xdr<T>(v: Vec<T>) -> Result<Vec<u8>, anyhow::Error>
+    pub fn pack_xdr_val<T>(v: Vec<T>) -> Result<Vec<u8>, anyhow::Error>
         where T: xdr_codec::Pack<std::io::Cursor<Vec<u8>>> + Sized + XdrSize
     {
         use std::io::Cursor;
 
+        ensure!(v.len() == 1, "value with more than one element");
+
+        let sz: usize = xdr_size::<T>();
+        let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(sz));
+        v[0].pack(&mut buf)?;
+        Ok(buf.into_inner())
+    }
+
+    pub fn pack_xdr_arr<T>(v: Vec<T>) -> Result<Vec<u8>, anyhow::Error>
+        where T: xdr_codec::Pack<std::io::Cursor<Vec<u8>>> + Sized + XdrSize
+    {
+        use std::io::Cursor;
+        use xdr_codec::pack;
+
         let sz: usize = 2*v.len() + v.len()*xdr_size::<T>();
         let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(sz));
-        use xdr_codec::pack;
 
         pack(&v.len(), &mut buf)?;
         pack(&v, &mut buf)?;

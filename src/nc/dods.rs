@@ -28,7 +28,11 @@ fn xdr_chunk<T>(v: &netcdf::Variable, slab: Option<(Vec<usize>, Vec<usize>)>) ->
         None => v.values_to(&mut vbuf, None, None)
     }?;
 
-    xdr::pack_xdr(vbuf)
+    if v.dimensions().len() > 0 {
+        xdr::pack_xdr_arr(vbuf)
+    } else {
+        xdr::pack_xdr_val(vbuf)
+    }
 }
 
 pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {

@@ -68,7 +68,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     info!("𓆣 𓃢  (DARS DAP v{})", VERSION);
 
-    let addr = ([127, 0, 0, 1], 8001).into();
+    let addr = ([0, 0, 0, 0], 8001).into();
 
     let msvc = make_service_fn(|_| async move {
         Ok::<_, Error>(
@@ -78,7 +78,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
                 let r = match (req.method(), req.uri().path()) {
                     (&Method::GET, "/catalog.xml") => Response::builder().status(StatusCode::NOT_IMPLEMENTED).body(Body::empty()),
-                    (&Method::GET, "/") => Response::builder().body(Body::from("Hello world")),
+                    (&Method::GET, "/") => Response::builder().body(Body::from("DAP!")),
                     _ => {
                         if req.uri().path().starts_with("/data/") {
                             Data::dataset(req).await

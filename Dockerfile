@@ -8,5 +8,7 @@ ADD . .
 
 RUN cargo install --path .
 
+EXPOSE 8001
+
 CMD ["dars"]
 

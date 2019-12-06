@@ -51,9 +51,9 @@ lazy_static! {
         // data.datasets.insert("testData.nc".to_string(),
         //     Arc::new(
         //         nc::NcDataset::open("data/testData.nc".to_string()).unwrap()));
-        data.datasets.insert("meps_det_vc_2_5km_latest.nc".to_string(),
-            Arc::new(
-                nc::NcDataset::open("data/meps_det_vc_2_5km_latest.nc".to_string()).unwrap()));
+        // data.datasets.insert("meps_det_vc_2_5km_latest.nc".to_string(),
+        //     Arc::new(
+        //         nc::NcDataset::open("data/meps_det_vc_2_5km_latest.nc".to_string()).unwrap()));
 
         Arc::new(data)
     };

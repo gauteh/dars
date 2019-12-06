@@ -1,49 +1,52 @@
-use anyhow;
-
-pub fn count_slab(slab: &Vec<usize>) -> usize {
-    if slab.len() == 1 {
-        1
-    } else if slab.len() == 2 {
-        slab[1] - slab[0] + 1
-    } else if slab.len() == 3 {
-        (slab[2] - slab[0] + 1)/ slab[1]
-    } else {
-        panic!("too much slabs");
-    }
-}
-
-
-fn parse_slice(s: &str) -> anyhow::Result<Vec<usize>> {
-    match s.split(":").map(|h| h.parse::<usize>())
-        .collect::<Result<Vec<usize>,_>>()
-        .map_err(|_| anyhow!("Failed to parse index")) {
-            Ok(v) => match v.len() {
-                l if l <= 3 => Ok(v),
-                _ => Err(anyhow!("Too many values to unpack."))
-            },
-            e => e
+pub mod hyperslab {
+    pub fn count_slab(slab: &Vec<usize>) -> usize {
+        if slab.len() == 1 {
+            1
+        } else if slab.len() == 2 {
+            slab[1] - slab[0] + 1
+        } else if slab.len() == 3 {
+            (slab[2] - slab[0] + 1)/ slab[1]
+        } else {
+            panic!("too much slabs");
         }
-}
-
-pub fn parse_hyberslab(s: &str) -> anyhow::Result<Vec<Vec<usize>>> {
-    if s.len() < 3 || !s.starts_with("[") || !s.ends_with("]") {
-        return Err(anyhow!("Hyberslab missing brackets"));
     }
 
-    s.split("]")
-        .filter(|slab| slab.len() != 0)
-        .map(|slab| {
-            if slab.starts_with("[") {
-                parse_slice(&slab[1..])
-            } else {
-                return Err(anyhow!("Missing start bracket"));
+    fn parse_slice(s: &str) -> anyhow::Result<Vec<usize>> {
+        match s.split(":").map(|h| h.parse::<usize>())
+            .collect::<Result<Vec<usize>,_>>()
+            .map_err(|_| anyhow!("Failed to parse index")) {
+                Ok(v) => match v.len() {
+                    l if l <= 3 => Ok(v),
+                    _ => Err(anyhow!("Too many values to unpack."))
+                },
+                e => e
             }
-        }).collect()
+    }
+
+    pub fn parse_hyberslab(s: &str) -> anyhow::Result<Vec<Vec<usize>>> {
+        if s.len() < 3 || !s.starts_with("[") || !s.ends_with("]") {
+            return Err(anyhow!("Hyberslab missing brackets"));
+        }
+
+        s.split("]")
+            .filter(|slab| slab.len() != 0)
+            .map(|slab| {
+                if slab.starts_with("[") {
+                    parse_slice(&slab[1..])
+                } else {
+                    return Err(anyhow!("Missing start bracket"));
+                }
+            }).collect()
+    }
 }
 
 pub mod xdr {
     pub trait XdrSize {
         fn size() -> usize;
+    }
+
+    impl XdrSize for i32 {
+        fn size() -> usize { 4 }
     }
 
     impl XdrSize for f32 {

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use netcdf;
 use anyhow;
 use async_trait::async_trait;
+use percent_encoding::percent_decode_str;
 
 use super::Dataset;
 
@@ -19,13 +20,12 @@ impl NcDas {
     fn format_attr(indent: usize, a: &netcdf::Attribute) -> String {
         use netcdf::attribute::AttrValue::*;
 
-        // TODO: escape names and values
-
         match a.value() {
-            Ok(Str(s)) =>   format!("{}String {} \"{}\";\n", " ".repeat(indent), a.name(), s),
+            Ok(Str(s)) =>   format!("{}String {} \"{}\";\n", " ".repeat(indent), a.name(), s.escape_default()),
             Ok(Float(f)) => format!("{}Float32 {} {:+E};\n", " ".repeat(indent), a.name(), f),
             Ok(Double(f)) => format!("{}Float64 {} {:+E};\n", " ".repeat(indent), a.name(), f),
-
+            Ok(Int(f)) => format!("{}Int32 {} {};\n", " ".repeat(indent), a.name(), f),
+            Ok(Uchar(n)) => format!("{}Byte {} {};\n", " ".repeat(indent), a.name(), n),
             Ok(v) => format!("{}Unimplemented {} {:?};\n", " ".repeat(indent), a.name(), v),
             Err(_) => "Err".to_string()
         }
@@ -102,6 +102,16 @@ impl NcDataset {
             dds: dds
         })
     }
+
+    fn parse_query(&self, query: Option<String>) -> Vec<String> {
+        match query {
+            Some(q) => q.split(",").map(|s|
+                    percent_decode_str(s).decode_utf8_lossy().into_owned()
+                ).collect(),
+
+            None => self.dds.default_vars()
+        }
+    }
 }
 
 #[async_trait]
@@ -115,7 +125,8 @@ impl Dataset for NcDataset {
     }
 
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
-        let query = query.map(|s| s.split(",").map(|s| s.to_string()).collect());
+        let query = self.parse_query(query);
+
         match self.dds.dds(&self.f.clone(), &query) {
             Ok(dds) => Response::builder().body(Body::from(dds)),
             _ => Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
@@ -124,15 +135,9 @@ impl Dataset for NcDataset {
 
     async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
         use futures::stream::{self, StreamExt};
+        let query = self.parse_query(query);
 
-        let query: Vec<String> = match query {
-            Some(q) => q.split(",").map(|s| s.to_string()).collect(),
-            None =>    self.dds.vars.keys().map(|s| s.to_string()).collect()
-        };
-
-        let squery = Some(query.clone()); // not pretty
-
-        let dds = if let Ok(r) = self.dds.dds(&self.f.clone(), &squery) {
+        let dds = if let Ok(r) = self.dds.dds(&self.f.clone(), &query) {
             r.into_bytes()
         } else {
             return Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty());

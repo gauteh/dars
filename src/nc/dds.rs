@@ -5,7 +5,7 @@ use netcdf_sys;
 use anyhow;
 
 use super::*;
-use crate::dap2;
+use crate::dap2::hyperslab::{count_slab, parse_hyberslab};
 
 pub struct NcDds {
     f: String,
@@ -17,8 +17,12 @@ impl NcDds {
         match t {
             netcdf_sys::NC_FLOAT => "Float32".to_string(),
             netcdf_sys::NC_DOUBLE => "Float64".to_string(),
+            netcdf_sys::NC_INT => "Int32".to_string(),
+            netcdf_sys::NC_BYTE => "Byte".to_string(),
+            netcdf_sys::NC_UBYTE => "Byte".to_string(),
+            netcdf_sys::NC_CHAR => "Byte".to_string(),
             netcdf_sys::NC_STRING => "String".to_string(),
-            _ => "Unimplemented".to_string()
+            e => format!("Unimplemented: {:?}", e)
         }
     }
 
@@ -37,7 +41,7 @@ impl NcDds {
 
     fn format_grid(indent: usize, nc: &netcdf::File, var: &netcdf::Variable, slab: &Option<Vec<usize>>) -> String {
         if !var.dimensions().iter().all(|d| nc.variable(d.name()).is_some()) {
-            return format!("{}{} {}{};", " ".repeat(indent),
+            return format!("{}{} {}{};\n", " ".repeat(indent),
             NcDds::vartype_str(var.vartype()),
             var.name(),
             var.dimensions().iter().enumerate().map(|(i, d)|
@@ -120,7 +124,7 @@ impl NcDds {
     fn build_var(nc: &netcdf::File, var: &str, slab: Vec<Vec<usize>>) -> Option<String> {
         let indent: usize = 4;
 
-        let slab: Vec<usize> = slab.iter().map(dap2::count_slab).collect();
+        let slab: Vec<usize> = slab.iter().map(count_slab).collect();
 
         match var.find(".") {
             Some(i) =>
@@ -143,31 +147,31 @@ impl NcDds {
     }
 
 
-    pub fn dds(&self, nc: &netcdf::File, vars: &Option<Vec<String>>) -> Result<String, anyhow::Error> {
+    pub fn dds(&self, nc: &netcdf::File, vars: &Vec<String>) -> Result<String, anyhow::Error> {
         let dds: String = {
-            if let Some(vars) = vars {
-                vars.iter()
-                    .map(|v|
-                        match v.find("[") {
-                            Some(i) =>
-                                match dap2::parse_hyberslab(&v[i..]) {
-                                    Ok(slab) => NcDds::build_var(nc, &v[..i], slab),
-                                    _ => None
-                                },
-                            None =>
-                                self.vars
-                                .get(v.split("[").next().unwrap_or(v))
-                                .map(|s| s.to_string())
-                        }
-                    )
-                    .collect::<Option<String>>()
-                    .ok_or(anyhow!("variable not found"))?
-            } else {
-                self.vars.iter().filter(|(k,_)| !k.contains(".")).map(|(_,v)| v.clone()).collect::<String>()
-            }
+            vars.iter()
+                .map(|v|
+                    match v.find("[") {
+                        Some(i) =>
+                            match parse_hyberslab(&v[i..]) {
+                                Ok(slab) => NcDds::build_var(nc, &v[..i], slab),
+                                _ => None
+                            },
+                        None =>
+                            self.vars
+                            .get(v.split("[").next().unwrap_or(v))
+                            .map(|s| s.to_string())
+                    }
+                )
+                .collect::<Option<String>>()
+                .ok_or(anyhow!("variable not found"))?
         };
 
         Ok(format!("Dataset {{\n{}}} {};", dds, self.f))
+    }
+
+    pub fn default_vars(&self) -> Vec<String> {
+        self.vars.iter().filter(|(k,_)| !k.contains(".")).map(|(k,_)| k.clone()).collect()
     }
 }
 

@@ -2,13 +2,13 @@ use std::sync::Arc;
 use futures::stream::Stream;
 use async_stream::stream;
 
-use crate::dap2;
+use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
 
 fn xdr_chunk<T>(v: &netcdf::Variable, slab: Option<(Vec<usize>, Vec<usize>)>) -> Result<Vec<u8>, anyhow::Error>
     where T:    netcdf::variable::Numeric +
                 xdr_codec::Pack<std::io::Cursor<Vec<u8>>> +
                 Sized +
-                dap2::xdr::XdrSize +
+                xdr::XdrSize +
                 std::default::Default +
                 std::clone::Clone
 {
@@ -28,7 +28,7 @@ fn xdr_chunk<T>(v: &netcdf::Variable, slab: Option<(Vec<usize>, Vec<usize>)>) ->
         None => v.values_to(&mut vbuf, None, None)
     }?;
 
-    dap2::xdr::pack_xdr(vbuf)
+    xdr::pack_xdr(vbuf)
 }
 
 pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
@@ -41,11 +41,10 @@ pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<
 
             let slab = match mv.find("[") {
                 Some(i) => {
-                    let slab = dap2::parse_hyberslab(&mv[i..])?;
+                    let slab = parse_hyberslab(&mv[i..])?;
                     mv = &mv[..i];
 
-                    let counts = slab.iter().map(dap2::count_slab).collect::<Vec<usize>>();
-
+                    let counts = slab.iter().map(count_slab).collect::<Vec<usize>>();
                     let indices = slab.iter().map(|slab| slab[0]).collect::<Vec<usize>>();
 
                     Some((indices, counts))
@@ -59,6 +58,7 @@ pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<
             yield match vv.vartype() {
                 netcdf_sys::NC_FLOAT => xdr_chunk::<f32>(vv, slab),
                 netcdf_sys::NC_DOUBLE => xdr_chunk::<f64>(vv, slab),
+                netcdf_sys::NC_INT => xdr_chunk::<i32>(vv, slab),
                 _ => unimplemented!()
             };
         }

@@ -3,28 +3,32 @@ authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
 edition = "2018"
 name = "dars"
 version = "0.1.0"
+
 [dependencies]
 anyhow = "1.0.22"
 async-stream = "0.2.0"
-async-trait = "*"
-colored = "*"
-env_logger = "0.7.1"
+async-trait = "0.1.21"
+colored = "1.9.0"
 futures = "0.3.1"
 futures-core = "0.3.1"
 futures-util = "0.3.1"
-itertools = "*"
-lazy_static = "*"
+env_logger = "0.7.1"
+itertools = "0.8.2"
+lazy_static = "1.4.0"
 log = "0.4.8"
 netcdf = "0.3.1"
-netcdf-sys = "*"
-percent-encoding = "*"
-tokio = "0.2.0-alpha.6"
+netcdf-sys = "0.2.1"
+percent-encoding = "2.1.0"
 xdr-codec = "0.4.4"
+
+[dependencies.tokio]
+version = "0.2.0-alpha.6"
+features = ["macros"]
 
 [dependencies.async-std]
 features = ["unstable"]
-version = "*"
+version = "1.2.0"
 
 [dependencies.hyper]
-features = ["unstable-stream"]
+features = ["stream"]
 git = "https://github.com/hyperium/hyper"

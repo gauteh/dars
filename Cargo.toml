@@ -22,8 +22,12 @@ percent-encoding = "2.1.0"
 xdr-codec = "0.4.4"
 
 [dependencies.tokio]
-version = "0.2.2"
+version = "0.2.4"
 features = ["full"]
+
+[dependencies.tokio-util]
+version = "0.2.0"
+features = ["codec"]
 
 [dependencies.async-std]
 features = ["unstable"]

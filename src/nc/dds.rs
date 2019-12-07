@@ -1,10 +1,6 @@
 use std::sync::Arc;
 use std::collections::HashMap;
-use netcdf;
-use netcdf_sys;
-use anyhow;
 
-use super::*;
 use crate::dap2::hyperslab::{count_slab, parse_hyberslab};
 
 pub struct NcDds {

@@ -12,7 +12,7 @@ enum DsRequestType {
     Das,
     Dds,
     Dods,
-    Raw
+    Nc
 }
 
 struct DsRequest(String, DsRequestType);
@@ -33,7 +33,7 @@ impl Data {
         } else if ds.ends_with(".dods") {
             DsRequest(String::from(ds.trim_end_matches(".dods")), DsRequestType::Dods)
         } else {
-            DsRequest(String::from(&ds), DsRequestType::Raw)
+            DsRequest(String::from(&ds), DsRequestType::Nc)
         }
     }
 
@@ -52,8 +52,7 @@ impl Data {
                     DsRequestType::Das => ds.das().await,
                     DsRequestType::Dds => ds.dds(req.uri().query().map(|s| s.to_string())).await,
                     DsRequestType::Dods => ds.dods(req.uri().query().map(|s| s.to_string())).await,
-
-                    _ => Response::builder().status(StatusCode::NOT_IMPLEMENTED).body(Body::empty())
+                    DsRequestType::Nc => ds.nc().await,
                 }
             },
             None => {
@@ -68,13 +67,7 @@ pub trait Dataset {
     fn name(&self) -> String;
 
     async fn das(&self) -> Result<Response<Body>, hyper::http::Error>;
-
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
-
     async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
-
-    // async fn nc(&self) -> String {
-    //     // serve full file
-    //     unimplemented!();
-    // }
+    async fn nc(&self) -> Result<Response<Body>, hyper::http::Error>;
 }

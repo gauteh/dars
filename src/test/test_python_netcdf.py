@@ -1,3 +1,4 @@
+import pytest
 from netCDF4 import Dataset
 
 def test_load_dataset():
@@ -36,6 +37,7 @@ def test_grid_index():
 def test_error():
   d = Dataset("http://localhost:8001/data/coads_climatology.nc")
   sst = d.variables['SST']
-  v = sst[40,:,:].sum()
-  print(v)
+  with pytest.raises(IndexError):
+    v = sst[40,:,:].sum()
+    print(v)
 

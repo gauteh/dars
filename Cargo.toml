@@ -20,6 +20,8 @@ netcdf = "0.3.1"
 netcdf-sys = "0.2.1"
 percent-encoding = "2.1.0"
 xdr-codec = "0.4.4"
+notify = "4.0.14"
+walkdir = "2.2.9"
 
 [dependencies.tokio]
 version = "0.2.4"

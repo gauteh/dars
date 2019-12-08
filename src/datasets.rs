@@ -2,6 +2,9 @@ use hyper::{Response, Body, StatusCode};
 use async_trait::async_trait;
 use std::sync::Arc;
 use std::collections::HashMap;
+use walkdir::WalkDir;
+
+use super::nc::NcDataset;
 
 pub struct Data {
     pub root: String,
@@ -19,9 +22,35 @@ struct DsRequest(String, DsRequestType);
 
 impl Data {
     pub fn init() -> Data {
+        let mut map: HashMap<String, Arc<dyn Dataset + Send + Sync>> = HashMap::new();
+
+        for entry in WalkDir::new("data")
+            .follow_links(true)
+            .into_iter()
+            .filter_entry(|entry| !entry.file_name().to_str().map(|s| s.starts_with(".")).unwrap_or(false))
+        {
+            if let Ok(entry) = entry {
+                match entry.metadata() {
+                    Ok(m) if m.is_file() => {
+                        match entry.path().extension() {
+                            Some(ext) if ext == "nc" => {
+                                match NcDataset::open(entry.path()) {
+                                    Ok(ds) => { map.insert(entry.path().to_str().unwrap().to_string().trim_start_matches("data/").to_string(),
+                                    Arc::new(ds)); },
+                                    _ => warn!("Could not open: {:?}", entry.path())
+                                }
+                            },
+                            _ => ()
+                        }
+                    },
+                    _ => ()
+                }
+            }
+        }
+
         Data {
             root: String::from("./data"),
-            datasets: HashMap::new()
+            datasets: map
         }
     }
 
@@ -43,8 +72,15 @@ impl Data {
         let ds: String = req.uri().path().trim_start_matches("/data/").to_string();
         let DsRequest(ds, dst) = Data::parse_request(ds);
 
-        let data = DATA.clone();
-        let ds = data.datasets.get(&ds);
+        let ds = {
+            let rdata = DATA.clone();
+            let data = rdata.read().unwrap();
+
+            match data.datasets.get(&ds) {
+                Some(ds) => Some(ds.clone()),
+                None => None
+            }
+        };
 
         match ds {
             Some(ds) => {

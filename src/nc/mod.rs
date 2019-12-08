@@ -24,14 +24,14 @@ pub struct NcDataset {
 }
 
 impl NcDataset {
-    pub fn open(filename: String) -> anyhow::Result<NcDataset> {
-        info!("opening: {}", filename);
+    pub fn open(filename: &std::path::Path) -> anyhow::Result<NcDataset> {
+        info!("Adding netCDF dataset: {:?}", filename);
         use std::fs;
 
         let md = fs::metadata(&filename)?;
         let mtime = md.modified()?;
-        debug!("{}: mtime: {:?}", filename, mtime.elapsed().unwrap());
 
+        let filename = filename.to_str().unwrap().to_string();
         let das = NcDas::build(filename.clone())?;
         let dds = NcDds::build(filename.clone())?;
 

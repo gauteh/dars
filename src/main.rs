@@ -27,12 +27,15 @@ extern crate test;
 #[macro_use] extern crate log;
 #[macro_use] extern crate anyhow;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, RwLock};
+use futures::{future, FutureExt};
+use std::time::Duration;
 use hyper::{
     Server, Body, Response, Error, Method, StatusCode,
     service::{service_fn, make_service_fn}
 };
 use colored::Colorize;
+use notify::Watcher;
 
 pub mod datasets;
 mod nc;
@@ -41,22 +44,7 @@ mod dap2;
 use datasets::{Data, Dataset};
 
 lazy_static! {
-    pub static ref DATA: Arc<Data> = {
-        let mut data = Data::init();
-
-        data.datasets.insert("coads_climatology.nc".to_string(),
-            Arc::new(
-                nc::NcDataset::open("data/coads_climatology.nc".to_string()).unwrap()));
-
-        // data.datasets.insert("testData.nc".to_string(),
-        //     Arc::new(
-        //         nc::NcDataset::open("data/testData.nc".to_string()).unwrap()));
-        // data.datasets.insert("meps_det_vc_2_5km_latest.nc".to_string(),
-        //     Arc::new(
-        //         nc::NcDataset::open("data/meps_det_vc_2_5km_latest.nc".to_string()).unwrap()));
-
-        Arc::new(data)
-    };
+    pub static ref DATA: Arc<RwLock<Data>> = Arc::new(RwLock::new(Data::init()));
 }
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -67,6 +55,23 @@ async fn main() -> Result<(), anyhow::Error> {
     env_logger::from_env(Env::default().default_filter_or("dars=debug")).init();
 
     info!("𓆣 𓃢  (DARS DAP v{})", VERSION);
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let mut watcher = notify::watcher(tx, Duration::from_secs(2))?;
+    watcher.watch("data", notify::RecursiveMode::Recursive)?;
+    info!("Watching data/");
+
+    let watch = async move {
+        let rx = Arc::new(Mutex::new(rx));
+        loop {
+            let irx = rx.clone();
+            match async_std::task::spawn_blocking(move ||
+                irx.lock().unwrap().recv()).await {
+                Ok(o) => debug!("{:?} happened", o),
+                Err(e) => break Err::<(),_>(e)
+            }
+        }
+    };
 
     let addr = ([0, 0, 0, 0], 8001).into();
 
@@ -105,9 +110,10 @@ async fn main() -> Result<(), anyhow::Error> {
 
 
     let server = Server::bind(&addr)
-        .serve(msvc);
+        .serve(msvc)
+        .map(|r| r.map_err(|e| anyhow!(e)));
 
     info!("Listening on http://{}", addr);
-    server.await.map_err(|e| anyhow!(e))
+    future::join(server, watch).await.0
 }
 

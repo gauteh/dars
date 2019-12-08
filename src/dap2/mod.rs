@@ -45,6 +45,10 @@ pub mod xdr {
         fn size() -> usize;
     }
 
+    impl XdrSize for u32 {
+        fn size() -> usize { 4 }
+    }
+
     impl XdrSize for i32 {
         fn size() -> usize { 4 }
     }

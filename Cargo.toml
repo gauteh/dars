@@ -19,7 +19,6 @@ log = "0.4.8"
 netcdf = "0.3.1"
 netcdf-sys = "0.2.1"
 percent-encoding = "2.1.0"
-xdr-codec = "0.4.4"
 notify = "4.0.14"
 walkdir = "2.2.9"
 
@@ -38,3 +37,8 @@ version = "1.2.0"
 [dependencies.hyper]
 features = ["stream"]
 git = "https://github.com/hyperium/hyper"
+
+[dependencies.xdr-codec]
+version = "0.4.4"
+features = ["bytecodec"]
+

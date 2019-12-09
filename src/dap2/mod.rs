@@ -45,6 +45,14 @@ pub mod xdr {
         fn size() -> usize;
     }
 
+    impl XdrSize for i8 {
+        fn size() -> usize { 1 }
+    }
+
+    impl XdrSize for u8 {
+        fn size() -> usize { 1 }
+    }
+
     impl XdrSize for u32 {
         fn size() -> usize { 4 }
     }
@@ -61,12 +69,6 @@ pub mod xdr {
         fn size() -> usize { 8 }
     }
 
-    fn xdr_size<T>() -> usize
-        where T: XdrSize
-    {
-        T::size()
-    }
-
     pub fn pack_xdr_val<T>(v: Vec<T>) -> Result<Vec<u8>, anyhow::Error>
         where T: xdr_codec::Pack<std::io::Cursor<Vec<u8>>> + Sized + XdrSize
     {
@@ -74,7 +76,7 @@ pub mod xdr {
 
         ensure!(v.len() == 1, "value with more than one element");
 
-        let sz: usize = xdr_size::<T>();
+        let sz: usize = <T as XdrSize>::size();
         let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(sz));
         v[0].pack(&mut buf)?;
         Ok(buf.into_inner())
@@ -84,13 +86,16 @@ pub mod xdr {
         where T: xdr_codec::Pack<std::io::Cursor<Vec<u8>>> + Sized + XdrSize
     {
         use std::io::Cursor;
-        use xdr_codec::pack;
+        use xdr_codec::{pack, Pack};
 
-        let sz: usize = 2*v.len() + v.len()*xdr_size::<T>();
+        let sz: usize = 2*v.len()*4 + v.len()*<T as XdrSize>::size();
         let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(sz));
 
-        pack(&v.len(), &mut buf)?;
-        pack(&v, &mut buf)?;
+        v.len().pack(&mut buf)?;
+        v.len().pack(&mut buf)?;
+        for val in v {
+            val.pack(&mut buf)?;
+        }
 
         Ok(buf.into_inner())
     }

@@ -49,29 +49,37 @@ lazy_static! {
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
+// This watches for new files and changes, deletions of loaded
+// files. It would be safer to handle change detection / re-load
+// on each access, but that would involve a syscall for every DAS
+// and DDS request.
+//
+// On systems where the actual file is not removed untill all file handles
+// are closed this should work fairly well.
+async fn watch() -> Result<(), anyhow::Error> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let mut watcher = notify::watcher(tx, Duration::from_secs(2))?;
+    watcher.watch("data", notify::RecursiveMode::Recursive)?;
+
+    let rx = Arc::new(Mutex::new(rx));
+
+    info!("Watching ./data/");
+    loop {
+        let irx = rx.clone();
+        match async_std::task::spawn_blocking(move ||
+            irx.lock().unwrap().recv()).await {
+            Ok(o) => warn!("{:?} happened (not implemented yet)", o),
+            Err(_) => break Err(anyhow!("Error while watching data"))
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     use env_logger::Env;
     env_logger::from_env(Env::default().default_filter_or("dars=debug")).init();
 
     info!("𓆣 𓃢  (DARS DAP v{})", VERSION);
-
-    let (tx, rx) = std::sync::mpsc::channel();
-    let mut watcher = notify::watcher(tx, Duration::from_secs(2))?;
-    watcher.watch("data", notify::RecursiveMode::Recursive)?;
-    info!("Watching data/");
-
-    let watch = async move {
-        let rx = Arc::new(Mutex::new(rx));
-        loop {
-            let irx = rx.clone();
-            match async_std::task::spawn_blocking(move ||
-                irx.lock().unwrap().recv()).await {
-                Ok(o) => debug!("{:?} happened", o),
-                Err(e) => break Err::<(),_>(e)
-            }
-        }
-    };
 
     let addr = ([0, 0, 0, 0], 8001).into();
 
@@ -108,12 +116,11 @@ async fn main() -> Result<(), anyhow::Error> {
             ))
     });
 
-
     let server = Server::bind(&addr)
         .serve(msvc)
         .map(|r| r.map_err(|e| anyhow!(e)));
 
     info!("Listening on http://{}", addr);
-    future::join(server, watch).await.0
+    future::join(server, watch()).await.0
 }
 

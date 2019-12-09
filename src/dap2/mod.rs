@@ -86,7 +86,7 @@ pub mod xdr {
         where T: xdr_codec::Pack<std::io::Cursor<Vec<u8>>> + Sized + XdrSize
     {
         use std::io::Cursor;
-        use xdr_codec::{pack, Pack};
+        use xdr_codec::Pack;
 
         let sz: usize = 2*v.len()*4 + v.len()*<T as XdrSize>::size();
         let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(sz));

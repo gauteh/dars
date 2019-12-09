@@ -16,7 +16,7 @@ impl NcDds {
             netcdf_sys::NC_INT => "Int32".to_string(),
             netcdf_sys::NC_BYTE => "Byte".to_string(),
             netcdf_sys::NC_UBYTE => "Byte".to_string(),
-            netcdf_sys::NC_CHAR => "Byte".to_string(),
+            // netcdf_sys::NC_CHAR => "String".to_string(),
             netcdf_sys::NC_STRING => "String".to_string(),
             e => format!("Unimplemented: {:?}", e)
         }
@@ -95,7 +95,8 @@ impl NcDds {
 
         let mut map = HashMap::new();
 
-        for var in nc.variables() {
+        for var in nc.variables()
+            .filter(|v| v.vartype() != netcdf_sys::NC_CHAR) {
             if var.dimensions().len() < 2 {
                 let mut v = NcDds::format_var(indent, var, &None);
                 v.push_str("\n");

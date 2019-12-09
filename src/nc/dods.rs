@@ -68,8 +68,8 @@ pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<
                 netcdf_sys::NC_DOUBLE => xdr_chunk::<f64>(vv, slab),
                 netcdf_sys::NC_INT => xdr_chunk::<i32>(vv, slab),
                 netcdf_sys::NC_BYTE => xdr_chunk::<u8>(vv, slab),
-                netcdf_sys::NC_UBYTE => xdr_chunk::<u8>(vv, slab),
-                netcdf_sys::NC_CHAR => xdr_chunk::<u8>(vv, slab),
+                // netcdf_sys::NC_UBYTE => xdr_bytes(vv),
+                // netcdf_sys::NC_CHAR => xdr_bytes(vv),
                 _ => unimplemented!()
             };
         }

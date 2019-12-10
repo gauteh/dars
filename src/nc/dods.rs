@@ -40,6 +40,8 @@ fn xdr_chunk<T>(v: &netcdf::Variable, slab: Option<(Vec<usize>, Vec<usize>)>) ->
 pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
     stream! {
         for v in vs {
+            // TODO: Structures not supported, only single variables.
+
             let mut mv = match v.find(".") {
                 Some(i) => &v[i+1..],
                 None => &v

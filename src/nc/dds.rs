@@ -88,7 +88,7 @@ impl NcDds {
     }
 
     pub fn build(f: String) -> anyhow::Result<NcDds> {
-        debug!("building Data Descriptor Structure (DDS) for {}", f);
+        debug!("Building Data Descriptor Structure (DDS) for {}", f);
         let nc = netcdf::open(f.clone())?;
 
         let indent: usize = 4;

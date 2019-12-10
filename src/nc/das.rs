@@ -48,7 +48,7 @@ impl NcDas {
     }
 
     pub fn build(f: String) -> anyhow::Result<NcDas> {
-        debug!("building Data Attribute Structure (DAS) for {}", f);
+        debug!("Building Data Attribute Structure (DAS) for {}", f);
 
         let nc = netcdf::open(f)?;
 

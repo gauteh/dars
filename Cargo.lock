@@ -250,6 +250,7 @@ dependencies = [
  "netcdf-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "notify 4.0.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "percent-encoding 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "roxmltree 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-util 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "walkdir 2.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -934,6 +935,14 @@ version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "roxmltree"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "xmlparser 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1183,6 +1192,11 @@ dependencies = [
  "error-chain 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
+[[package]]
+name = "xmlparser"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
 [metadata]
 "checksum aho-corasick 0.7.6 (registry+https://github.com/rust-lang/crates.io-index)" = "58fb5e95d83b38284460a5fda7d6470aa0b8844d283a0b614b8535e880800d2d"
 "checksum anyhow 1.0.25 (registry+https://github.com/rust-lang/crates.io-index)" = "9267dff192e68f3399525901e709a48c1d3982c9c072fa32f2127a0cb0babf14"
@@ -1289,6 +1303,7 @@ dependencies = [
 "checksum redox_syscall 0.1.56 (registry+https://github.com/rust-lang/crates.io-index)" = "2439c63f3f6139d1b57529d16bc3b8bb855230c8efcc5d3a896c8bea7c3b1e84"
 "checksum regex 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "dc220bd33bdce8f093101afe22a037b8eb0e5af33592e6a9caafff0d4cb81cbd"
 "checksum regex-syntax 0.6.12 (registry+https://github.com/rust-lang/crates.io-index)" = "11a7e20d1cce64ef2fed88b66d347f88bd9babb82845b2b858f3edbf59a4f716"
+"checksum roxmltree 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0852407257c1b696a0c66b9db3ffe7769c2744a2fa725c8050e6f3e5a823c02b"
 "checksum rustc-demangle 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)" = "4c691c0e608126e00913e33f0ccf3727d5fc84573623b8d65b2df340b5201783"
 "checksum rustc_version 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
 "checksum same-file 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "585e8ddcedc187886a30fa705c47985c3fa88d06624095856b36ca0b82ff4421"
@@ -1320,3 +1335,4 @@ dependencies = [
 "checksum wincolor 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "96f5016b18804d24db43cebf3c77269e7569b8954a8464501c216cc5e070eaa9"
 "checksum ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
 "checksum xdr-codec 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "48056532577dba856078eaf25193366b884401cdf55da433fe741617d3158fa6"
+"checksum xmlparser 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8110496c5bcc0d966b0b2da38d5a791aa139eeb0b80e7840a7463c2b806921eb"

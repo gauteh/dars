@@ -16,7 +16,7 @@ use das::NcDas;
 ///
 /// Currently does not implement sub-groups.
 pub struct NcDataset {
-    pub filename: String,
+    pub filename: std::path::PathBuf,
     pub mtime: std::time::SystemTime,
     f: Arc<netcdf::File>,
     das: NcDas,
@@ -24,19 +24,22 @@ pub struct NcDataset {
 }
 
 impl NcDataset {
-    pub fn open(filename: &std::path::Path) -> anyhow::Result<NcDataset> {
+    pub fn open<P>(filename: P) -> anyhow::Result<NcDataset>
+        where P: Into<std::path::PathBuf>
+    {
+        let filename = filename.into();
         info!("Adding netCDF dataset: {:?}", filename);
         use std::fs;
 
         let md = fs::metadata(&filename)?;
         let mtime = md.modified()?;
 
-        let filename = filename.to_str().unwrap().to_string();
-        let das = NcDas::build(filename.clone())?;
-        let dds = NcDds::build(filename.clone())?;
+        let fstr = filename.to_string_lossy().to_string();
+        let das = NcDas::build(fstr.clone())?;
+        let dds = NcDds::build(fstr.clone())?;
 
         Ok(NcDataset {
-            filename: String::from(filename.trim_start_matches("data/")),
+            filename: filename.strip_prefix("data/").unwrap().into(),
             mtime: mtime,
             f: Arc::new(netcdf::open(filename).unwrap()),
             das: das,
@@ -60,7 +63,7 @@ impl NcDataset {
 #[async_trait]
 impl Dataset for NcDataset {
     fn name(&self) -> String {
-        self.filename.clone()
+        self.filename.to_string_lossy().to_string()
     }
 
     async fn das(&self) -> Result<Response<Body>, hyper::http::Error> {
@@ -101,7 +104,7 @@ impl Dataset for NcDataset {
         use tokio::fs::File;
         use futures::StreamExt;
 
-        let filename = format!("data/{}", self.filename.clone());
+        let filename = std::path::Path::new("data").join(self.filename.clone());
 
         File::open(filename)
             .await
@@ -131,7 +134,7 @@ mod test {
     fn open_dataset() {
         init();
 
-        NcDataset::open("data/coads_climatology.nc".to_string()).unwrap();
+        NcDataset::open("data/coads_climatology.nc").unwrap();
     }
 }
 

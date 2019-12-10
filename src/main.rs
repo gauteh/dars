@@ -38,8 +38,9 @@ use colored::Colorize;
 use notify::Watcher;
 
 pub mod datasets;
-mod nc;
 mod dap2;
+mod nc;
+mod ncml;
 
 use datasets::{Data, Dataset};
 

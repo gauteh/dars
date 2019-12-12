@@ -7,10 +7,23 @@ use std::path::PathBuf;
 use super::Dataset;
 use super::nc;
 
+mod member;
+
 pub enum AggregationType {
     JoinExisting,
 }
 
+/// # NCML aggregated datasets
+///
+/// Reference: https://www.unidata.ucar.edu/software/netcdf-java/current/ncml/Aggregation.html
+///
+/// ## JoinExisting
+///
+/// The aggregating dimension must already have a coordinate variable. Only the outer (slowest varying) dimension
+/// (first index) may be joined.
+///
+/// The coordinate variable may be overlapping between the dataset, the priority is last first.
+///
 pub struct NcmlDataset {
     filename: PathBuf,
     aggregation_type: AggregationType,
@@ -54,6 +67,10 @@ impl NcmlDataset {
         let first = files.first().expect("no members in aggregate");
         let das = nc::das::NcDas::build(first)?;
 
+        // Add each dataset and identify the coodinate dimension. Check that it is the
+        // first in all variables. Identify the range (only accept monotonically
+        // increasing) and overlap.
+
         Ok(NcmlDataset {
             filename: filename.strip_prefix("data/").unwrap().into(),
             aggregation_type: AggregationType::JoinExisting,
@@ -70,9 +87,7 @@ impl Dataset for NcmlDataset {
     }
 
     async fn das(&self) -> Result<Response<Body>, hyper::http::Error> {
-        Response::builder()
-            .status(StatusCode::NOT_IMPLEMENTED)
-            .body(Body::empty())
+        Response::builder().body(Body::from(self.das.to_string()))
     }
 
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {

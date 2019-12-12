@@ -4,7 +4,10 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use walkdir::WalkDir;
 
-use super::nc::NcDataset;
+use super::{
+    nc::NcDataset,
+    ncml::NcmlDataset
+};
 
 pub struct Data {
     pub root: String,
@@ -35,6 +38,13 @@ impl Data {
                         match entry.path().extension() {
                             Some(ext) if ext == "nc" => {
                                 match NcDataset::open(entry.path()) {
+                                    Ok(ds) => { map.insert(entry.path().to_str().unwrap().to_string().trim_start_matches("data/").to_string(),
+                                    Arc::new(ds)); },
+                                    _ => warn!("Could not open: {:?}", entry.path())
+                                }
+                            },
+                            Some(ext) if ext == "ncml" => {
+                                match NcmlDataset::open(entry.path()) {
                                     Ok(ds) => { map.insert(entry.path().to_str().unwrap().to_string().trim_start_matches("data/").to_string(),
                                     Arc::new(ds)); },
                                     _ => warn!("Could not open: {:?}", entry.path())

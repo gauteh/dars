@@ -2,24 +2,64 @@ use hyper::{Response, Body, StatusCode};
 use std::sync::Arc;
 use async_trait::async_trait;
 use percent_encoding::percent_decode_str;
+use std::path::PathBuf;
 
 use super::Dataset;
+use super::nc;
+
+pub enum AggregationType {
+    JoinExisting,
+}
 
 pub struct NcmlDataset {
-    pub filename: std::path::PathBuf,
-
+    filename: PathBuf,
+    aggregation_type: AggregationType,
+    aggregation_dim: String,
+    files: Vec<PathBuf>,
+    das: nc::das::NcDas
 }
 
 impl NcmlDataset {
     pub fn open<P>(filename: P) -> anyhow::Result<NcmlDataset>
-        where P: Into<std::path::PathBuf>
+        where P: Into<PathBuf>
     {
         let filename = filename.into();
         info!("Adding ncml dataset: {:?}", filename);
-        // let filename = String::from(filename.to_str().unwrap());
+
+        let base = filename.parent();
+
+        let xml = std::fs::read_to_string(filename.clone())?;
+        let xml = roxmltree::Document::parse(&xml)?;
+        let root = xml.root_element();
+
+        let aggregation = root.first_element_child().expect("no aggregation tag found");
+        ensure!(aggregation.tag_name().name() == "aggregation", "expected aggregation tag");
+
+        let aggregation_type = aggregation.attribute("type").expect("aggregation type not specified");
+        ensure!(aggregation_type == "joinExisting", "only 'joinExisting' type aggregation supported");
+
+        let aggregation_dim = aggregation.attribute("dimName").expect("aggregation dimension not specified");
+
+        let files: Vec<PathBuf> = aggregation.children()
+            .filter(|c| c.is_element())
+            .map(|e| e.attribute("location").map(|l| {
+                let l = PathBuf::from(l);
+                match l.is_relative() {
+                    true => base.map_or(l.clone(), |b| b.join(l)),
+                    false => l
+                }
+            })).collect::<Option<Vec<PathBuf>>>().expect("could not parse file list");
+
+        // DAS should be same for all members (hopefully), using first.
+        let first = files.first().expect("no members in aggregate");
+        let das = nc::das::NcDas::build(first)?;
 
         Ok(NcmlDataset {
             filename: filename.strip_prefix("data/").unwrap().into(),
+            aggregation_type: AggregationType::JoinExisting,
+            aggregation_dim: aggregation_dim.to_string(),
+            files: files,
+            das: das
         })
     }
 }
@@ -61,6 +101,8 @@ mod tests {
     #[test]
     fn test_ncml_open() {
         let nm = NcmlDataset::open("data/ncml/aggExisting.ncml").unwrap();
+
+        println!("files: {:#?}", nm.files);
     }
 
 }

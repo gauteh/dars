@@ -5,7 +5,7 @@ use percent_encoding::percent_decode_str;
 
 use super::Dataset;
 
-mod das;
+pub mod das;
 mod dds;
 mod dods;
 
@@ -35,7 +35,7 @@ impl NcDataset {
         let mtime = md.modified()?;
 
         let fstr = filename.to_string_lossy().to_string();
-        let das = NcDas::build(fstr.clone())?;
+        let das = NcDas::build(filename.clone())?;
         let dds = NcDds::build(fstr.clone())?;
 
         Ok(NcDataset {

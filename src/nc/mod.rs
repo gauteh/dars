@@ -7,7 +7,7 @@ use super::Dataset;
 
 pub mod das;
 pub mod dds;
-mod dods;
+pub mod dods;
 
 use dds::{NcDds, Dds};
 use das::NcDas;

@@ -8,6 +8,7 @@ use super::nc::{self, dds::Dds};
 
 mod member;
 mod dds;
+mod dods;
 
 use member::NcmlMember;
 
@@ -117,9 +118,23 @@ impl Dataset for NcmlDataset {
     }
 
     async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
-        Response::builder()
-            .status(StatusCode::NOT_IMPLEMENTED)
-            .body(Body::empty())
+        use futures::stream::{self, StreamExt};
+        let query = self.parse_query(query);
+
+        let dds = if let Ok(r) = self.dds.dds(&self.members[0].f.clone(), &query) {
+            r.into_bytes()
+        } else {
+            return Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty());
+        };
+
+        let dods = dods::xdr(&self, query);
+
+        let s = stream::once(async move { Ok::<_,anyhow::Error>(dds) })
+            .chain(
+                stream::once(async { Ok::<_,anyhow::Error>(String::from("\nData:\r\n").into_bytes()) }))
+            .chain(dods);
+
+        Response::builder().body(Body::wrap_stream(s))
     }
 
     async fn nc(&self) -> Result<Response<Body>, hyper::http::Error> {

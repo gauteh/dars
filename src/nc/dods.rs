@@ -6,7 +6,7 @@ use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
 
 // TODO: Try tokio::codec::FramedRead with Read impl on dods?
 
-fn xdr_chunk<T>(v: &netcdf::Variable, slab: Option<(Vec<usize>, Vec<usize>)>) -> Result<Vec<u8>, anyhow::Error>
+pub fn xdr_chunk<T>(v: &netcdf::Variable, slab: Option<(Vec<usize>, Vec<usize>)>) -> Result<Vec<u8>, anyhow::Error>
     where T:    netcdf::variable::Numeric +
                 xdr_codec::Pack<std::io::Cursor<Vec<u8>>> +
                 Sized +

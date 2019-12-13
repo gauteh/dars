@@ -1,13 +1,15 @@
 use hyper::{Response, Body, StatusCode};
-use std::sync::Arc;
 use async_trait::async_trait;
-use percent_encoding::percent_decode_str;
 use std::path::PathBuf;
+use percent_encoding::percent_decode_str;
 
 use super::Dataset;
-use super::nc;
+use super::nc::{self, dds::Dds};
 
 mod member;
+mod dds;
+
+use member::NcmlMember;
 
 pub enum AggregationType {
     JoinExisting,
@@ -21,15 +23,13 @@ pub enum AggregationType {
 ///
 /// The aggregating dimension must already have a coordinate variable. Only the outer (slowest varying) dimension
 /// (first index) may be joined.
-///
-/// The coordinate variable may be overlapping between the dataset, the priority is last first.
-///
 pub struct NcmlDataset {
     filename: PathBuf,
     aggregation_type: AggregationType,
     aggregation_dim: String,
-    files: Vec<PathBuf>,
-    das: nc::das::NcDas
+    members: Vec<NcmlMember>,
+    das: nc::das::NcDas,
+    dds: dds::NcmlDds
 }
 
 impl NcmlDataset {
@@ -48,13 +48,15 @@ impl NcmlDataset {
         let aggregation = root.first_element_child().expect("no aggregation tag found");
         ensure!(aggregation.tag_name().name() == "aggregation", "expected aggregation tag");
 
+        // TODO: use match to enum
         let aggregation_type = aggregation.attribute("type").expect("aggregation type not specified");
         ensure!(aggregation_type == "joinExisting", "only 'joinExisting' type aggregation supported");
 
+        // TODO: only available on certain aggregation types
         let aggregation_dim = aggregation.attribute("dimName").expect("aggregation dimension not specified");
 
         let files: Vec<PathBuf> = aggregation.children()
-            .filter(|c| c.is_element())
+            .filter(|c| c.is_element() && c.tag_name().name() == "netcdf")
             .map(|e| e.attribute("location").map(|l| {
                 let l = PathBuf::from(l);
                 match l.is_relative() {
@@ -63,23 +65,38 @@ impl NcmlDataset {
                 }
             })).collect::<Option<Vec<PathBuf>>>().expect("could not parse file list");
 
+        let members = files.iter().map(|p| NcmlMember::open(p, aggregation_dim)).collect::<Result<Vec<NcmlMember>,_>>()?;
+
         // DAS should be same for all members (hopefully), using first.
         let first = files.first().expect("no members in aggregate");
         let das = nc::das::NcDas::build(first)?;
 
-        // Add each dataset and identify the coodinate dimension. Check that it is the
-        // first in all variables. Identify the range (only accept monotonically
-        // increasing) and overlap.
+        let dim_n: usize = members.iter().map(|m| m.n).sum();
+        let dds = dds::NcmlDds::build(first, &filename, aggregation_dim, dim_n)?;
 
         Ok(NcmlDataset {
             filename: filename.strip_prefix("data/").unwrap().into(),
             aggregation_type: AggregationType::JoinExisting,
             aggregation_dim: aggregation_dim.to_string(),
-            files: files,
-            das: das
+            members: members,
+            das: das,
+            dds: dds
         })
     }
+
+    /// Parses and decodes list of variables and constraints submitted
+    /// through the URL query part.
+    fn parse_query(&self, query: Option<String>) -> Vec<String> {
+        match query {
+            Some(q) => q.split(",").map(|s|
+                    percent_decode_str(s).decode_utf8_lossy().into_owned()
+                ).collect(),
+
+            None => self.dds.default_vars()
+        }
+    }
 }
+
 #[async_trait]
 impl Dataset for NcmlDataset {
     fn name(&self) -> String {
@@ -91,9 +108,12 @@ impl Dataset for NcmlDataset {
     }
 
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
-        Response::builder()
-            .status(StatusCode::NOT_IMPLEMENTED)
-            .body(Body::empty())
+        let query = self.parse_query(query);
+
+        match self.dds.dds(&self.members[0].f.clone(), &query) {
+            Ok(dds) => Response::builder().body(Body::from(dds)),
+            _ => Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
+        }
     }
 
     async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
@@ -117,7 +137,7 @@ mod tests {
     fn test_ncml_open() {
         let nm = NcmlDataset::open("data/ncml/aggExisting.ncml").unwrap();
 
-        println!("files: {:#?}", nm.files);
+        println!("files: {:#?}", nm.members);
     }
 
 }

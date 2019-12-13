@@ -8,8 +8,10 @@ pub struct NcDds {
     pub vars: Arc<HashMap<String, String>>
 }
 
-impl NcDds {
-    fn vartype_str(t: netcdf_sys::nc_type) -> String {
+pub trait Dds {
+    fn dim_len(&self, dim: &netcdf::Dimension) -> usize;
+
+    fn vartype_str(&self, t: netcdf_sys::nc_type) -> String {
         match t {
             netcdf_sys::NC_FLOAT => "Float32".to_string(),
             netcdf_sys::NC_DOUBLE => "Float64".to_string(),
@@ -22,27 +24,27 @@ impl NcDds {
         }
     }
 
-    fn format_var(indent: usize, var: &netcdf::Variable, slab: &Option<Vec<usize>>) -> String {
+    fn format_var(&self, indent: usize, var: &netcdf::Variable, slab: &Option<Vec<usize>>) -> String {
         if var.dimensions().len() >= 1 {
             format!("{}{} {}[{} = {}];",
                     " ".repeat(indent),
-                    NcDds::vartype_str(var.vartype()),
+                    self.vartype_str(var.vartype()),
                     var.name(),
                     var.dimensions()[0].name(),
-                    slab.as_ref().and_then(|s| s.get(0)).unwrap_or(&var.dimensions()[0].len()))
+                    slab.as_ref().and_then(|s| s.get(0)).unwrap_or(&self.dim_len(&var.dimensions()[0])))
         } else {
-            format!("{}{} {};", " ".repeat(indent), NcDds::vartype_str(var.vartype()), var.name())
+            format!("{}{} {};", " ".repeat(indent), self.vartype_str(var.vartype()), var.name())
         }
     }
 
-    fn format_grid(indent: usize, nc: &netcdf::File, var: &netcdf::Variable, slab: &Option<Vec<usize>>) -> String {
+    fn format_grid(&self, indent: usize, nc: &netcdf::File, var: &netcdf::Variable, slab: &Option<Vec<usize>>) -> String {
         if !var.dimensions().iter().all(|d| nc.variable(d.name()).is_some()) {
             return format!("{}{} {}{};\n", " ".repeat(indent),
-            NcDds::vartype_str(var.vartype()),
+            self.vartype_str(var.vartype()),
             var.name(),
             var.dimensions().iter().enumerate().map(|(i, d)|
                 format!("[{} = {}]", d.name(),
-                    slab.as_ref().and_then(|s| s.get(i)).unwrap_or(&d.len())
+                    slab.as_ref().and_then(|s| s.get(i)).unwrap_or(&self.dim_len(&d))
                     )).collect::<String>());
         }
 
@@ -51,34 +53,34 @@ impl NcDds {
         grid.push(format!("{}Grid {{", " ".repeat(indent)));
         grid.push(format!("{} ARRAY:", " ".repeat(indent)));
         grid.push(format!("{}{} {}{};", " ".repeat(2*indent),
-            NcDds::vartype_str(var.vartype()),
+            self.vartype_str(var.vartype()),
             var.name(),
             var.dimensions().iter().enumerate().map(|(i, d)|
                 format!("[{} = {}]", d.name(),
-                    slab.as_ref().and_then(|s| s.get(i)).unwrap_or(&d.len())
+                    slab.as_ref().and_then(|s| s.get(i)).unwrap_or(&self.dim_len(&d))
                     )).collect::<String>())
             );
         grid.push(format!("{} MAPS:", " ".repeat(indent)));
         for d in var.dimensions() {
             let dvar = nc.variable(d.name()).expect(&format!("No variable found for dimension: {}", d.name()));
-            grid.push(NcDds::format_var(2*indent, dvar, slab));
+            grid.push(self.format_var(2*indent, dvar, slab));
         }
 
         grid.push(format!("{}}} {};\n", " ".repeat(indent), var.name()));
         grid.join("\n")
     }
 
-    fn format_struct(indent: usize, _nc: &netcdf::File, var: &netcdf::Variable, dim: &netcdf::Variable, slab: &Option<Vec<usize>>) -> String {
+    fn format_struct(&self, indent: usize, _nc: &netcdf::File, var: &netcdf::Variable, dim: &netcdf::Variable, slab: &Option<Vec<usize>>) -> String {
         let mut grid: Vec<String> = Vec::new();
 
         grid.push(format!("{}Structure {{", " ".repeat(indent)));
 
         grid.push(format!("{}{} {}{};", " ".repeat(2*indent),
-            NcDds::vartype_str(dim.vartype()),
+            self.vartype_str(dim.vartype()),
             dim.name(),
             dim.dimensions().iter().enumerate().map(|(i, d)|
                 format!("[{} = {}]", d.name(),
-                    slab.as_ref().and_then(|s| s.get(i)).unwrap_or(&d.len())
+                    slab.as_ref().and_then(|s| s.get(i)).unwrap_or(&self.dim_len(&d))
                 )).collect::<String>())
             );
 
@@ -87,10 +89,7 @@ impl NcDds {
         grid.join("\n")
     }
 
-    pub fn build(f: String) -> anyhow::Result<NcDds> {
-        debug!("Building Data Descriptor Structure (DDS) for {}", f);
-        let nc = netcdf::open(f.clone())?;
-
+    fn build_vars(&self, nc: &netcdf::File) -> HashMap<String, String> {
         let indent: usize = 4;
 
         let mut map = HashMap::new();
@@ -98,27 +97,27 @@ impl NcDds {
         for var in nc.variables()
             .filter(|v| v.vartype() != netcdf_sys::NC_CHAR) {
             if var.dimensions().len() < 2 {
-                let mut v = NcDds::format_var(indent, var, &None);
+                let mut v = self.format_var(indent, var, &None);
                 v.push_str("\n");
                 map.insert(var.name().to_string(), v);
             } else {
-                map.insert(var.name().to_string(), NcDds::format_grid(indent, &nc, var, &None));
+                map.insert(var.name().to_string(), self.format_grid(indent, &nc, var, &None));
 
-                map.insert(format!("{}.{}", var.name(), var.name()), NcDds::format_struct(indent, &nc, var, var, &None));
+                map.insert(format!("{}.{}", var.name(), var.name()), self.format_struct(indent, &nc, var, var, &None));
 
                 for d in var.dimensions() {
                     match nc.variable(d.name()) {
-                        Some(dvar) => map.insert(format!("{}.{}", var.name(), d.name()), NcDds::format_struct(indent, &nc, var, dvar, &None)),
+                        Some(dvar) => map.insert(format!("{}.{}", var.name(), d.name()), self.format_struct(indent, &nc, var, dvar, &None)),
                         _ => None
                     };
                 }
             }
         }
 
-        Ok(NcDds { f: f, vars: Arc::new(map) })
+        map
     }
 
-    fn build_var(nc: &netcdf::File, var: &str, slab: Vec<Vec<usize>>) -> Option<String> {
+    fn build_var(&self, nc: &netcdf::File, var: &str, slab: Vec<Vec<usize>>) -> Option<String> {
         let indent: usize = 4;
 
         let slab: Vec<usize> = slab.iter().map(count_slab).collect();
@@ -127,7 +126,7 @@ impl NcDds {
             Some(i) =>
                 match nc.variable(&var[..i]) {
                     Some(ivar) => match nc.variable(&var[i+1..]) {
-                        Some(dvar) => Some(NcDds::format_struct(indent, &nc, ivar, dvar, &Some(slab))),
+                        Some(dvar) => Some(self.format_struct(indent, &nc, ivar, dvar, &Some(slab))),
                         _ => None
                     },
                     _ => None
@@ -135,23 +134,27 @@ impl NcDds {
 
             None => match nc.variable(var) {
                 Some(var) => match var.dimensions().len() {
-                            l if l < 2 => Some(NcDds::format_var(indent, var, &Some(slab))),
-                            _ => Some(NcDds::format_grid(indent, &nc, var, &Some(slab)))
+                            l if l < 2 => Some(self.format_var(indent, var, &Some(slab))),
+                            _ => Some(self.format_grid(indent, &nc, var, &Some(slab)))
                     },
                 _ => None
             }
         }
     }
 
+    fn dds(&self, nc: &netcdf::File, vars: &Vec<String>) -> Result<String, anyhow::Error>;
+    fn default_vars(&self) -> Vec<String>;
+}
 
-    pub fn dds(&self, nc: &netcdf::File, vars: &Vec<String>) -> Result<String, anyhow::Error> {
+impl Dds for NcDds {
+    fn dds(&self, nc: &netcdf::File, vars: &Vec<String>) -> Result<String, anyhow::Error> {
         let dds: String = {
             vars.iter()
                 .map(|v|
                     match v.find("[") {
                         Some(i) =>
                             match parse_hyberslab(&v[i..]) {
-                                Ok(slab) => NcDds::build_var(nc, &v[..i], slab),
+                                Ok(slab) => self.build_var(nc, &v[..i], slab),
                                 _ => None
                             },
                         None =>
@@ -167,8 +170,24 @@ impl NcDds {
         Ok(format!("Dataset {{\n{}}} {};", dds, self.f))
     }
 
-    pub fn default_vars(&self) -> Vec<String> {
+    fn default_vars(&self) -> Vec<String> {
         self.vars.iter().filter(|(k,_)| !k.contains(".")).map(|(k,_)| k.clone()).collect()
+    }
+
+    fn dim_len(&self, dim: &netcdf::Dimension) -> usize {
+        dim.len()
+    }
+}
+
+impl NcDds {
+    pub fn build(f: String) -> Result<NcDds, anyhow::Error> {
+        debug!("Building Data Descriptor Structure (DDS) for {}", f);
+        let nc = netcdf::open(f.clone())?;
+
+        let mut dds = NcDds{ f: f, vars: Arc::new(HashMap::new()) };
+        let map = dds.build_vars(&nc);
+        dds.vars = Arc::new(map);
+        Ok(dds)
     }
 }
 

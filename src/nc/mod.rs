@@ -6,10 +6,10 @@ use percent_encoding::percent_decode_str;
 use super::Dataset;
 
 pub mod das;
-mod dds;
+pub mod dds;
 mod dods;
 
-use dds::NcDds;
+use dds::{NcDds, Dds};
 use das::NcDas;
 
 /// NetCDF dataset for DAP server.

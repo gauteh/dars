@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use futures::stream::Stream;
 use async_stream::stream;
+use itertools::izip;
+use std::iter::once;
 
 use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
 use super::NcmlDataset;
@@ -42,10 +44,18 @@ fn xdr_chunk<T>(v: &netcdf::Variable, slab: Option<(Vec<usize>, Vec<usize>)>) ->
 pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
     let fnc = ncml.members[0].f.clone();
     let dim = ncml.aggregation_dim.clone();
+    let dim_len = ncml.dds.dim_n;
 
     let ns = ncml.members.iter().map(|m| m.n).collect::<Vec<usize>>();
-    let ss = ns.iter().scan(0, |acc, &n| Some(*acc + n)).collect::<Vec<usize>>();
+    let ss = ns.iter().scan(0, |acc, &n| {
+        let c = *acc;
+        *acc = *acc + n;
+        Some(c)
+    }).collect::<Vec<usize>>();
     let fs = ncml.members.iter().map(|m| m.f.clone()).collect::<Vec<Arc<netcdf::File>>>();
+
+    println!("ns: {:#?}", ns);
+    println!("ss: {:#?}", ss);
 
     stream! {
         for v in vs {
@@ -74,9 +84,31 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
 
             // TODO: loop over chunks
             if vv.dimensions().len() > 0 && vv.dimensions()[0].name() == dim {
+                let (ind, cnt) = match slab {
+                    Some((i,c)) => (i, c),
+                    None => (vec![0; vv.dimensions().len()],
+                        once(dim_len).chain(
+                            vv.dimensions().iter().skip(1).map(|d| d.len())).collect::<Vec<usize>>())
+
+                };
+
+                if ind[0] + cnt[0] <= dim_len {
+                    yield Err(anyhow!("slab too great"));
+                }
+
                 // loop through files untill slab has been exhausted
-
-
+                for (s, n, f) in izip!(&ss, &ns, &fs) {
+                    if ind[0] >= s && ind[0] < (s + n) {
+                        // pack start (incl len x 2)
+                    } else if (ind[0] + cnt[0]) > s {
+                        // can be joined with a max(..)
+                        if (ind[0] + cnt[0]) > (s + n) {
+                            // pack whole
+                        } else {
+                            // pack some
+                        }
+                    }
+                }
             } else {
                 // take first member
                 yield match vv.vartype() {
@@ -94,3 +126,17 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::StreamExt;
+    use futures_util::pin_mut;
+
+    #[test]
+    fn ncml_xdr_time_dim() {
+        let nm = NcmlDataset::open("data/ncml/aggExisting.ncml").unwrap();
+        let t = xdr(&nm, vec!["TIME".to_string()]);
+        pin_mut!(t);
+        t.next();
+    }
+}

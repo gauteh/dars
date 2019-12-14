@@ -15,15 +15,15 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
     let dim_len = ncml.dds.dim_n;
 
     let ns = ncml.members.iter().map(|m| m.n).collect::<Vec<usize>>();
+
+    // start index of each member
     let ss = ns.iter().scan(0, |acc, &n| {
         let c = *acc;
         *acc = *acc + n;
         Some(c)
     }).collect::<Vec<usize>>();
-    let fs = ncml.members.iter().map(|m| m.f.clone()).collect::<Vec<Arc<netcdf::File>>>();
 
-    println!("ns: {:#?}", ns);
-    println!("ss: {:#?}", ss);
+    let fs = ncml.members.iter().map(|m| m.f.clone()).collect::<Vec<Arc<netcdf::File>>>();
 
     stream! {
         for v in vs {
@@ -67,7 +67,6 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
                 }
 
                 let agg_sz = cnt.iter().product::<usize>();
-                println!("dim_len: {}, n: {}, cnt: {:?}", dim_len, agg_sz, cnt);
 
                 // loop through files untill slab has been exhausted
                 for (s, n, f) in izip!(&ss, &ns, &fs) {
@@ -80,7 +79,6 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
                         mind[0] = ind[0] - s;
 
                         let mvv = f.variable(mv).ok_or(anyhow!("variable not found"))?;
-
                         yield pack_var(mvv, true, Some(agg_sz), Some((mind, mcnt)));
 
                     } else if ind[0] < *s && (*s < ind[0] + cnt[0]) {
@@ -141,5 +139,36 @@ mod tests {
         let ft = feb.variable("time").unwrap().values::<i32>(None, None).unwrap();
 
         assert!(&buf[31..] == ft.as_slice().unwrap());
+    }
+
+    #[test]
+    fn ncml_xdr_temp() {
+        let nm = NcmlDataset::open("data/ncml/aggExisting.ncml").unwrap();
+        let t = xdr(&nm, vec!["T".to_string()]);
+        pin_mut!(t);
+        let bs: Vec<u8> = block_on_stream(t).collect::<Result<Vec<_>,_>>().unwrap().iter().flatten().skip(4).map(|b| b.clone()).collect();
+
+        println!("len: {}", bs.len() / 8);
+        let n: usize = (bs.len() / 8);
+
+        println!("transmitted length: {:?}", &bs[0..4]);
+        assert_eq!(n, 3*4*(31+28));
+
+        let mut T = Cursor::new(&bs[4..]);
+
+        let mut buf: Vec<f64> = vec![0.0; n];
+        let sz = xdr_codec::unpack_array(&mut T, &mut buf, n, None).unwrap();
+
+        assert_eq!(sz, (31 + 28)*3*4 * 8);
+
+        let jan = netcdf::open("data/ncml/jan.nc").unwrap();
+        let jt = jan.variable("T").unwrap().values::<f64>(None, None).unwrap();
+
+        assert!(&buf[0..(31*3*4)] == jt.as_slice().unwrap());
+
+        let feb = netcdf::open("data/ncml/feb.nc").unwrap();
+        let ft = feb.variable("T").unwrap().values::<f64>(None, None).unwrap();
+
+        assert!(&buf[(31*3*4)..] == ft.as_slice().unwrap());
     }
 }

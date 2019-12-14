@@ -37,8 +37,6 @@ pub fn xdr_chunk<T>(v: &netcdf::Variable, start: bool, len: Option<usize>, slab:
 
     let mut vbuf: Vec<T> = vec![T::default(); n];
 
-    println!("slab: {:?}", slab);
-
     match slab {
         Some((indices, counts)) => v.values_to(&mut vbuf, Some(&indices), Some(&counts)),
         None => v.values_to(&mut vbuf, None, None)

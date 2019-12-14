@@ -93,7 +93,6 @@ pub mod xdr {
 
         if start {
             if let Some(len) = len {
-                println!("writing len: {}", len);
                 len.pack(&mut buf)?;
                 len.pack(&mut buf)?;
             } else {

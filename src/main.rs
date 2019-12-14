@@ -97,14 +97,9 @@ async fn main() -> Result<(), anyhow::Error> {
                 let u = req.uri().clone();
 
                 let r = match (req.method(), req.uri().path()) {
-                    (&Method::GET, "/") => Response::builder().body(Body::from("DAP!")),
-                    (&Method::GET, _) => {
-                        if req.uri().path().starts_with("/data/") {
-                            Data::dataset(req).await
-                        } else {
-                            Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
-                        }
-                    },
+                    (&Method::GET, "/") => Response::builder().body(Body::from("DAP!\n\n(checkout /data)")),
+                    (&Method::GET, "/data") => Data::datasets(req),
+                    (&Method::GET, p) if p.starts_with("/data/") => Data::dataset(req).await,
                     _ => Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
                 };
 

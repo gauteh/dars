@@ -28,7 +28,7 @@ impl NcDataset {
         where P: Into<std::path::PathBuf>
     {
         let filename = filename.into();
-        info!("Adding netCDF dataset: {:?}", filename);
+        info!("Loading {:?}..", filename);
         use std::fs;
 
         let md = fs::metadata(&filename)?;

@@ -25,7 +25,7 @@ impl NcmlMember
               S: Into<String>
     {
         let f = f.into();
-        info!("Loading ncml member: {:?}", f);
+        debug!("Loading member: {:?}", f);
         let dim_name = dim_name.into();
         let nc = Arc::new(netcdf::open(f.clone())?);
         let co = nc.variable(&dim_name)

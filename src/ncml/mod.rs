@@ -38,7 +38,7 @@ impl NcmlDataset {
         where P: Into<PathBuf>
     {
         let filename = filename.into();
-        info!("Adding ncml dataset: {:?}", filename);
+        info!("Loading {:?}..", filename);
 
         let base = filename.parent();
 

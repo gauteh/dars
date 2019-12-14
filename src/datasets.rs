@@ -19,7 +19,8 @@ enum DsRequestType {
     Das,
     Dds,
     Dods,
-    Nc
+    Nc,
+    Unknown
 }
 
 struct DsRequest(String, DsRequestType);
@@ -81,6 +82,18 @@ impl Data {
         }
     }
 
+    pub fn datasets(_req: hyper::Request<Body>) -> Result<Response<Body>, hyper::http::Error> {
+        let datasets: Vec<String> = {
+            let rdata = super::DATA.clone();
+            let data = rdata.read().unwrap();
+
+            data.datasets.keys().map(|s| format!("  /data/{}", s)).collect()
+        };
+
+        Response::builder().body(Body::from(
+                format!("Index of datasets:\n\n{}\n", datasets.join("\n"))))
+    }
+
     fn parse_request(ds: String) -> DsRequest {
         if ds.ends_with(".das") {
             DsRequest(String::from(ds.trim_end_matches(".das")), DsRequestType::Das)
@@ -88,8 +101,10 @@ impl Data {
             DsRequest(String::from(ds.trim_end_matches(".dds")), DsRequestType::Dds)
         } else if ds.ends_with(".dods") {
             DsRequest(String::from(ds.trim_end_matches(".dods")), DsRequestType::Dods)
-        } else {
+        } else if ds.ends_with(".nc") {
             DsRequest(String::from(&ds), DsRequestType::Nc)
+        } else {
+            DsRequest(String::from(&ds), DsRequestType::Unknown)
         }
     }
 
@@ -116,6 +131,7 @@ impl Data {
                     DsRequestType::Dds => ds.dds(req.uri().query().map(|s| s.to_string())).await,
                     DsRequestType::Dods => ds.dods(req.uri().query().map(|s| s.to_string())).await,
                     DsRequestType::Nc => ds.nc().await,
+                    _ => Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
                 }
             },
             None => {

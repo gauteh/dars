@@ -3,43 +3,11 @@ use futures::stream::Stream;
 use async_stream::stream;
 use itertools::izip;
 use std::iter::once;
+use std::cmp::min;
 
-use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
+use crate::dap2::hyperslab::{count_slab, parse_hyberslab};
 use super::NcmlDataset;
-use super::nc;
-
-// TODO: Try tokio::codec::FramedRead with Read impl on dods?
-
-fn xdr_chunk<T>(v: &netcdf::Variable, slab: Option<(Vec<usize>, Vec<usize>)>) -> Result<Vec<u8>, anyhow::Error>
-    where T:    netcdf::variable::Numeric +
-                xdr_codec::Pack<std::io::Cursor<Vec<u8>>> +
-                Sized +
-                xdr::XdrSize +
-                std::default::Default +
-                std::clone::Clone
-{
-    let n = match &slab {
-        Some((_, c)) => c.iter().product::<usize>(),
-        None => v.len()
-    };
-
-    if n > v.len() {
-        Err(anyhow!("slab too great"))?;
-    }
-
-    let mut vbuf: Vec<T> = vec![T::default(); n];
-
-    match slab {
-        Some((indices, counts)) => v.values_to(&mut vbuf, Some(&indices), Some(&counts)),
-        None => v.values_to(&mut vbuf, None, None)
-    }?;
-
-    if v.dimensions().len() > 0 {
-        xdr::pack_xdr_arr(vbuf)
-    } else {
-        xdr::pack_xdr_val(vbuf)
-    }
-}
+use super::nc::dods::pack_var;
 
 pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
     let fnc = ncml.members[0].f.clone();
@@ -84,6 +52,8 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
 
             // TODO: loop over chunks
             if vv.dimensions().len() > 0 && vv.dimensions()[0].name() == dim {
+                // single values are cannot have a dimension so we only need to handle arrays here.
+                // arrays have their length sent first, but single values do not.
                 let (ind, cnt) = match slab {
                     Some((i,c)) => (i, c),
                     None => (vec![0; vv.dimensions().len()],
@@ -92,35 +62,43 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
 
                 };
 
-                if ind[0] + cnt[0] <= dim_len {
+                if ind[0] + cnt[0] > dim_len {
                     yield Err(anyhow!("slab too great"));
                 }
 
+                let agg_sz = cnt.iter().product::<usize>();
+                println!("dim_len: {}, n: {}, cnt: {:?}", dim_len, agg_sz, cnt);
+
                 // loop through files untill slab has been exhausted
                 for (s, n, f) in izip!(&ss, &ns, &fs) {
-                    if ind[0] >= s && ind[0] < (s + n) {
+                    if ind[0] >= *s && ind[0] < (s + n) {
                         // pack start (incl len x 2)
-                    } else if (ind[0] + cnt[0]) > s {
-                        // can be joined with a max(..)
-                        if (ind[0] + cnt[0]) > (s + n) {
-                            // pack whole
-                        } else {
-                            // pack some
-                        }
+                        let mut mcnt = cnt.clone();
+                        mcnt[0] = min(cnt[0], *n);
+
+                        let mut mind = ind.clone();
+                        mind[0] = ind[0] - s;
+
+                        let mvv = f.variable(mv).ok_or(anyhow!("variable not found"))?;
+
+                        yield pack_var(mvv, true, Some(agg_sz), Some((mind, mcnt)));
+
+                    } else if ind[0] < *s && (*s < ind[0] + cnt[0]) {
+                        let mut mcnt = cnt.clone();
+                        mcnt[0] = min((cnt[0] - *s), *n);
+
+                        let mut mind = ind.clone();
+                        mind[0] = 0;
+
+                        let mvv = f.variable(mv).ok_or(anyhow!("variable not found"))?;
+                        yield pack_var(mvv, false, None, Some((mind, mcnt)));
+                    } else {
+                        break;
                     }
                 }
             } else {
                 // take first member
-                yield match vv.vartype() {
-                    netcdf_sys::NC_FLOAT => nc::dods::xdr_chunk::<f32>(vv, slab),
-                    netcdf_sys::NC_DOUBLE => nc::dods::xdr_chunk::<f64>(vv, slab),
-                    netcdf_sys::NC_INT => nc::dods::xdr_chunk::<i32>(vv, slab),
-                    netcdf_sys::NC_BYTE => nc::dods::xdr_chunk::<u8>(vv, slab),
-                    // netcdf_sys::NC_UBYTE => xdr_bytes(vv),
-                    // netcdf_sys::NC_CHAR => xdr_bytes(vv),
-                    _ => unimplemented!()
-                };
-
+                yield pack_var(vv, true, None, slab);
             }
         }
     }
@@ -129,14 +107,39 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::StreamExt;
     use futures_util::pin_mut;
+    use futures::executor::block_on_stream;
+    use std::io::Cursor;
 
     #[test]
     fn ncml_xdr_time_dim() {
         let nm = NcmlDataset::open("data/ncml/aggExisting.ncml").unwrap();
-        let t = xdr(&nm, vec!["TIME".to_string()]);
+        let t = xdr(&nm, vec!["time".to_string()]);
         pin_mut!(t);
-        t.next();
+        let bs: Vec<u8> = block_on_stream(t).collect::<Result<Vec<_>,_>>().unwrap().iter().flatten().skip(4).map(|b| b.clone()).collect();
+
+        println!("len: {}", bs.len() / 4);
+        let n: usize = (bs.len() / 4) - 1;
+
+        println!("transmitted length: {:?}", &bs[0..4]);
+        assert_eq!(n, 31 + 28);
+
+        let mut time = Cursor::new(&bs[4..]);
+
+        let mut buf: Vec<i32> = vec![0; n];
+        let sz = xdr_codec::unpack_array(&mut time, &mut buf, n, None).unwrap();
+        println!("deserialized time (sz: {}): {:?}", sz, buf);
+
+        assert_eq!(sz, (31 + 28) * 4);
+
+        let jan = netcdf::open("data/ncml/jan.nc").unwrap();
+        let jt = jan.variable("time").unwrap().values::<i32>(None, None).unwrap();
+
+        assert!(&buf[0..31] == jt.as_slice().unwrap());
+
+        let feb = netcdf::open("data/ncml/feb.nc").unwrap();
+        let ft = feb.variable("time").unwrap().values::<i32>(None, None).unwrap();
+
+        assert!(&buf[31..] == ft.as_slice().unwrap());
     }
 }

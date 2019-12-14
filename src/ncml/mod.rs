@@ -26,7 +26,7 @@ pub enum AggregationType {
 /// (first index) may be joined.
 pub struct NcmlDataset {
     filename: PathBuf,
-    aggregation_type: AggregationType,
+    _aggregation_type: AggregationType,
     aggregation_dim: String,
     members: Vec<NcmlMember>,
     das: nc::das::NcDas,
@@ -77,7 +77,7 @@ impl NcmlDataset {
 
         Ok(NcmlDataset {
             filename: filename.strip_prefix("data/").unwrap().into(),
-            aggregation_type: AggregationType::JoinExisting,
+            _aggregation_type: AggregationType::JoinExisting,
             aggregation_dim: aggregation_dim.to_string(),
             members: members,
             das: das,

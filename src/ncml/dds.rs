@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::path::PathBuf;
 use std::collections::HashMap;
 
-use crate::dap2::hyperslab::{count_slab, parse_hyberslab};
+use crate::dap2::hyperslab::parse_hyberslab;
 use crate::nc::dds::Dds;
 
 pub struct NcmlDds {

@@ -82,7 +82,7 @@ pub mod xdr {
         Ok(buf.into_inner())
     }
 
-    pub fn pack_xdr_arr<T>(v: Vec<T>) -> Result<Vec<u8>, anyhow::Error>
+    pub fn pack_xdr_arr<T>(v: Vec<T>, start: bool, len: Option<usize>) -> Result<Vec<u8>, anyhow::Error>
         where T: xdr_codec::Pack<std::io::Cursor<Vec<u8>>> + Sized + XdrSize
     {
         use std::io::Cursor;
@@ -91,8 +91,17 @@ pub mod xdr {
         let sz: usize = 2*4 + v.len()*<T as XdrSize>::size();
         let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(sz));
 
-        v.len().pack(&mut buf)?;
-        v.len().pack(&mut buf)?;
+        if start {
+            if let Some(len) = len {
+                println!("writing len: {}", len);
+                len.pack(&mut buf)?;
+                len.pack(&mut buf)?;
+            } else {
+                v.len().pack(&mut buf)?;
+                v.len().pack(&mut buf)?;
+            }
+        }
+
         for val in v {
             val.pack(&mut buf)?;
         }

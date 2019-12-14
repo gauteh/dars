@@ -6,8 +6,20 @@ use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
 
 // TODO: Try tokio::codec::FramedRead with Read impl on dods?
 
-pub fn xdr_chunk<T>(v: &netcdf::Variable, slab: Option<(Vec<usize>, Vec<usize>)>) -> Result<Vec<u8>, anyhow::Error>
-    where T:    netcdf::variable::Numeric +
+pub fn pack_var(v: &netcdf::Variable, start: bool, len: Option<usize>, slab: Option<(Vec<usize>, Vec<usize>)>) -> Result<Vec<u8>, anyhow::Error> {
+    match v.vartype() {
+        netcdf_sys::NC_FLOAT => xdr_chunk::<f32>(v, start, len, slab),
+        netcdf_sys::NC_DOUBLE => xdr_chunk::<f64>(v, start, len, slab),
+        netcdf_sys::NC_INT => xdr_chunk::<i32>(v, start, len, slab),
+        netcdf_sys::NC_BYTE => xdr_chunk::<u8>(v, start, len, slab),
+        // netcdf_sys::NC_UBYTE => xdr_bytes(vv),
+        // netcdf_sys::NC_CHAR => xdr_bytes(vv),
+        _ => unimplemented!()
+    }
+}
+
+pub fn xdr_chunk<T>(v: &netcdf::Variable, start: bool, len: Option<usize>, slab: Option<(Vec<usize>, Vec<usize>)>) -> Result<Vec<u8>, anyhow::Error>
+    where T: netcdf::variable::Numeric +
                 xdr_codec::Pack<std::io::Cursor<Vec<u8>>> +
                 Sized +
                 xdr::XdrSize +
@@ -20,10 +32,12 @@ pub fn xdr_chunk<T>(v: &netcdf::Variable, slab: Option<(Vec<usize>, Vec<usize>)>
     };
 
     if n > v.len() {
-        Err(anyhow!("slab too great"))?;
+        Err(anyhow!("slab too great {} > {}", n, v.len()))?;
     }
 
     let mut vbuf: Vec<T> = vec![T::default(); n];
+
+    println!("slab: {:?}", slab);
 
     match slab {
         Some((indices, counts)) => v.values_to(&mut vbuf, Some(&indices), Some(&counts)),
@@ -31,7 +45,7 @@ pub fn xdr_chunk<T>(v: &netcdf::Variable, slab: Option<(Vec<usize>, Vec<usize>)>
     }?;
 
     if v.dimensions().len() > 0 {
-        xdr::pack_xdr_arr(vbuf)
+        xdr::pack_xdr_arr(vbuf, start, len)
     } else {
         xdr::pack_xdr_val(vbuf)
     }
@@ -64,16 +78,7 @@ pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<
             let vv = nc.variable(mv).ok_or(anyhow!("variable not found"))?;
 
             // TODO: loop over chunks
-
-            yield match vv.vartype() {
-                netcdf_sys::NC_FLOAT => xdr_chunk::<f32>(vv, slab),
-                netcdf_sys::NC_DOUBLE => xdr_chunk::<f64>(vv, slab),
-                netcdf_sys::NC_INT => xdr_chunk::<i32>(vv, slab),
-                netcdf_sys::NC_BYTE => xdr_chunk::<u8>(vv, slab),
-                // netcdf_sys::NC_UBYTE => xdr_bytes(vv),
-                // netcdf_sys::NC_CHAR => xdr_bytes(vv),
-                _ => unimplemented!()
-            };
+            yield pack_var(vv, true, None, slab);
         }
     }
 }

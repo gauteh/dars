@@ -1,6 +1,6 @@
 # DARS
 
-This is a DAP2 server written in Rust aimed at being fast and lightweight. It supports a subset of the [OPeNDAP protocol](https://opendap.github.io/documentation/UserGuideComprehensive.html). It is developed for use through the [NetCDF library](https://www.unidata.ucar.edu/software/netcdf/) (e.g. ncdump) or the [python NetCDF-bindings](https://unidata.github.io/netcdf4-python/netCDF4/index.html).
+This is a _DAP2_ server written in Rust aimed at being fast and lightweight. It supports a subset of the [OPeNDAP protocol](https://opendap.github.io/documentation/UserGuideComprehensive.html). It is developed for use through the [NetCDF library](https://www.unidata.ucar.edu/software/netcdf/) (e.g. ncdump) or the [python NetCDF-bindings](https://unidata.github.io/netcdf4-python/netCDF4/index.html).
 
 # Features
 * Asynchronous

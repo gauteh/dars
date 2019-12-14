@@ -2,6 +2,7 @@ use hyper::{Response, Body, StatusCode};
 use async_trait::async_trait;
 use std::sync::Arc;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use super::{
@@ -10,7 +11,7 @@ use super::{
 };
 
 pub struct Data {
-    pub root: String,
+    pub root: PathBuf,
     pub datasets: HashMap<String, Arc<dyn Dataset + Send + Sync>>
 }
 
@@ -24,10 +25,31 @@ enum DsRequestType {
 struct DsRequest(String, DsRequestType);
 
 impl Data {
-    pub fn init() -> Data {
-        let mut map: HashMap<String, Arc<dyn Dataset + Send + Sync>> = HashMap::new();
+    pub fn new() -> Data {
+        Data {
+            root: "./".into(),
+            datasets: HashMap::new()
+        }
+    }
 
-        for entry in WalkDir::new("data")
+    fn make_key(&self, p: &Path) -> String {
+        if self.root.to_string_lossy().ends_with("/") {
+            // remove root
+            p.to_str().unwrap().trim_start_matches(self.root.to_str().unwrap()).to_string()
+        } else {
+            p.to_str().unwrap().to_string()
+        }
+    }
+
+    pub fn init_root<P>(&mut self, root: P) -> ()
+        where P: Into<PathBuf>
+    {
+        self.root = root.into();
+        self.datasets.clear();
+
+        info!("Scanning {:?} for datasets..", self.root);
+
+        for entry in WalkDir::new(&self.root)
             .follow_links(true)
             .into_iter()
             .filter_entry(|entry| !entry.file_name().to_str().map(|s| s.starts_with(".")).unwrap_or(false))
@@ -38,14 +60,14 @@ impl Data {
                         match entry.path().extension() {
                             Some(ext) if ext == "nc" => {
                                 match NcDataset::open(entry.path()) {
-                                    Ok(ds) => { map.insert(entry.path().to_str().unwrap().to_string().trim_start_matches("data/").to_string(),
+                                    Ok(ds) => { self.datasets.insert(self.make_key(entry.path().into()),
                                     Arc::new(ds)); },
                                     _ => warn!("Could not open: {:?}", entry.path())
                                 }
                             },
                             Some(ext) if ext == "ncml" => {
                                 match NcmlDataset::open(entry.path()) {
-                                    Ok(ds) => { map.insert(entry.path().to_str().unwrap().to_string().trim_start_matches("data/").to_string(),
+                                    Ok(ds) => { self.datasets.insert(self.make_key(entry.path().into()),
                                     Arc::new(ds)); },
                                     _ => warn!("Could not open: {:?}", entry.path())
                                 }
@@ -56,11 +78,6 @@ impl Data {
                     _ => ()
                 }
             }
-        }
-
-        Data {
-            root: String::from("./data"),
-            datasets: map
         }
     }
 

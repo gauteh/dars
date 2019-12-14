@@ -45,7 +45,7 @@ mod ncml;
 use datasets::{Data, Dataset};
 
 lazy_static! {
-    pub static ref DATA: Arc<RwLock<Data>> = Arc::new(RwLock::new(Data::init()));
+    pub static ref DATA: Arc<RwLock<Data>> = Arc::new(RwLock::new(Data::new()));
 }
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -82,6 +82,12 @@ async fn main() -> Result<(), anyhow::Error> {
 
     info!("𓆣 𓃢  (DARS DAP v{})", VERSION);
 
+    {
+        let rdata = DATA.clone();
+        let mut data = rdata.write().unwrap();
+        data.init_root("./data/");
+    }
+
     let addr = ([0, 0, 0, 0], 8001).into();
 
     let msvc = make_service_fn(|_| async move {
@@ -91,15 +97,15 @@ async fn main() -> Result<(), anyhow::Error> {
                 let u = req.uri().clone();
 
                 let r = match (req.method(), req.uri().path()) {
-                    (&Method::GET, "/catalog.xml") => Response::builder().status(StatusCode::NOT_IMPLEMENTED).body(Body::empty()),
                     (&Method::GET, "/") => Response::builder().body(Body::from("DAP!")),
-                    _ => {
+                    (&Method::GET, _) => {
                         if req.uri().path().starts_with("/data/") {
                             Data::dataset(req).await
                         } else {
                             Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
                         }
-                    }
+                    },
+                    _ => Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
                 };
 
                 let s = match &r {

@@ -34,12 +34,11 @@ impl NcDataset {
         let md = fs::metadata(&filename)?;
         let mtime = md.modified()?;
 
-        let fstr = filename.to_string_lossy().to_string();
         let das = NcDas::build(filename.clone())?;
-        let dds = NcDds::build(fstr.clone())?;
+        let dds = NcDds::build(filename.clone())?;
 
         Ok(NcDataset {
-            filename: filename.strip_prefix("data/").unwrap().into(),
+            filename: filename.clone(),
             mtime: mtime,
             f: Arc::new(netcdf::open(filename).unwrap()),
             das: das,

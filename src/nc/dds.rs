@@ -1,10 +1,11 @@
 use std::sync::Arc;
+use std::path::PathBuf;
 use std::collections::HashMap;
 
 use crate::dap2::hyperslab::{count_slab, parse_hyberslab};
 
 pub struct NcDds {
-    f: String,
+    f: PathBuf,
     pub vars: Arc<HashMap<String, String>>
 }
 
@@ -167,7 +168,7 @@ impl Dds for NcDds {
                 .ok_or(anyhow!("variable not found"))?
         };
 
-        Ok(format!("Dataset {{\n{}}} {};", dds, self.f))
+        Ok(format!("Dataset {{\n{}}} {:?};", dds, self.f))
     }
 
     fn default_vars(&self) -> Vec<String> {
@@ -180,8 +181,11 @@ impl Dds for NcDds {
 }
 
 impl NcDds {
-    pub fn build(f: String) -> Result<NcDds, anyhow::Error> {
-        debug!("Building Data Descriptor Structure (DDS) for {}", f);
+    pub fn build<P>(f: P) -> Result<NcDds, anyhow::Error>
+        where P: Into<PathBuf>
+    {
+        let f = f.into();
+        debug!("Building Data Descriptor Structure (DDS) for {:?}", f);
         let nc = netcdf::open(f.clone())?;
 
         let mut dds = NcDds{ f: f, vars: Arc::new(HashMap::new()) };

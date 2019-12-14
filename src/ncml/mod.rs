@@ -76,7 +76,7 @@ impl NcmlDataset {
         let dds = dds::NcmlDds::build(first, &filename, aggregation_dim, dim_n)?;
 
         Ok(NcmlDataset {
-            filename: filename.strip_prefix("data/").unwrap().into(),
+            filename: filename.clone(),
             _aggregation_type: AggregationType::JoinExisting,
             aggregation_dim: aggregation_dim.to_string(),
             members: members,

@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::path::PathBuf;
 use std::collections::HashMap;
 
@@ -6,7 +5,7 @@ use crate::dap2::hyperslab::{count_slab, parse_hyberslab};
 
 pub struct NcDds {
     f: PathBuf,
-    pub vars: Arc<HashMap<String, String>>
+    pub vars: HashMap<String, String>
 }
 
 pub trait Dds {
@@ -188,9 +187,9 @@ impl NcDds {
         debug!("Building Data Descriptor Structure (DDS) for {:?}", f);
         let nc = netcdf::open(f.clone())?;
 
-        let mut dds = NcDds{ f: f, vars: Arc::new(HashMap::new()) };
+        let mut dds = NcDds{ f: f, vars: HashMap::new() };
         let map = dds.build_vars(&nc);
-        dds.vars = Arc::new(map);
+        dds.vars = map;
         Ok(dds)
     }
 }

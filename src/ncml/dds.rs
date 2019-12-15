@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::path::PathBuf;
 use std::collections::HashMap;
 
@@ -7,7 +6,7 @@ use crate::nc::dds::Dds;
 
 pub struct NcmlDds {
     f: PathBuf,
-    pub vars: Arc<HashMap<String, String>>,
+    pub vars: HashMap<String, String>,
     dim: String,
     dim_n: usize
 }
@@ -62,13 +61,13 @@ impl NcmlDds {
 
         let mut dds = NcmlDds {
             f: dataset,
-            vars: Arc::new(HashMap::new()),
+            vars: HashMap::new(),
             dim: dim,
             dim_n: dim_n
         };
 
         let map = dds.build_vars(&nc);
-        dds.vars = Arc::new(map);
+        dds.vars = map;
         Ok(dds)
     }
 }

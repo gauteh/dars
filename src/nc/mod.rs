@@ -17,7 +17,6 @@ use das::NcDas;
 /// Currently does not implement sub-groups.
 pub struct NcDataset {
     pub filename: std::path::PathBuf,
-    pub mtime: std::time::SystemTime,
     f: Arc<netcdf::File>,
     das: NcDas,
     dds: NcDds
@@ -29,18 +28,13 @@ impl NcDataset {
     {
         let filename = filename.into();
         info!("Loading {:?}..", filename);
-        use std::fs;
-
-        let md = fs::metadata(&filename)?;
-        let mtime = md.modified()?;
 
         let das = NcDas::build(filename.clone())?;
         let dds = NcDds::build(filename.clone())?;
 
         Ok(NcDataset {
             filename: filename.clone(),
-            mtime: mtime,
-            f: Arc::new(netcdf::open(filename).unwrap()),
+            f: Arc::new(netcdf::open(filename)?),
             das: das,
             dds: dds
         })
@@ -72,7 +66,7 @@ impl Dataset for NcDataset {
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
         let query = self.parse_query(query);
 
-        match self.dds.dds(&self.f.clone(), &query) {
+        match self.dds.dds(&self.f, &query) {
             Ok(dds) => Response::builder().body(Body::from(dds)),
             _ => Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
         }

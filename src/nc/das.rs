@@ -1,12 +1,11 @@
 use std::fmt;
-use std::sync::Arc;
 use std::path::PathBuf;
 
 /// Constructs a DAS (Data Attribute Structure) string from
 /// NetCDF file. The DAS string is static and must be regenerated
 /// if the file changes.
 pub struct NcDas {
-    das: Arc<String>
+    das: String
 }
 
 impl fmt::Display for NcDas {
@@ -85,7 +84,7 @@ impl NcDas {
         das.push_str("}");
 
         Ok(NcDas {
-            das: Arc::new(das)
+            das: das
         })
     }
 }

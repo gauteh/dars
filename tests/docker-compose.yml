@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  thredds:
+    image: "unidata/thredds-docker"
+    ports:
+      - "8002:8080"
+    volumes:
+      - ./thredds/server.xml:/usr/local/tomcat/conf/server.xml:ro
+      - ../data:/usr/local/tomcat/webapps/thredds/WEB-INF/altContent/startup/public/testdata/data:ro
+
+  dars:
+    build: ..
+    ports:
+      - "8001:80"
+    volumes:
+      - ../data:/data:ro
+

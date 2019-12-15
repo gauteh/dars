@@ -94,8 +94,9 @@ pub trait Dds {
 
         let mut map = HashMap::new();
 
+        // TODO: some types not yet supported.
         for var in nc.variables()
-            .filter(|v| v.vartype() != netcdf_sys::NC_CHAR) {
+            .filter(|v| v.vartype() != netcdf_sys::NC_CHAR && v.vartype() != netcdf_sys::NC_BYTE) {
             if var.dimensions().len() < 2 {
                 let mut v = self.format_var(indent, var, &None);
                 v.push_str("\n");

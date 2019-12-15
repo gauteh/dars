@@ -19,8 +19,10 @@ or build the Docker image:
 
 ```sh
 $ docker build -t dars .
-$ docker run -it -p 8001:8001 dars
+$ docker run -it -p 8001:80 dars
 ```
+
+> mount your data at `/data`.
 
 NetCDF and NcML files in `data/` are served.
 

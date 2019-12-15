@@ -3,14 +3,16 @@ FROM rustlang/rust:nightly
 RUN apt-get -y update
 RUN apt-get -y install libnetcdf-dev
 
+ADD data /data
+
 WORKDIR /work
 ADD . .
 
 RUN cargo install --path .
 
-EXPOSE 8001
+EXPOSE 80
 
 ENV RUST_LOG=info
 
-CMD ["dars"]
+ENTRYPOINT ["dars", "-a", "0.0.0.0:80", "/data/"]
 

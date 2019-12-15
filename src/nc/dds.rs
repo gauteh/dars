@@ -167,7 +167,7 @@ impl Dds for NcDds {
                 .ok_or(anyhow!("variable not found"))?
         };
 
-        Ok(format!("Dataset {{\n{}}} {:?};", dds, self.f))
+        Ok(format!("Dataset {{\n{}}} {};", dds, self.f.to_string_lossy()))
     }
 
     fn default_vars(&self) -> Vec<String> {

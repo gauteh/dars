@@ -54,7 +54,9 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
 
             let vv = fnc.variable(mv).ok_or(anyhow!("variable not found"))?;
 
-            // TODO: loop over chunks
+            // TODO, IMPORTANT: loop over chunks of max. size. It is possible to generate a request
+            // with a very large slab. Causing a large amount of memory to be allocated. The
+            // variable should be chunked and streamed in e.g. 1MB sizes.
             if vv.dimensions().len() > 0 && vv.dimensions()[0].name() == dim {
                 // single values are cannot have a dimension so we only need to handle arrays here.
                 // arrays have their length sent first, but single values do not.

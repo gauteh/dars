@@ -79,7 +79,9 @@ pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<
 
             let vv = nc.variable(mv).ok_or(anyhow!("variable not found"))?;
 
-            // TODO: loop over chunks
+            // TODO, IMPORTANT: loop over chunks of max. size. It is possible to generate a request
+            // with a very large slab. Causing a large amount of memory to be allocated. The
+            // variable should be chunked and streamed in e.g. 1MB sizes.
             yield pack_var(vv, true, None, slab);
         }
     }

@@ -3,33 +3,25 @@ authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
 edition = "2018"
 name = "dars"
 version = "0.1.0"
-
 [dependencies]
 anyhow = "1.0.22"
 async-stream = "0.2.0"
 async-trait = "0.1.21"
 colored = "1.9.0"
+env_logger = "0.7.1"
 futures = "0.3.1"
 futures-core = "0.3.1"
 futures-util = "0.3.1"
-env_logger = "0.7.1"
+getopts = "*"
 itertools = "0.8.2"
 lazy_static = "1.4.0"
 log = "0.4.8"
 netcdf = "0.3.1"
 netcdf-sys = "0.2.1"
-percent-encoding = "2.1.0"
 notify = "4.0.14"
-walkdir = "2.2.9"
+percent-encoding = "2.1.0"
 roxmltree = "0.7.3"
-
-[dependencies.tokio]
-version = "0.2.4"
-features = ["full"]
-
-[dependencies.tokio-util]
-version = "0.2.0"
-features = ["codec"]
+walkdir = "2.2.9"
 
 [dependencies.async-std]
 features = ["unstable"]
@@ -39,7 +31,14 @@ version = "1.2.0"
 features = ["stream"]
 git = "https://github.com/hyperium/hyper"
 
-[dependencies.xdr-codec]
-version = "0.4.4"
-features = ["bytecodec"]
+[dependencies.tokio]
+features = ["full"]
+version = "0.2.4"
 
+[dependencies.tokio-util]
+features = ["codec"]
+version = "0.2.0"
+
+[dependencies.xdr-codec]
+features = ["bytecodec"]
+version = "0.4.4"

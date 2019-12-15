@@ -27,6 +27,8 @@ extern crate test;
 #[macro_use] extern crate log;
 #[macro_use] extern crate anyhow;
 
+use std::env;
+use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, RwLock};
 use futures::{future, FutureExt};
 use std::time::Duration;
@@ -36,6 +38,7 @@ use hyper::{
 };
 use colored::Colorize;
 use notify::Watcher;
+use getopts::Options;
 
 pub mod datasets;
 mod dap2;
@@ -57,14 +60,15 @@ const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 //
 // On systems where the actual file is not removed untill all file handles
 // are closed this should work fairly well.
-async fn watch() -> Result<(), anyhow::Error> {
+async fn watch(data: String) -> Result<(), anyhow::Error> {
+    info!("Watching {}", data);
+
     let (tx, rx) = std::sync::mpsc::channel();
     let mut watcher = notify::watcher(tx, Duration::from_secs(2))?;
-    watcher.watch("data", notify::RecursiveMode::Recursive)?;
+    watcher.watch(data, notify::RecursiveMode::Recursive)?;
 
     let rx = Arc::new(Mutex::new(rx));
 
-    info!("Watching ./data/");
     loop {
         let irx = rx.clone();
         match async_std::task::spawn_blocking(move ||
@@ -82,10 +86,42 @@ async fn main() -> Result<(), anyhow::Error> {
 
     info!("𓆣 𓃢  (DARS DAP v{})", VERSION);
 
+    let args: Vec<String> = env::args().collect();
+    let program = args[0].clone();
+
+    let mut opts = Options::new();
+    opts.optopt("a", "address", "listening socket address (default: 127.0.0.1:8001)", "ADDR");
+    opts.optflag("w", "watch", "watch for changes in data dir");
+    opts.optflag("h", "help", "print this help menu");
+
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => { m }
+        Err(f) => { panic!(f.to_string()) }
+    };
+
+    if matches.opt_present("h") {
+        let brief = format!("Usage: {} [options] DATA", program);
+        print!("{}", opts.usage(&brief));
+        println!("\nThe directory specified with DATA is searched for supported datasets.\n\
+                    If DATA is specified with a trailing \"/\" (e.g. \"data/\"), the folder\n\
+                    name is not included at the end-point for the dataset. All datasets are\n\
+                    available under the /data root. A list of datasets may be queried at /data");
+        return Ok::<_,anyhow::Error>(());
+    }
+
+    let datadir: String = if !matches.free.is_empty() {
+        matches.free[0].clone()
+    } else {
+        warn!("No DATA dir specified.");
+        return Err(anyhow!("No DATA dir specified"));
+    };
+
+    let addr: SocketAddr = matches.opt_get_default("a", "127.0.0.1:8001".parse()?)?;
+
     {
         let rdata = DATA.clone();
         let mut data = rdata.write().unwrap();
-        data.init_root("./data/");
+        data.init_root(datadir.clone());
     }
 
     let msvc = make_service_fn(|_| async move {
@@ -116,12 +152,16 @@ async fn main() -> Result<(), anyhow::Error> {
             ))
     });
 
-    let addr = ([0, 0, 0, 0], 8001).into();
     let server = Server::bind(&addr)
         .serve(msvc)
         .map(|r| r.map_err(|e| anyhow!(e)));
 
     info!("Listening on http://{}", addr);
-    future::join(server, watch()).await.0
+
+    if matches.opt_present("w") {
+        future::join(server, watch(datadir)).await.0
+    } else {
+        server.await
+    }
 }
 

@@ -105,15 +105,17 @@ async fn main() -> Result<(), anyhow::Error> {
         println!("\nThe directory specified with DATA is searched for supported datasets.\n\
                     If DATA is specified with a trailing \"/\" (e.g. \"data/\"), the folder\n\
                     name is not included at the end-point for the dataset. All datasets are\n\
-                    available under the /data root. A list of datasets may be queried at /data");
+                    available under the /data root. A list of datasets may be queried at /data.\n\
+                    \n\
+                    If no DATA is specified, \"data/\" is used.");
         return Ok::<_,anyhow::Error>(());
     }
 
     let datadir: String = if !matches.free.is_empty() {
         matches.free[0].clone()
     } else {
-        warn!("No DATA dir specified.");
-        return Err(anyhow!("No DATA dir specified"));
+        warn!("No DATA dir specified. Trying data/");
+        "data/".to_string()
     };
 
     let addr: SocketAddr = matches.opt_get_default("a", "127.0.0.1:8001".parse()?)?;

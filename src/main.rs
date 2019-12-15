@@ -78,7 +78,7 @@ async fn watch() -> Result<(), anyhow::Error> {
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     use env_logger::Env;
-    env_logger::from_env(Env::default().default_filter_or("dars=debug")).init();
+    env_logger::from_env(Env::default().default_filter_or("dars=info")).init();
 
     info!("𓆣 𓃢  (DARS DAP v{})", VERSION);
 
@@ -87,8 +87,6 @@ async fn main() -> Result<(), anyhow::Error> {
         let mut data = rdata.write().unwrap();
         data.init_root("./data/");
     }
-
-    let addr = ([0, 0, 0, 0], 8001).into();
 
     let msvc = make_service_fn(|_| async move {
         Ok::<_, Error>(
@@ -118,6 +116,7 @@ async fn main() -> Result<(), anyhow::Error> {
             ))
     });
 
+    let addr = ([0, 0, 0, 0], 8001).into();
     let server = Server::bind(&addr)
         .serve(msvc)
         .map(|r| r.map_err(|e| anyhow!(e)));

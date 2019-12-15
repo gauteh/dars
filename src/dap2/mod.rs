@@ -1,3 +1,10 @@
+/// Hyperslabs
+///
+/// OPeNDAP constraint expressions for ranges can consist of:
+/// - single values:            [1]     -> [1]
+/// - a range:                  [1:5]   -> [1, 2, 3, 4, 5]
+/// - a range with strides:     [1:2:7] -> [1, 3, 5, 7]
+///                             [1:2:8] -> [1, 3, 5, 7]
 pub mod hyperslab {
     pub fn count_slab(slab: &Vec<usize>) -> usize {
         if slab.len() == 1 {
@@ -5,7 +12,7 @@ pub mod hyperslab {
         } else if slab.len() == 2 {
             slab[1] - slab[0] + 1
         } else if slab.len() == 3 {
-            (slab[2] - slab[0] + 1)/ slab[1]
+            (slab[2] - slab[0] + 1) / slab[1]
         } else {
             panic!("too much slabs");
         }

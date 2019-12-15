@@ -67,6 +67,10 @@ pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<
                     let counts = slab.iter().map(count_slab).collect::<Vec<usize>>();
                     let indices = slab.iter().map(|slab| slab[0]).collect::<Vec<usize>>();
 
+                    if slab.iter().any(|s| s.len() > 2) {
+                        yield Err(anyhow!("Strides not implemented yet"));
+                    }
+
                     Some((indices, counts))
                 },
 

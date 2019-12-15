@@ -24,13 +24,16 @@ pub enum AggregationType {
 ///
 /// The aggregating dimension must already have a coordinate variable. Only the outer (slowest varying) dimension
 /// (first index) may be joined.
+///
+/// No handling of overlapping coordinate variable is done, it is concatenated in order listed.
 pub struct NcmlDataset {
     filename: PathBuf,
     _aggregation_type: AggregationType,
     aggregation_dim: String,
     members: Vec<NcmlMember>,
     das: nc::das::NcDas,
-    dds: dds::NcmlDds
+    dds: dds::NcmlDds,
+    dim_n: usize
 }
 
 impl NcmlDataset {
@@ -81,7 +84,8 @@ impl NcmlDataset {
             aggregation_dim: aggregation_dim.to_string(),
             members: members,
             das: das,
-            dds: dds
+            dds: dds,
+            dim_n: dim_n
         })
     }
 

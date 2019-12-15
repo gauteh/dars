@@ -9,7 +9,7 @@ pub struct NcmlDds {
     f: PathBuf,
     pub vars: Arc<HashMap<String, String>>,
     dim: String,
-    pub dim_n: usize
+    dim_n: usize
 }
 
 impl Dds for NcmlDds {

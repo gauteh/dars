@@ -12,7 +12,7 @@ use super::nc::dods::pack_var;
 pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
     let fnc = ncml.members[0].f.clone();
     let dim = ncml.aggregation_dim.clone();
-    let dim_len = ncml.dds.dim_n;
+    let dim_len = ncml.dim_n;
 
     let ns = ncml.members.iter().map(|m| m.n).collect::<Vec<usize>>();
 
@@ -41,6 +41,10 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
 
                     let counts = slab.iter().map(count_slab).collect::<Vec<usize>>();
                     let indices = slab.iter().map(|slab| slab[0]).collect::<Vec<usize>>();
+
+                    if slab.iter().any(|s| s.len() > 2) {
+                        yield Err(anyhow!("Strides not implemented yet"));
+                    }
 
                     Some((indices, counts))
                 },
@@ -79,6 +83,7 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
                         mind[0] = ind[0] - s;
 
                         let mvv = f.variable(mv).ok_or(anyhow!("variable not found"))?;
+
                         yield pack_var(mvv, true, Some(agg_sz), Some((mind, mcnt)));
 
                     } else if ind[0] < *s && (*s < ind[0] + cnt[0]) {
@@ -89,13 +94,15 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
                         mind[0] = 0;
 
                         let mvv = f.variable(mv).ok_or(anyhow!("variable not found"))?;
+
                         yield pack_var(mvv, false, None, Some((mind, mcnt)));
+
                     } else {
                         break;
                     }
                 }
             } else {
-                // take first member
+                // variable without joining dimension, using values from first member
                 yield pack_var(vv, true, None, slab);
             }
         }
@@ -149,15 +156,15 @@ mod tests {
         let bs: Vec<u8> = block_on_stream(t).collect::<Result<Vec<_>,_>>().unwrap().iter().flatten().skip(4).map(|b| b.clone()).collect();
 
         println!("len: {}", bs.len() / 8);
-        let n: usize = (bs.len() / 8);
+        let n: usize = bs.len() / 8;
 
         println!("transmitted length: {:?}", &bs[0..4]);
         assert_eq!(n, 3*4*(31+28));
 
-        let mut T = Cursor::new(&bs[4..]);
+        let mut temp = Cursor::new(&bs[4..]);
 
         let mut buf: Vec<f64> = vec![0.0; n];
-        let sz = xdr_codec::unpack_array(&mut T, &mut buf, n, None).unwrap();
+        let sz = xdr_codec::unpack_array(&mut temp, &mut buf, n, None).unwrap();
 
         assert_eq!(sz, (31 + 28)*3*4 * 8);
 

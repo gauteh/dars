@@ -1,0 +1,19 @@
+[Unit]
+Description=Dars DAP server
+Documentation=https://https://github.com/gauteh/dars
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=dars
+Group=dars
+ExecStart=/usr/bin/dars /data
+TimeoutSec=0
+RestartSec=2
+Restart=always
+
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+TasksMax=infinity
+

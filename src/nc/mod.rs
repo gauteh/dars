@@ -97,7 +97,7 @@ impl Dataset for NcDataset {
         use tokio::fs::File;
         use futures::StreamExt;
 
-        let filename = std::path::Path::new("data").join(self.filename.clone());
+        let filename = self.filename.clone();
 
         File::open(filename)
             .await

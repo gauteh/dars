@@ -99,8 +99,6 @@ pub mod xdr {
         let sz: usize = 2*4 + v.len()*<T as XdrSize>::size();
         let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(sz));
 
-        debug!("packarr: start: {:?}, len: {:?}, xdrsz: {}, sz: {}", start, len, <T as XdrSize>::size(), sz);
-
         if start {
             if let Some(len) = len {
                 len.pack(&mut buf)?;

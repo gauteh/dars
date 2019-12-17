@@ -33,6 +33,7 @@ pub fn xdr_chunk<T>(v: &netcdf::Variable, start: bool, len: Option<usize>, slab:
     };
 
     if n > v.len() {
+        warn!("slab too great");
         Err(anyhow!("slab too great {} > {}", n, v.len()))?;
     }
 
@@ -78,19 +79,12 @@ pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<
                 None => None
             };
 
+            let vv = nc.variable(&mv).ok_or(anyhow!("variable not found"))?;
 
             // TODO, IMPORTANT: loop over chunks of max. size. It is possible to generate a request
             // with a very large slab. Causing a large amount of memory to be allocated. The
             // variable should be chunked and streamed in e.g. 1MB sizes.
-
-            let nc = nc.clone();
-            let mv = v.to_string();
-            let bytes = tokio::task::spawn_blocking(move || {
-                let vv = nc.variable(&mv).ok_or(anyhow!("variable not found"))?;
-                pack_var(vv, true, None, slab)
-            }).await?;
-
-            yield bytes;
+            yield pack_var(vv, true, None, slab)
         }
     }
 }

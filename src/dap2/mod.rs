@@ -60,6 +60,10 @@ pub mod xdr {
         fn size() -> usize { 1 }
     }
 
+    impl XdrSize for i16 {
+        fn size() -> usize { 2 }
+    }
+
     impl XdrSize for u32 {
         fn size() -> usize { 4 }
     }

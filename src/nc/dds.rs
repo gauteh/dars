@@ -16,6 +16,7 @@ pub trait Dds {
         match t {
             netcdf_sys::NC_FLOAT => "Float32".to_string(),
             netcdf_sys::NC_DOUBLE => "Float64".to_string(),
+            netcdf_sys::NC_SHORT => "Int16".to_string(),
             netcdf_sys::NC_INT => "Int32".to_string(),
             netcdf_sys::NC_BYTE => "Byte".to_string(),
             netcdf_sys::NC_UBYTE => "Byte".to_string(),

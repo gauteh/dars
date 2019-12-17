@@ -11,6 +11,7 @@ pub fn pack_var(v: &netcdf::Variable, start: bool, len: Option<usize>, slab: Opt
         netcdf_sys::NC_FLOAT => xdr_chunk::<f32>(v, start, len, slab),
         netcdf_sys::NC_DOUBLE => xdr_chunk::<f64>(v, start, len, slab),
         netcdf_sys::NC_INT => xdr_chunk::<i32>(v, start, len, slab),
+        netcdf_sys::NC_SHORT => xdr_chunk::<i32>(v, start, len, slab),
         netcdf_sys::NC_BYTE => xdr_chunk::<u8>(v, start, len, slab),
         // netcdf_sys::NC_UBYTE => xdr_bytes(vv),
         // netcdf_sys::NC_CHAR => xdr_bytes(vv),
@@ -77,12 +78,19 @@ pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<
                 None => None
             };
 
-            let vv = nc.variable(mv).ok_or(anyhow!("variable not found"))?;
 
             // TODO, IMPORTANT: loop over chunks of max. size. It is possible to generate a request
             // with a very large slab. Causing a large amount of memory to be allocated. The
             // variable should be chunked and streamed in e.g. 1MB sizes.
-            yield pack_var(vv, true, None, slab);
+
+            let nc = nc.clone();
+            let mv = v.to_string();
+            let bytes = tokio::task::spawn_blocking(move || {
+                let vv = nc.variable(&mv).ok_or(anyhow!("variable not found"))?;
+                pack_var(vv, true, None, slab)
+            }).await?;
+
+            yield bytes;
         }
     }
 }

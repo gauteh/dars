@@ -28,6 +28,9 @@ impl NcDas {
             Ok(Double(f)) =>
                 format!("{}Float64 {} {:+E};\n",
                     " ".repeat(indent), a.name(), f),
+            Ok(Short(f)) =>
+                format!("{}Int16 {} {};\n",
+                    " ".repeat(indent), a.name(), f),
             Ok(Int(f)) =>
                 format!("{}Int32 {} {};\n",
                     " ".repeat(indent), a.name(), f),

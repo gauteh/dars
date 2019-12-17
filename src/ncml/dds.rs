@@ -7,13 +7,23 @@ use crate::nc::dds::Dds;
 pub struct NcmlDds {
     f: PathBuf,
     pub vars: HashMap<String, String>,
+    varpos: HashMap<String, usize>,
     dim: String,
     dim_n: usize
 }
 
 impl Dds for NcmlDds {
-    fn dds(&self, nc: &netcdf::File, vars: &Vec<String>) -> Result<String, anyhow::Error> {
+    fn dds(&self, nc: &netcdf::File, vars: &mut Vec<String>) -> Result<String, anyhow::Error> {
         let dds: String = {
+            vars.sort_by(|a,b| {
+                let a = a.find("[").map_or(&a[..], |i| &a[..i]);
+                let b = b.find("[").map_or(&b[..], |i| &b[..i]);
+
+                let a = self.varpos.get(a).expect(&format!("variable not found: {}", a));
+                let b = self.varpos.get(b).expect(&format!("variable not found: {}", b));
+
+                a.cmp(b)
+                });
             vars.iter()
                 .map(|v|
                     match v.find("[") {
@@ -62,12 +72,14 @@ impl NcmlDds {
         let mut dds = NcmlDds {
             f: dataset,
             vars: HashMap::new(),
+            varpos: HashMap::new(),
             dim: dim,
             dim_n: dim_n
         };
 
-        let map = dds.build_vars(&nc);
+        let (posmap, map) = dds.build_vars(&nc);
         dds.vars = map;
+        dds.varpos = posmap;
         Ok(dds)
     }
 }

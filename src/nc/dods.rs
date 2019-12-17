@@ -26,7 +26,6 @@ pub fn xdr_chunk<T>(v: &netcdf::Variable, start: bool, len: Option<usize>, slab:
                 std::default::Default +
                 std::clone::Clone
 {
-    const CHUNK_SZ: usize = 1024;
     let n = match &slab {
         Some((_, c)) => c.iter().product::<usize>(),
         None => v.len()

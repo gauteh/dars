@@ -5,7 +5,8 @@ use crate::dap2::hyperslab::{count_slab, parse_hyberslab};
 
 pub struct NcDds {
     f: PathBuf,
-    pub vars: HashMap<String, String>
+    pub vars: HashMap<String, String>,
+    varpos: HashMap<String, usize>
 }
 
 pub trait Dds {
@@ -89,33 +90,40 @@ pub trait Dds {
         grid.join("\n")
     }
 
-    fn build_vars(&self, nc: &netcdf::File) -> HashMap<String, String> {
+    fn build_vars(&self, nc: &netcdf::File) -> (HashMap<String, usize>, HashMap<String, String>) {
         let indent: usize = 4;
 
         let mut map = HashMap::new();
+        let mut posmap = HashMap::new();
 
         // TODO: some types not yet supported.
-        for var in nc.variables()
-            .filter(|v| v.vartype() != netcdf_sys::NC_CHAR && v.vartype() != netcdf_sys::NC_BYTE) {
+        for (z, var) in nc.variables().enumerate()
+            .filter(|(_, v)| v.vartype() != netcdf_sys::NC_CHAR && v.vartype() != netcdf_sys::NC_BYTE) {
             if var.dimensions().len() < 2 {
                 let mut v = self.format_var(indent, var, &None);
                 v.push_str("\n");
                 map.insert(var.name().to_string(), v);
+                posmap.insert(var.name().to_string(), z);
             } else {
                 map.insert(var.name().to_string(), self.format_grid(indent, &nc, var, &None));
+                posmap.insert(var.name().to_string(), z);
 
                 map.insert(format!("{}.{}", var.name(), var.name()), self.format_struct(indent, &nc, var, var, &None));
+                posmap.insert(format!("{}.{}", var.name(), var.name()), z);
 
                 for d in var.dimensions() {
                     match nc.variable(d.name()) {
-                        Some(dvar) => map.insert(format!("{}.{}", var.name(), d.name()), self.format_struct(indent, &nc, var, dvar, &None)),
+                        Some(dvar) => {
+                            posmap.insert(format!("{}.{}", var.name(), d.name()), z);
+                            map.insert(format!("{}.{}", var.name(), d.name()), self.format_struct(indent, &nc, var, dvar, &None))
+                        },
                         _ => None
                     };
                 }
             }
         }
 
-        map
+        (posmap, map)
     }
 
     fn build_var(&self, nc: &netcdf::File, var: &str, slab: Vec<Vec<usize>>) -> Option<String> {
@@ -143,13 +151,22 @@ pub trait Dds {
         }
     }
 
-    fn dds(&self, nc: &netcdf::File, vars: &Vec<String>) -> Result<String, anyhow::Error>;
+    fn dds(&self, nc: &netcdf::File, vars: &mut Vec<String>) -> Result<String, anyhow::Error>;
     fn default_vars(&self) -> Vec<String>;
 }
 
 impl Dds for NcDds {
-    fn dds(&self, nc: &netcdf::File, vars: &Vec<String>) -> Result<String, anyhow::Error> {
+    fn dds(&self, nc: &netcdf::File, vars: &mut Vec<String>) -> Result<String, anyhow::Error> {
         let dds: String = {
+            vars.sort_by(|a,b| {
+                let a = a.find("[").map_or(&a[..], |i| &a[..i]);
+                let b = b.find("[").map_or(&b[..], |i| &b[..i]);
+
+                let a = self.varpos.get(a).expect(&format!("variable not found: {}", a));
+                let b = self.varpos.get(b).expect(&format!("variable not found: {}", b));
+
+                a.cmp(b)
+                });
             vars.iter()
                 .map(|v|
                     match v.find("[") {
@@ -188,9 +205,10 @@ impl NcDds {
         debug!("Building Data Descriptor Structure (DDS) for {:?}", f);
         let nc = netcdf::open(f.clone())?;
 
-        let mut dds = NcDds{ f: f, vars: HashMap::new() };
-        let map = dds.build_vars(&nc);
+        let mut dds = NcDds{ f: f, vars: HashMap::new(), varpos: HashMap::new() };
+        let (posmap, map) = dds.build_vars(&nc);
         dds.vars = map;
+        dds.varpos = posmap;
         Ok(dds)
     }
 }

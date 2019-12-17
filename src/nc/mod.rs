@@ -19,7 +19,7 @@ pub struct NcDataset {
     pub filename: std::path::PathBuf,
     f: Arc<netcdf::File>,
     das: NcDas,
-    dds: NcDds
+    dds: NcDds,
 }
 
 impl NcDataset {
@@ -64,9 +64,9 @@ impl Dataset for NcDataset {
     }
 
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
-        let query = self.parse_query(query);
+        let mut query = self.parse_query(query);
 
-        match self.dds.dds(&self.f, &query) {
+        match self.dds.dds(&self.f, &mut query) {
             Ok(dds) => Response::builder().body(Body::from(dds)),
             _ => Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
         }
@@ -74,9 +74,9 @@ impl Dataset for NcDataset {
 
     async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
         use futures::stream::{self, StreamExt};
-        let query = self.parse_query(query);
+        let mut query = self.parse_query(query);
 
-        let dds = if let Ok(r) = self.dds.dds(&self.f.clone(), &query) {
+        let dds = if let Ok(r) = self.dds.dds(&self.f.clone(), &mut query) {
             r.into_bytes()
         } else {
             return Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty());

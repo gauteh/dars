@@ -7,7 +7,7 @@ Wants=network-online.target
 [Service]
 User=dars
 Group=dars
-ExecStart=/usr/bin/dars /data
+ExecStart=/usr/bin/dars -a 0.0.0.0:80 /data
 TimeoutSec=0
 RestartSec=2
 Restart=always

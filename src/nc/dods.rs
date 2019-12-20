@@ -1,8 +1,50 @@
 use std::sync::Arc;
+use std::pin::Pin;
+use std::cmp::min;
+use itertools::izip;
 use futures::stream::Stream;
+use futures::io::AsyncRead;
+use futures::task::{Poll, Context};
 use async_stream::stream;
 
 use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
+
+pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>, counts: Vec<usize>) -> impl Stream<Item=T> {
+    const CHUNK_SZ: usize = 1024;
+
+    stream! {
+        let n = counts.iter().product();
+
+        let cur  = indices.clone();
+
+        let mut jump = counts.iter().rev().scan(0, |n, &c| {
+            if n >= CHUNK_SZ {
+
+
+        let mut jump = Vec::new();
+        for c in counts.iter().rev() {
+            let p = jump.iter().product();
+            if p >= CACHE_SZ {
+                jump.push(1);
+            } else {
+                jump.push(min(CACHE_SZ / p, *c));
+            }
+        }
+
+        jump.reverse();
+        debug!("jump: {:?}", jump);
+
+        let cache: Vec<T> = Vec::with_capacity(CHUNK_SZ);
+
+        while cur.iter().product() < n {
+            let mjump = cur.iter().zip(jump).map(|(s,j)| min(
+
+            Some((indices, counts)) => v.values_to(&mut vbuf, Some(&indices), Some(&counts)),
+
+        }
+    }
+}
+
 
 // TODO: Try tokio::codec::FramedRead with Read impl on dods?
 
@@ -159,5 +201,13 @@ mod tests {
             pin_mut!(v);
             block_on_stream(v).collect::<Vec<_>>()
         });
+    }
+
+    #[test]
+    fn test_async_read() {
+        let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
+        let v = stream_variable(f, "SST", vec![0,0,0], vec![12,90,180]);
+
+        futures::executor::block_on_stream(v);
     }
 }

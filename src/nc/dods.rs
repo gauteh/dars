@@ -1,46 +1,64 @@
 use std::sync::Arc;
-use std::pin::Pin;
-use std::cmp::min;
 use itertools::izip;
+use std::cmp::min;
 use futures::stream::Stream;
-use futures::io::AsyncRead;
-use futures::task::{Poll, Context};
 use async_stream::stream;
 
 use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
 
-pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>, counts: Vec<usize>) -> impl Stream<Item=T> {
+pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>, counts: Vec<usize>) -> impl Stream<Item=Result<Vec<T>, anyhow::Error>>
+    where T: netcdf::Numeric + Unpin + Clone + Default + std::fmt::Debug
+{
     const CHUNK_SZ: usize = 1024;
 
     stream! {
-        let n = counts.iter().product();
+        let v = f.variable(&vn).ok_or(anyhow!("Could not find variable"))?;
 
-        let cur  = indices.clone();
-
-        let mut jump = counts.iter().rev().scan(0, |n, &c| {
-            if n >= CHUNK_SZ {
-
-
-        let mut jump = Vec::new();
-        for c in counts.iter().rev() {
-            let p = jump.iter().product();
-            if p >= CACHE_SZ {
-                jump.push(1);
+        let mut jump: Vec<usize> = counts.iter().rev().scan(1, |n, &c| {
+            if *n >= CHUNK_SZ {
+                Some(0)
             } else {
-                jump.push(min(CACHE_SZ / p, *c));
+                let p = min(CHUNK_SZ / *n, c);
+                *n = *n * p;
+
+                Some(p)
             }
-        }
-
+        }).collect::<Vec<usize>>();
         jump.reverse();
-        debug!("jump: {:?}", jump);
 
-        let cache: Vec<T> = Vec::with_capacity(CHUNK_SZ);
+        // size of count dimensions
+        let mut dim_sz: Vec<usize> = counts.iter().rev().scan(1, |p, &c| {
+            let sz = *p;
+            *p = *p * c;
+            Some(sz)
+        }).collect();
+        dim_sz.reverse();
 
-        while cur.iter().product() < n {
-            let mjump = cur.iter().zip(jump).map(|(s,j)| min(
+        let mut offset = vec![0usize; counts.len()];
 
-            Some((indices, counts)) => v.values_to(&mut vbuf, Some(&indices), Some(&counts)),
+        loop {
+            let mjump: Vec<usize> = izip!(&offset, &jump, &counts)
+                .map(|(o, j, c)| if o + j > *c { *c - *o } else { *j }).collect();
+            let jump_sz: usize = mjump.iter().product();
 
+            let mind: Vec<usize> = indices.iter().zip(&offset).map(|(a,b)| a + b).collect();
+
+            let mut cache: Vec<T> = vec![T::default(); jump_sz];
+            v.values_to(&mut cache, Some(&mind), Some(&mjump))?;
+
+
+            yield Ok(cache);
+
+
+            let mut carry = offset.iter().zip(&dim_sz).map(|(a,b)| a * b).sum::<usize>() + jump_sz;
+            for (o, c) in izip!(offset.iter_mut().rev(), counts.iter().rev()) {
+                *o = carry % *c;
+                carry = carry / c;
+            }
+
+            if carry > 0 {
+                break;
+            }
         }
     }
 }
@@ -165,7 +183,7 @@ mod tests {
         b.iter(|| {
             let v = f.variable("SST").unwrap();
 
-            let mut vbuf: Vec<f64> = vec![0.0; v.len()];
+            let mut vbuf: Vec<f32> = vec![0.0; v.len()];
             v.values_to(&mut vbuf, None, None).expect("could not read values");
 
             vbuf
@@ -204,10 +222,75 @@ mod tests {
     }
 
     #[test]
-    fn test_async_read() {
+    fn test_async_read_start_offset() {
+        use futures::pin_mut;
         let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
-        let v = stream_variable(f, "SST", vec![0,0,0], vec![12,90,180]);
 
-        futures::executor::block_on_stream(v);
+        let counts = vec![10usize, 30, 80];
+
+        let dir = {
+            let v = f.variable("SST").unwrap();
+
+            println!("{}", v.vartype() == netcdf_sys::NC_FLOAT);
+
+            let mut vbuf: Vec<f32> = vec![0.0; counts.iter().product()];
+            v.values_to(&mut vbuf, Some(&[1, 10, 10]), Some(&counts)).expect("could not read values");
+
+            vbuf
+        };
+
+        let v = stream_variable::<f32>(f, "SST".to_string(), vec![1,10,10], counts.clone());
+        pin_mut!(v);
+
+        let s = futures::executor::block_on_stream(v).flatten().collect::<Vec<f32>>();
+
+        assert_eq!(dir, s);
+    }
+
+    #[test]
+    fn test_async_read_start_zero() {
+        use futures::pin_mut;
+        let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
+
+        let counts = vec![10usize, 30, 80];
+
+        let dir = {
+            let v = f.variable("SST").unwrap();
+
+            let mut vbuf: Vec<f32> = vec![0.0; counts.iter().product()];
+            v.values_to(&mut vbuf, Some(&[0, 0, 0]), Some(&counts)).expect("could not read values");
+
+            vbuf
+        };
+
+        let v = stream_variable::<f32>(f, "SST".to_string(), vec![0, 0, 0], counts.clone());
+        pin_mut!(v);
+
+        let s = futures::executor::block_on_stream(v).flatten().collect::<Vec<f32>>();
+        assert_eq!(dir, s);
+    }
+
+    #[test]
+    fn test_async_read_all() {
+        use futures::pin_mut;
+        let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
+
+        let counts: Vec<usize> = f.variable("SST").unwrap().dimensions().iter().map(|d| d.len()).collect();
+
+        let dir = {
+            let v = f.variable("SST").unwrap();
+
+            let mut vbuf: Vec<f32> = vec![0.0; counts.iter().product()];
+            v.values_to(&mut vbuf, Some(&[0, 0, 0]), Some(&counts)).expect("could not read values");
+
+            vbuf
+        };
+
+        let v = stream_variable::<f32>(f, "SST".to_string(), vec![0, 0, 0], counts.clone());
+        pin_mut!(v);
+
+        let s = futures::executor::block_on_stream(v).flatten().collect::<Vec<f32>>();
+
+        assert_eq!(dir, s);
     }
 }

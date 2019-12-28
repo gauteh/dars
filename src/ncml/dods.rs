@@ -1,5 +1,6 @@
 use std::sync::Arc;
-use futures::stream::Stream;
+use futures::pin_mut;
+use futures::stream::{Stream, StreamExt};
 use async_stream::stream;
 use itertools::izip;
 use std::iter::once;
@@ -54,11 +55,8 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
 
             let vv = fnc.variable(mv).ok_or(anyhow!("variable not found"))?;
 
-            // TODO, IMPORTANT: loop over chunks of max. size. It is possible to generate a request
-            // with a very large slab. Causing a large amount of memory to be allocated. The
-            // variable should be chunked and streamed in e.g. 1MB sizes.
             if vv.dimensions().len() > 0 && vv.dimensions()[0].name() == dim {
-                // single values are cannot have a dimension so we only need to handle arrays here.
+                // single values cannot have a dimension so we only need to handle arrays here.
                 // arrays have their length sent first, but single values do not.
                 let (ind, cnt) = match slab {
                     Some((i,c)) => (i, c),
@@ -86,8 +84,12 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
 
                         let mvv = f.variable(mv).ok_or(anyhow!("variable not found"))?;
 
-                        yield pack_var(mvv, true, Some(agg_sz), Some((mind, mcnt)));
+                        let pack = pack_var(f.clone(), String::from(mv), Some(agg_sz), (mind, mcnt));
+                        pin_mut!(pack);
 
+                        while let Some(p) = pack.next().await {
+                            yield p;
+                        }
                     } else if ind[0] < *s && (*s < ind[0] + cnt[0]) {
                         let mut mcnt = cnt.clone();
                         mcnt[0] = min((cnt[0] - *s), *n);
@@ -97,15 +99,29 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
 
                         let mvv = f.variable(mv).ok_or(anyhow!("variable not found"))?;
 
-                        yield pack_var(mvv, false, None, Some((mind, mcnt)));
+                        let pack = pack_var(f.clone(), String::from(mv), None, (mind, mcnt));
+                        pin_mut!(pack);
 
+                        while let Some(p) = pack.next().await {
+                            yield p;
+                        }
                     } else {
                         break;
                     }
                 }
             } else {
                 // variable without joining dimension, using values from first member
-                yield pack_var(vv, true, None, slab);
+                let slab = match slab {
+                    Some(t) => t,
+                    None => (vec![0usize; vv.dimensions().iter().map(|d| d.len()).product::<usize>()], vv.dimensions().iter().map(|d| d.len()).collect::<Vec<usize>>())
+                };
+
+                let pack = pack_var(fnc.clone(), String::from(mv), Some(slab.1.iter().product::<usize>()), slab);
+                pin_mut!(pack);
+
+                while let Some(p) = pack.next().await {
+                    yield p;
+                }
             }
         }
     }

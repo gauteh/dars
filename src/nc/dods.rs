@@ -1,8 +1,9 @@
 use std::sync::Arc;
 use itertools::izip;
 use std::cmp::min;
+use std::pin::Pin;
 use futures::pin_mut;
-use futures::stream::{Stream, StreamExt};
+use futures::stream::{self, Stream, StreamExt};
 use async_stream::stream;
 
 use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
@@ -13,7 +14,7 @@ use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
 /// Use if variable has dimensions.
 pub fn encode_array<S, T>(v: S, len: Option<usize>) -> impl Stream<Item=Result<Vec<u8>, anyhow::Error>>
     where S: Stream<Item=Result<Vec<T>, anyhow::Error>>,
-          T: netcdf::Numeric + Unpin + Clone + Default + std::fmt::Debug +
+          T: netcdf::Numeric + Clone + Default + Unpin +
                 xdr_codec::Pack<std::io::Cursor<Vec<u8>>> +
                 Sized +
                 xdr::XdrSize
@@ -52,7 +53,7 @@ pub fn encode_array<S, T>(v: S, len: Option<usize>) -> impl Stream<Item=Result<V
 /// Stream a variable with a predefined chunk size. Chunk size is not guaranteed to be
 /// kept, and may be at worst half of specified size in order to fill up slabs.
 pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>, counts: Vec<usize>) -> impl Stream<Item=Result<Vec<T>, anyhow::Error>>
-    where T: netcdf::Numeric + Unpin + Clone + Default + std::fmt::Debug
+    where T: netcdf::Numeric + Clone + Default + Unpin
 {
     const CHUNK_SZ: usize = 1024*1024;
 
@@ -90,10 +91,19 @@ pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>,
 
             let mut cache: Vec<T> = vec![T::default(); jump_sz];
             v.values_to(&mut cache, Some(&mind), Some(&mjump))?;
-
-
             yield Ok(cache);
 
+            // let f = f.clone();
+            // let mvn = vn.clone();
+
+            // this should probably be tokio::task when not running tests.
+            // yield async_std::task::spawn_blocking(move || {
+            //     let mut cache: Vec<T> = vec![T::default(); jump_sz];
+            //     let v = f.variable(&mvn).ok_or(anyhow!("Could not find variable"))?;
+
+            //     v.values_to(&mut cache, Some(&mind), Some(&mjump))?;
+            //     Ok(cache)
+            // }).await;
 
             let mut carry = offset.iter().zip(&dim_sz).map(|(a,b)| a * b).sum::<usize>() + jump_sz;
             for (o, c) in izip!(offset.iter_mut().rev(), counts.iter().rev()) {
@@ -108,48 +118,43 @@ pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>,
     }
 }
 
-pub fn pack_var(v: &netcdf::Variable, start: bool, len: Option<usize>, slab: Option<(Vec<usize>, Vec<usize>)>) -> Result<Vec<u8>, anyhow::Error> {
-    match v.vartype() {
-        netcdf_sys::NC_FLOAT => xdr_chunk::<f32>(v, start, len, slab),
-        netcdf_sys::NC_DOUBLE => xdr_chunk::<f64>(v, start, len, slab),
-        netcdf_sys::NC_INT => xdr_chunk::<i32>(v, start, len, slab),
-        netcdf_sys::NC_SHORT => xdr_chunk::<i32>(v, start, len, slab),
-        netcdf_sys::NC_BYTE => xdr_chunk::<u8>(v, start, len, slab),
+/// This only picks the correct generic for variable type.
+pub fn pack_var(f: Arc<netcdf::File>, v: String, len: Option<usize>, slab: (Vec<usize>, Vec<usize>)) -> Pin<Box<dyn Stream<Item=Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>> {
+    let vv = f.variable(&v).unwrap();
+
+    match vv.vartype() {
+        netcdf_sys::NC_FLOAT => pack_var_impl::<f32>(f, v, len, slab),
+        netcdf_sys::NC_DOUBLE => pack_var_impl::<f64>(f, v, len, slab),
+        netcdf_sys::NC_INT => pack_var_impl::<i32>(f, v, len, slab),
+        netcdf_sys::NC_SHORT => pack_var_impl::<i32>(f, v, len, slab),
+        netcdf_sys::NC_BYTE => pack_var_impl::<u8>(f, v, len, slab),
         // netcdf_sys::NC_UBYTE => xdr_bytes(vv),
         // netcdf_sys::NC_CHAR => xdr_bytes(vv),
         _ => unimplemented!()
     }
 }
 
-pub fn xdr_chunk<T>(v: &netcdf::Variable, start: bool, len: Option<usize>, slab: Option<(Vec<usize>, Vec<usize>)>) -> Result<Vec<u8>, anyhow::Error>
-    where T: netcdf::variable::Numeric +
+pub fn pack_var_impl<T>(f: Arc<netcdf::File>, v: String, len: Option<usize>, slab: (Vec<usize>, Vec<usize>)) -> Pin<Box<dyn Stream<Item=Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>>
+    where T: netcdf::variable::Numeric + Unpin + Sync + Send + 'static +
                 xdr_codec::Pack<std::io::Cursor<Vec<u8>>> +
                 Sized +
                 xdr::XdrSize +
                 std::default::Default +
                 std::clone::Clone
 {
-    let n = match &slab {
-        Some((_, c)) => c.iter().product::<usize>(),
-        None => v.len()
-    };
+    let vv = f.variable(&v).unwrap();
+    let (indices, counts) = slab;
 
-    if n > v.len() {
-        warn!("slab too great");
-        Err(anyhow!("slab too great {} > {}", n, v.len()))?;
-    }
+    if vv.dimensions().len() > 0 {
+        let v = stream_variable::<T>(f, v, indices, counts);
 
-    let mut vbuf: Vec<T> = vec![T::default(); n];
-
-    match slab {
-        Some((indices, counts)) => v.values_to(&mut vbuf, Some(&indices), Some(&counts)),
-        None => v.values_to(&mut vbuf, None, None)
-    }?;
-
-    if v.dimensions().len() > 0 {
-        xdr::pack_xdr_arr(vbuf, start, len)
+        Box::pin(encode_array(v, len))
     } else {
-        xdr::pack_xdr_val(vbuf)
+        let mut vbuf: Vec<T> = vec![T::default(); 1];
+        match vv.values_to(&mut vbuf, None, None) {
+            Ok(_) => Box::pin(stream::once(async move { xdr::pack_xdr_val(vbuf) })),
+            Err(e) => Box::pin(stream::once(async move { Err(e)? }))
+        }
     }
 }
 
@@ -163,7 +168,9 @@ pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<
                 None => &v
             };
 
-            let slab = match mv.find("[") {
+
+            let nc = nc.clone();
+            let (vv, indices, counts) = match mv.find("[") {
                 Some(i) => {
                     let slab = parse_hyberslab(&mv[i..])?;
                     mv = &mv[..i];
@@ -175,18 +182,28 @@ pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<
                         yield Err(anyhow!("Strides not implemented yet"));
                     }
 
-                    Some((indices, counts))
+                    let vv = nc.variable(&mv).ok_or(anyhow!("variable not found"))?;
+                    (vv, indices, counts)
                 },
 
-                None => None
+                None => {
+                    let vv = nc.variable(&mv).ok_or(anyhow!("variable not found"))?;
+                    (vv, vec![0usize; vv.dimensions().iter().map(|d| d.len()).product::<usize>()], vv.dimensions().iter().map(|d| d.len()).collect::<Vec<usize>>())
+                }
             };
 
-            let vv = nc.variable(&mv).ok_or(anyhow!("variable not found"))?;
+            let slab = (indices, counts);
 
-            // TODO, IMPORTANT: loop over chunks of max. size. It is possible to generate a request
-            // with a very large slab. Causing a large amount of memory to be allocated. The
-            // variable should be chunked and streamed in e.g. 1MB sizes.
-            yield pack_var(vv, true, None, slab)
+            let pack = pack_var(nc,
+                String::from(mv),
+                Some(slab.1.iter().product::<usize>()),
+                slab);
+
+            pin_mut!(pack);
+
+            while let Some(p) = pack.next().await {
+                yield p;
+            }
         }
     }
 }

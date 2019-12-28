@@ -44,9 +44,10 @@ impl NcDataset {
     /// through the URL query part.
     fn parse_query(&self, query: Option<String>) -> Vec<String> {
         match query {
-            Some(q) => q.split(",").map(|s|
-                    percent_decode_str(s).decode_utf8_lossy().into_owned()
-                ).collect(),
+            Some(q) => q.split(",")
+                        .map(|s|
+                            percent_decode_str(s).decode_utf8_lossy().into_owned()
+                        ).collect(),
 
             None => self.dds.default_vars()
         }

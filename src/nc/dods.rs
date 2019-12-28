@@ -1,10 +1,49 @@
 use std::sync::Arc;
 use itertools::izip;
 use std::cmp::min;
-use futures::stream::Stream;
+use futures::pin_mut;
+use futures::stream::{Stream, StreamExt};
 use async_stream::stream;
 
 use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
+
+pub fn encode_array<S, T>(v: S, len: Option<usize>) -> impl Stream<Item=Result<Vec<u8>, anyhow::Error>>
+    where S: Stream<Item=Result<Vec<T>, anyhow::Error>>,
+          T: netcdf::Numeric + Unpin + Clone + Default + std::fmt::Debug +
+                xdr_codec::Pack<std::io::Cursor<Vec<u8>>> +
+                Sized +
+                xdr::XdrSize
+{
+    use std::io::Cursor;
+    use xdr_codec::Pack;
+    use xdr::XdrSize;
+
+    stream! {
+        pin_mut!(v);
+
+        if let Some(sz) = len {
+            let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(2 * 4));
+            sz.pack(&mut buf)?;
+            sz.pack(&mut buf)?;
+
+            yield Ok(buf.into_inner());
+        }
+
+        while let Some(val) = v.next().await {
+            match val {
+                Ok(val) => {
+                    let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(<T as XdrSize>::size() * val.len()));
+                    for v in val {
+                        v.pack(&mut buf)?;
+                    }
+
+                    yield Ok(buf.into_inner())
+                },
+                Err(e) => yield Err(e)
+            };
+        }
+    }
+}
 
 pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>, counts: Vec<usize>) -> impl Stream<Item=Result<Vec<T>, anyhow::Error>>
     where T: netcdf::Numeric + Unpin + Clone + Default + std::fmt::Debug
@@ -221,6 +260,48 @@ mod tests {
         });
     }
 
+    #[bench]
+    fn xdr_stream_chunk(b: &mut Bencher) {
+        use futures::executor::block_on_stream;
+
+        let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
+        let counts: Vec<usize> = f.variable("SST").unwrap().dimensions().iter().map(|d| d.len()).collect();
+
+        b.iter(|| {
+            let f = f.clone();
+
+            let v = stream_variable::<f32>(f, "SST".to_string(), vec![0, 0, 0], counts.clone());
+
+            let x2 = encode_array(v, Some(counts.iter().product::<usize>()));
+            pin_mut!(x2);
+            block_on_stream(x2).collect()
+        });
+    }
+
+    #[test]
+    fn test_async_xdr_stream() {
+        use futures::executor::block_on_stream;
+
+        let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
+
+        let v = xdr(
+            f.clone(),
+            vec![ "SST".to_string() ]);
+
+        pin_mut!(v);
+        let x = block_on_stream(v).flatten().flatten().collect::<Vec<u8>>();
+
+        let counts: Vec<usize> = f.variable("SST").unwrap().dimensions().iter().map(|d| d.len()).collect();
+        let v = stream_variable::<f32>(f, "SST".to_string(), vec![0, 0, 0], counts.clone());
+
+        let x2 = encode_array(v, Some(counts.iter().product::<usize>()));
+        pin_mut!(x2);
+
+        let s: Vec<u8> = futures::executor::block_on_stream(x2).flatten().flatten().collect();
+
+        assert_eq!(x, s);
+    }
+
     #[test]
     fn test_async_read_start_offset() {
         use futures::pin_mut;
@@ -242,7 +323,7 @@ mod tests {
         let v = stream_variable::<f32>(f, "SST".to_string(), vec![1,10,10], counts.clone());
         pin_mut!(v);
 
-        let s = futures::executor::block_on_stream(v).flatten().collect::<Vec<f32>>();
+        let s: Vec<f32> = futures::executor::block_on_stream(v).flatten().flatten().collect();
 
         assert_eq!(dir, s);
     }
@@ -266,7 +347,7 @@ mod tests {
         let v = stream_variable::<f32>(f, "SST".to_string(), vec![0, 0, 0], counts.clone());
         pin_mut!(v);
 
-        let s = futures::executor::block_on_stream(v).flatten().collect::<Vec<f32>>();
+        let s: Vec<f32> = futures::executor::block_on_stream(v).flatten().flatten().collect();
         assert_eq!(dir, s);
     }
 
@@ -289,8 +370,9 @@ mod tests {
         let v = stream_variable::<f32>(f, "SST".to_string(), vec![0, 0, 0], counts.clone());
         pin_mut!(v);
 
-        let s = futures::executor::block_on_stream(v).flatten().collect::<Vec<f32>>();
+        let s: Vec<f32> = futures::executor::block_on_stream(v).flatten().flatten().collect();
 
         assert_eq!(dir, s);
     }
+
 }

@@ -7,6 +7,10 @@ use async_stream::stream;
 
 use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
 
+/// Encodes a chunked stream of Vec<T> as XDR array into a new chunked
+/// stream of Vec<u8>'s.
+///
+/// Use if variable has dimensions.
 pub fn encode_array<S, T>(v: S, len: Option<usize>) -> impl Stream<Item=Result<Vec<u8>, anyhow::Error>>
     where S: Stream<Item=Result<Vec<T>, anyhow::Error>>,
           T: netcdf::Numeric + Unpin + Clone + Default + std::fmt::Debug +
@@ -45,10 +49,12 @@ pub fn encode_array<S, T>(v: S, len: Option<usize>) -> impl Stream<Item=Result<V
     }
 }
 
+/// Stream a variable with a predefined chunk size. Chunk size is not guaranteed to be
+/// kept, and may be at worst half of specified size in order to fill up slabs.
 pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>, counts: Vec<usize>) -> impl Stream<Item=Result<Vec<T>, anyhow::Error>>
     where T: netcdf::Numeric + Unpin + Clone + Default + std::fmt::Debug
 {
-    const CHUNK_SZ: usize = 1024;
+    const CHUNK_SZ: usize = 1024*1024;
 
     stream! {
         let v = f.variable(&vn).ok_or(anyhow!("Could not find variable"))?;
@@ -101,9 +107,6 @@ pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>,
         }
     }
 }
-
-
-// TODO: Try tokio::codec::FramedRead with Read impl on dods?
 
 pub fn pack_var(v: &netcdf::Variable, start: bool, len: Option<usize>, slab: Option<(Vec<usize>, Vec<usize>)>) -> Result<Vec<u8>, anyhow::Error> {
     match v.vartype() {
@@ -274,7 +277,7 @@ mod tests {
 
             let x2 = encode_array(v, Some(counts.iter().product::<usize>()));
             pin_mut!(x2);
-            block_on_stream(x2).collect()
+            block_on_stream(x2).collect::<Vec<_>>()
         });
     }
 

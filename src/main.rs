@@ -1,23 +1,3 @@
-/* Some notes:
- *
- * host env:
- * - Allow lots of open files in host env
- * - chroot process
- * - not root, not even in docker
- * - mount data RO into chroot
- *
- * design:
- * - probably preload meta-data like attributes and variables in order
- *   to avoid file opens.
- * - need a way to determine if file has changed (mtime), is this
- *   syscall as slow as open? hopefully not.
- * - use mtime on dir to track new files.
- *
- * testing:
- * - use wrk or ab to test, w/o file open wrk gives about 70k request/sec. even including the
- * arc and locks.
- *
- */
 #![recursion_limit="1024"]
 
 #![feature(test)]

@@ -154,7 +154,7 @@ mod tests {
             let f = f.clone();
             let v = xdr(
                 f,
-                vec![ "COADSX".to_string() ]);
+                vec![ "SST".to_string() ]);
 
             pin_mut!(v);
             block_on_stream(v).collect::<Vec<_>>()

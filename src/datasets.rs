@@ -33,7 +33,7 @@ impl Data {
         }
     }
 
-    fn make_key(&self, p: &Path) -> String {
+    pub fn make_key(&self, p: &Path) -> String {
         if self.root.to_string_lossy().ends_with("/") {
             // remove root
             p.to_str().unwrap().trim_start_matches(self.root.to_str().unwrap()).to_string()
@@ -77,6 +77,64 @@ impl Data {
                         }
                     },
                     _ => ()
+                }
+            }
+        }
+    }
+
+    pub fn data_event(e: notify::DebouncedEvent) -> () {
+        use notify::DebouncedEvent::*;
+
+        match e {
+            Create(pb) | Write(pb) | Remove(pb) => Data::reload_file(pb),
+            Rename(pba, pbb) => { Data::reload_file(pba); Data::reload_file(pbb) },
+            _ => debug!("Unhandled event: {:?}", e)
+        }
+    }
+
+    pub fn reload_file(pb: PathBuf) {
+        debug!("Checking file: {:?}", pb);
+
+        if let Some(ext) = pb.extension() {
+            if ext == "nc" || ext == "ncml" {
+                use super::DATA;
+
+                let rdata = DATA.clone();
+                let mut data = rdata.write().unwrap();
+
+                if let Some(fname) = pb.file_name() {
+                    if fname.to_string_lossy().starts_with(".") {
+                        return;
+                    }
+                } else {
+                    return;
+                }
+
+                let pb = if let Ok(pb) = pb.strip_prefix(data.root.canonicalize().unwrap()) {
+                    data.root.join(pb)
+                } else {
+                    warn!("{:?} not in root: {:?}", pb, data.root);
+                    return;
+                };
+
+                let key = data.make_key(&pb);
+
+                if data.datasets.remove(&key).is_some() {
+                    info!("Removed dataset: {}", key);
+                }
+
+                if pb.exists() {
+                    if ext == "nc" {
+                        match NcDataset::open(pb.clone()) {
+                            Ok(ds) => { data.datasets.insert(key, Arc::new(ds)); },
+                            _ => warn!("Could not open: {:?}", pb)
+                        }
+                    } else if ext == "ncml" {
+                        match NcmlDataset::open(pb.clone()) {
+                            Ok(ds) => { data.datasets.insert(key, Arc::new(ds)); },
+                            _ => warn!("Could not open: {:?}", pb)
+                        }
+                    }
                 }
             }
         }

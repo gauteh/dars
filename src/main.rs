@@ -53,8 +53,8 @@ async fn watch(data: String) -> Result<(), anyhow::Error> {
         let irx = rx.clone();
         match tokio::task::spawn_blocking(move ||
             irx.lock().unwrap().recv()).await {
-            Ok(o) => warn!("{:?} happened (not implemented yet)", o),
-            Err(_) => break Err(anyhow!("Error while watching data"))
+            Ok(Ok(o)) => Data::data_event(o),
+            _ => break Err(anyhow!("Error while watching data"))
         }
     }
 }
@@ -114,7 +114,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
                 let r = match (req.method(), req.uri().path()) {
                     (&Method::GET, "/") => Response::builder().body(Body::from("DAP!\n\n(checkout /data)")),
-                    (&Method::GET, "/data") => Data::datasets(req),
+                    (&Method::GET, "/data") | (&Method::GET, "/data/") => Data::datasets(req),
                     (&Method::GET, p) if p.starts_with("/data/") => Data::dataset(req).await,
                     _ => Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
                 };

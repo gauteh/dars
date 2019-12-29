@@ -11,7 +11,7 @@ use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
 /// Stream a variable with a predefined chunk size. Chunk size is not guaranteed to be
 /// kept, and may be at worst half of specified size in order to fill up slabs.
 pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>, counts: Vec<usize>) -> impl Stream<Item=Result<Vec<T>, anyhow::Error>>
-    where T: netcdf::Numeric + Clone + Default + Unpin
+    where T: netcdf::Numeric + Clone + Default + Unpin + Send + 'static
 {
     const CHUNK_SZ: usize = 1024*1024;
 
@@ -53,15 +53,15 @@ pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>,
 
             // let f = f.clone();
             // let mvn = vn.clone();
-
-            // this should probably be tokio::task when not running tests.
-            // yield async_std::task::spawn_blocking(move || {
+            // let cache = tokio::task::block_in_place(|| {
             //     let mut cache: Vec<T> = vec![T::default(); jump_sz];
             //     let v = f.variable(&mvn).ok_or(anyhow!("Could not find variable"))?;
 
             //     v.values_to(&mut cache, Some(&mind), Some(&mjump))?;
-            //     Ok(cache)
-            // }).await;
+            //     Ok::<_,anyhow::Error>(cache)
+            // })?;
+
+            // yield Ok(cache);
 
             let mut carry = offset.iter().zip(&dim_sz).map(|(a,b)| a * b).sum::<usize>() + jump_sz;
             for (o, c) in izip!(offset.iter_mut().rev(), counts.iter().rev()) {

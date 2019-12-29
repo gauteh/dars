@@ -8,50 +8,6 @@ use async_stream::stream;
 
 use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
 
-/// Encodes a chunked stream of Vec<T> as XDR array into a new chunked
-/// stream of Vec<u8>'s.
-///
-/// Use if variable has dimensions.
-pub fn encode_array<S, T>(v: S, len: Option<usize>) -> impl Stream<Item=Result<Vec<u8>, anyhow::Error>>
-    where S: Stream<Item=Result<Vec<T>, anyhow::Error>>,
-          T: netcdf::Numeric + Clone + Default + Unpin +
-                xdr_codec::Pack<std::io::Cursor<Vec<u8>>> +
-                Sized +
-                xdr::XdrSize
-{
-    use std::io::Cursor;
-    use xdr_codec::Pack;
-    use xdr::XdrSize;
-
-    stream! {
-        pin_mut!(v);
-
-        if let Some(sz) = len {
-            let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(2 * 4));
-            sz.pack(&mut buf)?;
-            sz.pack(&mut buf)?;
-
-            yield Ok(buf.into_inner());
-        }
-
-        while let Some(val) = v.next().await {
-            match val {
-                Ok(val) => {
-                    let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(<T as XdrSize>::size() * val.len()));
-                    tokio::task::block_in_place(|| {
-                        for v in val {
-                            v.pack(&mut buf).unwrap();
-                        }
-                    });
-
-                    yield Ok(buf.into_inner())
-                },
-                Err(e) => yield Err(e)
-            };
-        }
-    }
-}
-
 /// Stream a variable with a predefined chunk size. Chunk size is not guaranteed to be
 /// kept, and may be at worst half of specified size in order to fill up slabs.
 pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>, counts: Vec<usize>) -> impl Stream<Item=Result<Vec<T>, anyhow::Error>>
@@ -150,7 +106,7 @@ pub fn pack_var_impl<T>(f: Arc<netcdf::File>, v: String, len: Option<usize>, sla
     if vv.dimensions().len() > 0 {
         let v = stream_variable::<T>(f, v, indices, counts);
 
-        Box::pin(encode_array(v, len))
+        Box::pin(xdr::encode_array(v, len))
     } else {
         let mut vbuf: Vec<T> = vec![T::default(); 1];
         match vv.values_to(&mut vbuf, None, None) {
@@ -294,7 +250,7 @@ mod tests {
 
             let v = stream_variable::<f32>(f, "SST".to_string(), vec![0, 0, 0], counts.clone());
 
-            let x2 = encode_array(v, Some(counts.iter().product::<usize>()));
+            let x2 = xdr::encode_array(v, Some(counts.iter().product::<usize>()));
             pin_mut!(x2);
             block_on_stream(x2).collect::<Vec<_>>()
         });
@@ -316,7 +272,7 @@ mod tests {
         let counts: Vec<usize> = f.variable("SST").unwrap().dimensions().iter().map(|d| d.len()).collect();
         let v = stream_variable::<f32>(f, "SST".to_string(), vec![0, 0, 0], counts.clone());
 
-        let x2 = encode_array(v, Some(counts.iter().product::<usize>()));
+        let x2 = xdr::encode_array(v, Some(counts.iter().product::<usize>()));
         pin_mut!(x2);
 
         let s: Vec<u8> = futures::executor::block_on_stream(x2).flatten().flatten().collect();

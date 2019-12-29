@@ -3,42 +3,40 @@ authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
 edition = "2018"
 name = "dars"
 version = "0.1.0"
-[dependencies]
-anyhow = "1.0.22"
-async-stream = "0.2.0"
-async-trait = "0.1.21"
-colored = "1.9.0"
-env_logger = "0.7.1"
-futures = "0.3.1"
-futures-core = "0.3.1"
-futures-util = "0.3.1"
-getopts = "*"
-itertools = "0.8.2"
-lazy_static = "1.4.0"
-log = "0.4.8"
-netcdf = "0.3.1"
-netcdf-sys = "0.2.1"
-notify = "4.0.14"
-percent-encoding = "2.1.0"
-roxmltree = "0.7.3"
-walkdir = "2.2.9"
 
-[dependencies.async-std]
-features = ["unstable"]
-version = "1.2.0"
+[dependencies]
+anyhow = "1"
+async-stream = "0.2"
+async-trait = "0.1"
+colored = "1.9"
+env_logger = "0.7"
+futures = "0.3"
+futures-core = "0.3"
+futures-util = "0.3"
+getopts = "*"
+itertools = "0.8"
+lazy_static = "1.4"
+log = "0.4"
+netcdf = "0.3"
+netcdf-sys = "0.2"
+notify = "4.0"
+percent-encoding = "2.1"
+roxmltree = "0.7"
+walkdir = "2.2"
 
 [dependencies.hyper]
 features = ["stream"]
-version = "0.13.0"
+version = "0.13"
 
 [dependencies.tokio]
 features = ["full"]
-version = "0.2.4"
+version = "0.2"
 
 [dependencies.tokio-util]
 features = ["codec"]
-version = "0.2.0"
+version = "0.2"
 
 [dependencies.xdr-codec]
 features = ["bytecodec"]
-version = "0.4.4"
+version = "0.4"
+

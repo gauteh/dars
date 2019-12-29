@@ -71,7 +71,7 @@ async fn watch(data: String) -> Result<(), anyhow::Error> {
 
     loop {
         let irx = rx.clone();
-        match async_std::task::spawn_blocking(move ||
+        match tokio::task::spawn_blocking(move ||
             irx.lock().unwrap().recv()).await {
             Ok(o) => warn!("{:?} happened (not implemented yet)", o),
             Err(_) => break Err(anyhow!("Error while watching data"))

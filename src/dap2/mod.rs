@@ -48,6 +48,10 @@ pub mod hyperslab {
 }
 
 pub mod xdr {
+    use futures::stream::{Stream, StreamExt};
+    use futures::pin_mut;
+    use async_stream::stream;
+
     pub trait XdrSize {
         fn size() -> usize;
     }
@@ -93,31 +97,47 @@ pub mod xdr {
         Ok(buf.into_inner())
     }
 
-    pub fn pack_xdr_arr<T>(v: Vec<T>, start: bool, len: Option<usize>) -> Result<Vec<u8>, anyhow::Error>
-        where T: xdr_codec::Pack<std::io::Cursor<Vec<u8>>> + Sized + XdrSize
+    /// Encodes a chunked stream of Vec<T> as XDR array into a new chunked
+    /// stream of Vec<u8>'s.
+    ///
+    /// Use if variable has dimensions.
+    pub fn encode_array<S, T>(v: S, len: Option<usize>) -> impl Stream<Item=Result<Vec<u8>, anyhow::Error>>
+        where S: Stream<Item=Result<Vec<T>, anyhow::Error>>,
+            T: netcdf::Numeric + Clone + Default + Unpin +
+                    xdr_codec::Pack<std::io::Cursor<Vec<u8>>> +
+                    Sized +
+                    XdrSize
     {
         use std::io::Cursor;
         use xdr_codec::Pack;
 
+        stream! {
+            pin_mut!(v);
 
-        let sz: usize = 2*4 + v.len()*<T as XdrSize>::size();
-        let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(sz));
+            if let Some(sz) = len {
+                let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(2 * 4));
+                sz.pack(&mut buf)?;
+                sz.pack(&mut buf)?;
 
-        if start {
-            if let Some(len) = len {
-                len.pack(&mut buf)?;
-                len.pack(&mut buf)?;
-            } else {
-                v.len().pack(&mut buf)?;
-                v.len().pack(&mut buf)?;
+                yield Ok(buf.into_inner());
+            }
+
+            while let Some(val) = v.next().await {
+                match val {
+                    Ok(val) => {
+                        let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(<T as XdrSize>::size() * val.len()));
+                        tokio::task::block_in_place(|| {
+                            for v in val {
+                                v.pack(&mut buf).unwrap();
+                            }
+                        });
+
+                        yield Ok(buf.into_inner())
+                    },
+                    Err(e) => yield Err(e)
+                };
             }
         }
-
-        for val in v {
-            val.pack(&mut buf)?;
-        }
-
-        Ok(buf.into_inner())
     }
 }
 

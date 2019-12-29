@@ -40,5 +40,5 @@ Some parts of OPenDAP or services commonly available with other implementation a
 * catalog.xml.
 * HTML interface.
 
-For some of those _dars_ can be plugged in as a DAP-interface, while the rest is served using another implementation (like [Thredds](https://www.unidata.ucar.edu/software/tds/current/).
+For some of those _dars_ can be plugged in as a DAP-interface, while the rest is served using another implementation (like [Thredds](https://www.unidata.ucar.edu/software/tds/current/)).
 

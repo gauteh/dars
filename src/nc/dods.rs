@@ -38,9 +38,11 @@ pub fn encode_array<S, T>(v: S, len: Option<usize>) -> impl Stream<Item=Result<V
             match val {
                 Ok(val) => {
                     let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(<T as XdrSize>::size() * val.len()));
-                    for v in val {
-                        v.pack(&mut buf)?;
-                    }
+                    tokio::task::block_in_place(|| {
+                        for v in val {
+                            v.pack(&mut buf).unwrap();
+                        }
+                    });
 
                     yield Ok(buf.into_inner())
                 },

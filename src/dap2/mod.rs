@@ -126,11 +126,18 @@ pub mod xdr {
                 match val {
                     Ok(val) => {
                         let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(<T as XdrSize>::size() * val.len()));
-                        tokio::task::block_in_place(|| {
+
+                        if cfg!(not(test)) {
+                            tokio::task::block_in_place(|| {
+                                for v in val {
+                                    v.pack(&mut buf).unwrap();
+                                }
+                            });
+                        } else {
                             for v in val {
                                 v.pack(&mut buf).unwrap();
                             }
-                        });
+                        }
 
                         yield Ok(buf.into_inner())
                     },

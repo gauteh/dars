@@ -1,4 +1,5 @@
 #![recursion_limit="1024"]
+#![feature(async_closure)]
 
 #![feature(test)]
 extern crate test;
@@ -10,7 +11,7 @@ extern crate test;
 use std::env;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, RwLock};
-use futures::{future, FutureExt};
+use futures::FutureExt;
 use std::time::Duration;
 use hyper::{
     Server, Body, Response, Error, Method, StatusCode,
@@ -41,7 +42,7 @@ const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 // On systems where the actual file is not removed untill all file handles
 // are closed this should work fairly well.
 async fn watch(data: String) -> Result<(), anyhow::Error> {
-    info!("Watching {}", data);
+    info!("Watching {}", data.yellow());
 
     let (tx, rx) = std::sync::mpsc::channel();
     let mut watcher = notify::watcher(tx, Duration::from_secs(2))?;
@@ -138,12 +139,26 @@ async fn main() -> Result<(), anyhow::Error> {
         .serve(msvc)
         .map(|r| r.map_err(|e| anyhow!(e)));
 
-    info!("Listening on http://{}", addr);
+    info!("Listening on {}", format!("http://{}", addr).yellow());
+
+    use futures::future::{Abortable, AbortHandle};
+    let (abort_handle, abort_registration) = AbortHandle::new_pair();
+    let server = Abortable::new(server, abort_registration);
 
     if matches.opt_present("w") {
-        future::join(server, watch(datadir)).await.0
-    } else {
-        server.await
+        tokio::task::spawn(watch(datadir).then(async move |e| {
+            error!("Error while watching data directory: {:?}", e);
+
+            abort_handle.abort()
+        }));
     }
+
+    server.map(|r| match r {
+            Ok(r) => r,
+            Err(e) => Err(anyhow!(e))
+        }).inspect(|r| match r {
+            Ok(_) => info!("Shutting down server."),
+            Err(e) => error!("Server aborted: {:?}", e)
+        }).await
 }
 

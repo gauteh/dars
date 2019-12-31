@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
+use colored::Colorize;
 
 use super::{
     nc::NcDataset,
@@ -48,7 +49,7 @@ impl Data {
         self.root = root.into();
         self.datasets.clear();
 
-        info!("Scanning {:?} for datasets..", self.root);
+        info!("Scanning {} for datasets..", self.root.to_string_lossy().yellow());
 
         for entry in WalkDir::new(&self.root)
             .follow_links(true)

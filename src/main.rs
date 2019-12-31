@@ -95,7 +95,6 @@ async fn main() -> Result<(), anyhow::Error> {
     let datadir: String = if !matches.free.is_empty() {
         matches.free[0].clone()
     } else {
-        warn!("No DATA dir specified. Trying data/");
         "data/".to_string()
     };
 

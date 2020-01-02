@@ -173,7 +173,11 @@ impl Dataset for NcmlDataset {
         let s = stream::once(async move { Ok::<_,anyhow::Error>(dds) })
             .chain(
                 stream::once(async { Ok::<_,anyhow::Error>(String::from("\nData:\r\n").into_bytes()) }))
-            .chain(dods);
+            .chain(dods)
+            .inspect(|e| match e {
+                Err(ee) => error!("error while streaming: {:?}", ee),
+                _ => ()
+            });
 
         Response::builder().body(Body::wrap_stream(s))
     }

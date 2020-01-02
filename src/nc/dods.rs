@@ -13,14 +13,14 @@ use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
 pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>, counts: Vec<usize>) -> impl Stream<Item=Result<Vec<T>, anyhow::Error>>
     where T: netcdf::Numeric + Clone + Default + Unpin + Send + 'static
 {
-    const CHUNK_SZ: usize = 1024*1024;
+    const CHUNK_SZ: usize = 1024 * 1024;
 
     stream! {
         let v = f.variable(&vn).ok_or(anyhow!("Could not find variable"))?;
 
         let mut jump: Vec<usize> = counts.iter().rev().scan(1, |n, &c| {
             if *n >= CHUNK_SZ {
-                Some(0)
+                Some(1)
             } else {
                 let p = min(CHUNK_SZ / *n, c);
                 *n = *n * p;

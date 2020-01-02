@@ -77,18 +77,25 @@ pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>,
 }
 
 /// This only picks the correct generic for variable type.
-pub fn pack_var(f: Arc<netcdf::File>, v: String, len: Option<usize>, slab: (Vec<usize>, Vec<usize>)) -> Pin<Box<dyn Stream<Item=Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>> {
-    let vv = f.variable(&v).unwrap();
+pub fn pack_var(f: Arc<netcdf::File>, v: String, len: Option<usize>, slab: (Vec<usize>, Vec<usize>)) -> impl Stream<Item=Result<Vec<u8>, anyhow::Error>> {
+    let f = f.clone();
 
-    match vv.vartype() {
-        netcdf_sys::NC_FLOAT => pack_var_impl::<f32>(f, v, len, slab),
-        netcdf_sys::NC_DOUBLE => pack_var_impl::<f64>(f, v, len, slab),
-        netcdf_sys::NC_INT => pack_var_impl::<i32>(f, v, len, slab),
-        netcdf_sys::NC_SHORT => pack_var_impl::<i32>(f, v, len, slab),
-        netcdf_sys::NC_BYTE => pack_var_impl::<u8>(f, v, len, slab),
-        // netcdf_sys::NC_UBYTE => xdr_bytes(vv),
-        // netcdf_sys::NC_CHAR => xdr_bytes(vv),
-        _ => unimplemented!()
+    stream! {
+        let vv = f.variable(&v).unwrap();
+        let mut s = match vv.vartype() {
+            netcdf_sys::NC_FLOAT => pack_var_impl::<f32>(f, v, len, slab),
+            netcdf_sys::NC_DOUBLE => pack_var_impl::<f64>(f, v, len, slab),
+            netcdf_sys::NC_INT => pack_var_impl::<i32>(f, v, len, slab),
+            netcdf_sys::NC_SHORT => pack_var_impl::<i32>(f, v, len, slab),
+            netcdf_sys::NC_BYTE => pack_var_impl::<u8>(f, v, len, slab),
+            // netcdf_sys::NC_UBYTE => xdr_bytes(vv),
+            // netcdf_sys::NC_CHAR => xdr_bytes(vv),
+            _ => unimplemented!()
+        };
+
+        while let Some(i) = s.next().await {
+            yield i
+        }
     }
 }
 

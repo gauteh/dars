@@ -142,12 +142,14 @@ impl Data {
     }
 
     pub fn datasets(_req: hyper::Request<Body>) -> Result<Response<Body>, hyper::http::Error> {
-        let datasets: Vec<String> = {
+        let mut datasets: Vec<String> = {
             let rdata = super::DATA.clone();
             let data = rdata.read().unwrap();
 
             data.datasets.keys().map(|s| format!("  /data/{}", s)).collect()
         };
+
+        datasets.sort();
 
         Response::builder().body(Body::from(
                 format!("Index of datasets:\n\n{}\n", datasets.join("\n"))))

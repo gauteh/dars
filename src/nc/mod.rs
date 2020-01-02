@@ -29,12 +29,13 @@ impl NcDataset {
         let filename = filename.into();
         info!("Loading {:?}..", filename);
 
-        let das = NcDas::build(filename.clone())?;
+        let f = Arc::new(netcdf::open(filename.clone())?);
+        let das = NcDas::build(f.clone())?;
         let dds = NcDds::build(filename.clone())?;
 
         Ok(NcDataset {
-            filename: filename.clone(),
-            f: Arc::new(netcdf::open(filename)?),
+            filename: filename,
+            f: f,
             das: das,
             dds: dds
         })

@@ -1,5 +1,5 @@
+use std::sync::Arc;
 use std::fmt;
-use std::path::PathBuf;
 
 /// Constructs a DAS (Data Attribute Structure) string from
 /// NetCDF file. The DAS string is static and must be regenerated
@@ -50,14 +50,8 @@ impl NcDas {
             .collect::<String>());
     }
 
-    pub fn build<P>(f: P) -> anyhow::Result<NcDas>
-        where P: Into<PathBuf>
+    pub fn build(nc: Arc<netcdf::File>) -> anyhow::Result<NcDas>
     {
-        let f = f.into();
-        debug!("Building Data Attribute Structure (DAS) for {:?}", f);
-
-        let nc = netcdf::open(f)?;
-
         let indent = 4;
         let mut das: String = "Attributes {\n".to_string();
 

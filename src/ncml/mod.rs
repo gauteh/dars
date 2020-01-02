@@ -2,6 +2,7 @@ use hyper::{Response, Body, StatusCode};
 use async_trait::async_trait;
 use std::path::PathBuf;
 use percent_encoding::percent_decode_str;
+use walkdir::WalkDir;
 
 use super::Dataset;
 use super::nc::{self, dds::Dds};
@@ -49,34 +50,69 @@ impl NcmlDataset {
         let xml = roxmltree::Document::parse(&xml)?;
         let root = xml.root_element();
 
-        let aggregation = root.first_element_child().expect("no aggregation tag found");
+        let aggregation = root.first_element_child().ok_or(anyhow!("no aggregation tag found"))?;
         ensure!(aggregation.tag_name().name() == "aggregation", "expected aggregation tag");
 
         // TODO: use match to enum
-        let aggregation_type = aggregation.attribute("type").expect("aggregation type not specified");
+        let aggregation_type = aggregation.attribute("type").ok_or(anyhow!("aggregation type not specified"))?;
         ensure!(aggregation_type == "joinExisting", "only 'joinExisting' type aggregation supported");
 
         // TODO: only available on certain aggregation types
-        let aggregation_dim = aggregation.attribute("dimName").expect("aggregation dimension not specified");
+        let aggregation_dim = aggregation.attribute("dimName").ok_or(anyhow!("aggregation dimension not specified"))?;
 
-        let files: Vec<PathBuf> = aggregation.children()
-            .filter(|c| c.is_element() && c.tag_name().name() == "netcdf")
-            .map(|e| e.attribute("location").map(|l| {
-                let l = PathBuf::from(l);
-                match l.is_relative() {
-                    true => base.map_or(l.clone(), |b| b.join(l)),
-                    false => l
+        let files: Vec<Vec<PathBuf>> = aggregation.children()
+            .filter(|c| c.is_element())
+            .map(|e|
+                match e.tag_name().name() {
+                    "netcdf" => e.attribute("location").map(|l| {
+                        let l = PathBuf::from(l);
+                        match l.is_relative() {
+                            true => vec!(base.map_or(l.clone(), |b| b.join(l))),
+                            false => vec!(l)
+                        }
+                    }),
+                    "scan" => e.attribute("location").map(|l| {
+                        let l: PathBuf = match PathBuf::from(l) {
+                            l if l.is_relative() => base.map_or(l.clone(), |b| b.join(l)),
+                            l => l
+                        };
+
+                        if let Some(sf) = e.attribute("suffix") {
+                            debug!("Scanning {:?}, suffix: {}", l, sf);
+
+                            let mut v = Vec::new();
+
+                            for entry in WalkDir::new(l)
+                                .follow_links(true)
+                                .into_iter()
+                                .filter_entry(|entry|
+                                    !entry.file_name().to_str().map(|s| s.starts_with(".")).unwrap_or(false))
+                                {
+                                    if let Ok(entry) = entry {
+                                        match entry.metadata() {
+                                            Ok(m) if m.is_file() && entry.path().extension().map(|e| e == sf).unwrap_or(false) => v.push(entry.into_path()),
+                                            _ => ()
+                                        }
+                                    };
+                                }
+                            v
+                        } else {
+                            error!("no suffix specified in ncml scan tag");
+                            Vec::new()
+                        }
+                    }),
+                    t => { error!("unknown tag: {}", t); None }
                 }
-            })).collect::<Option<Vec<PathBuf>>>().expect("could not parse file list");
+            ).collect::<Option<Vec<Vec<PathBuf>>>>().ok_or(anyhow!("could not parse file list"))?;
 
-        let members = files.iter().map(|p| NcmlMember::open(p, aggregation_dim)).collect::<Result<Vec<NcmlMember>,_>>()?;
+        let members = files.iter().flatten().map(|p| NcmlMember::open(p, aggregation_dim)).collect::<Result<Vec<NcmlMember>,_>>()?;
 
         // DAS should be same for all members (hopefully), using first.
-        let first = files.first().expect("no members in aggregate");
-        let das = nc::das::NcDas::build(first)?;
+        let first = members.first().ok_or(anyhow!("no members in aggregate"))?;
+        let das = nc::das::NcDas::build(first.f.clone())?;
 
         let dim_n: usize = members.iter().map(|m| m.n).sum();
-        let dds = dds::NcmlDds::build(first, &filename, aggregation_dim, dim_n)?;
+        let dds = dds::NcmlDds::build(first.f.clone(), &filename, aggregation_dim, dim_n)?;
 
         Ok(NcmlDataset {
             filename: filename.clone(),

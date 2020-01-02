@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::path::PathBuf;
 use std::collections::HashMap;
 
@@ -58,16 +59,14 @@ impl Dds for NcmlDds {
 }
 
 impl NcmlDds {
-    pub fn build<P, S>(f: P, dataset: P, dim: S, dim_n: usize) -> Result<NcmlDds, anyhow::Error>
+    pub fn build<P, S>(nc: Arc<netcdf::File>, dataset: P, dim: S, dim_n: usize) -> Result<NcmlDds, anyhow::Error>
         where P: Into<PathBuf>,
               S: Into<String>
     {
         let dataset = dataset.into();
-        let f = f.into();
         let dim = dim.into();
 
-        debug!("Building Data Descriptor Structure (DDS) for {:?} based on {:?}", dataset, f);
-        let nc = netcdf::open(f.clone())?;
+        debug!("Building Data Descriptor Structure (DDS) for {:?}", dataset);
 
         let mut dds = NcmlDds {
             f: dataset,

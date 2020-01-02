@@ -64,14 +64,14 @@ impl Data {
                                 match NcDataset::open(entry.path()) {
                                     Ok(ds) => { self.datasets.insert(self.make_key(entry.path().into()),
                                     Arc::new(ds)); },
-                                    _ => warn!("Could not open: {:?}", entry.path())
+                                    Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e)
                                 }
                             },
                             Some(ext) if ext == "ncml" => {
                                 match NcmlDataset::open(entry.path()) {
                                     Ok(ds) => { self.datasets.insert(self.make_key(entry.path().into()),
                                     Arc::new(ds)); },
-                                    _ => warn!("Could not open: {:?}", entry.path())
+                                    Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e)
                                 }
                             },
                             _ => ()
@@ -128,12 +128,12 @@ impl Data {
                     if ext == "nc" {
                         match NcDataset::open(pb.clone()) {
                             Ok(ds) => { data.datasets.insert(key, Arc::new(ds)); },
-                            _ => warn!("Could not open: {:?}", pb)
+                            Err(e) => warn!("Could not open: {:?} ({:?})", pb, e)
                         }
                     } else if ext == "ncml" {
                         match NcmlDataset::open(pb.clone()) {
                             Ok(ds) => { data.datasets.insert(key, Arc::new(ds)); },
-                            _ => warn!("Could not open: {:?}", pb)
+                            Err(e) => warn!("Could not open: {:?} ({:?})", pb, e)
                         }
                     }
                 }

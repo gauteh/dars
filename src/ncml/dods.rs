@@ -72,7 +72,7 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
 
                 let agg_sz = cnt.iter().product::<usize>();
 
-                // loop through files untill slab has been exhausted
+                // loop through files until slab has been exhausted
                 for (s, n, f) in izip!(&ss, &ns, &fs) {
                     if ind[0] >= *s && ind[0] < (s + n) {
                         // pack start (incl len x 2)

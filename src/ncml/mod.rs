@@ -95,6 +95,7 @@ impl NcmlDataset {
                                         }
                                     };
                                 }
+                            v.sort();
                             v
                         } else {
                             error!("no suffix specified in ncml scan tag");

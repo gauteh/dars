@@ -113,7 +113,7 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
                 // variable without joining dimension, using values from first member
                 let slab = match slab {
                     Some(t) => t,
-                    None => (vec![0usize; vv.dimensions().iter().map(|d| d.len()).product::<usize>()], vv.dimensions().iter().map(|d| d.len()).collect::<Vec<usize>>())
+                    None => (vec![0usize; vv.dimensions().len()], vv.dimensions().iter().map(|d| d.len()).collect::<Vec<usize>>())
                 };
 
                 let pack = pack_var(fnc.clone(), String::from(mv), Some(slab.1.iter().product::<usize>()), slab);

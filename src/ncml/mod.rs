@@ -105,6 +105,8 @@ impl NcmlDataset {
                     t => { error!("unknown tag: {}", t); None }
                 }
             ).collect::<Option<Vec<Vec<PathBuf>>>>().ok_or(anyhow!("could not parse file list"))?;
+
+        // TODO: Sort by aggregating dimension (starting value)
         files.sort();
 
         let members = files.iter().flatten().map(|p| NcmlMember::open(p, aggregation_dim)).collect::<Result<Vec<NcmlMember>,_>>()?;

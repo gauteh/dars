@@ -75,6 +75,7 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
                 // loop through files until slab has been exhausted
                 for (s, n, f) in izip!(&ss, &ns, &fs) {
                     if ind[0] >= *s && ind[0] < (s + n) {
+                        debug!("start");
                         // pack start (incl len x 2)
                         let mut mind = ind.clone();
                         mind[0] = ind[0] - s;
@@ -91,6 +92,7 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
                             yield p;
                         }
                     } else if ind[0] < *s && (*s < ind[0] + cnt[0]) {
+                        debug!("ind");
                         let mut mcnt = cnt.clone();
                         mcnt[0] = min((cnt[0] - *s), *n);
 

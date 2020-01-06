@@ -28,15 +28,15 @@ impl NcmlMember
         debug!("Loading member: {:?}", f);
         let dim_name = dim_name.into();
         let nc = Arc::new(netcdf::open(f.clone())?);
-        let co = nc.variable(&dim_name)
-            .expect(&format!("could not find coordinate variable in {:?}", f.clone()));
+        let co = nc.dimension(&dim_name)
+            .expect(&format!("could not find coordinate variable in {:?}", f.clone())).len();
 
 
         Ok(NcmlMember {
             filename: f,
             f: nc.clone(),
             dim: dim_name,
-            n: co.len()
+            n: co
         })
     }
 }

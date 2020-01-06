@@ -60,7 +60,7 @@ impl NcmlDataset {
         // TODO: only available on certain aggregation types
         let aggregation_dim = aggregation.attribute("dimName").ok_or(anyhow!("aggregation dimension not specified"))?;
 
-        let files: Vec<Vec<PathBuf>> = aggregation.children()
+        let mut files: Vec<Vec<PathBuf>> = aggregation.children()
             .filter(|c| c.is_element())
             .map(|e|
                 match e.tag_name().name() {
@@ -105,6 +105,7 @@ impl NcmlDataset {
                     t => { error!("unknown tag: {}", t); None }
                 }
             ).collect::<Option<Vec<Vec<PathBuf>>>>().ok_or(anyhow!("could not parse file list"))?;
+        files.sort();
 
         let members = files.iter().flatten().map(|p| NcmlMember::open(p, aggregation_dim)).collect::<Result<Vec<NcmlMember>,_>>()?;
 

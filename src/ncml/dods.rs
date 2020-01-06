@@ -76,11 +76,11 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
                 for (s, n, f) in izip!(&ss, &ns, &fs) {
                     if ind[0] >= *s && ind[0] < (s + n) {
                         // pack start (incl len x 2)
-                        let mut mcnt = cnt.clone();
-                        mcnt[0] = min(cnt[0], *n);
-
                         let mut mind = ind.clone();
                         mind[0] = ind[0] - s;
+
+                        let mut mcnt = cnt.clone();
+                        mcnt[0] = min(cnt[0], *n - mind[0]);
 
                         let mvv = f.variable(mv).ok_or(anyhow!("variable not found"))?;
 

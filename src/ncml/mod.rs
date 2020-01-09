@@ -105,11 +105,10 @@ impl NcmlDataset {
                     t => { error!("unknown tag: {}", t); None }
                 }
             ).collect::<Option<Vec<Vec<PathBuf>>>>().ok_or(anyhow!("could not parse file list"))?;
-
-        // TODO: Sort by aggregating dimension (starting value)
         files.sort();
 
-        let members = files.iter().flatten().map(|p| NcmlMember::open(p, aggregation_dim)).collect::<Result<Vec<NcmlMember>,_>>()?;
+        let mut members = files.iter().flatten().map(|p| NcmlMember::open(p, aggregation_dim)).collect::<Result<Vec<NcmlMember>,_>>()?;
+        members.sort_by(|a, b| a.rank.partial_cmp(&b.rank).unwrap_or(std::cmp::Ordering::Equal));
 
         // DAS should be same for all members (hopefully), using first.
         let first = members.first().ok_or(anyhow!("no members in aggregate"))?;

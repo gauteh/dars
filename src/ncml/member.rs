@@ -8,13 +8,13 @@ pub struct NcmlMember
 {
     pub filename: PathBuf,
     pub f: Arc<netcdf::File>,
-    dim: String,
-    pub n: usize
+    pub n: usize,
+    pub rank: f64
 }
 
 impl fmt::Debug for NcmlMember {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?} ({}[{}])", self.filename.clone(), self.dim, self.n)
+        write!(f, "{:?} ([{}])", self.filename.clone(), self.n)
     }
 }
 
@@ -28,15 +28,17 @@ impl NcmlMember
         debug!("Loading member: {:?}", f);
         let dim_name = dim_name.into();
         let nc = Arc::new(netcdf::open(f.clone())?);
-        let co = nc.dimension(&dim_name)
-            .expect(&format!("could not find coordinate variable in {:?}", f.clone())).len();
+
+        let v = nc.variable(&dim_name).expect(&format!("could not find coordinate variable in {:?}", f.clone()));
+        let co = v.len();
+        let r = v.value(Some(&[0])).expect(&format!("could not read first value of coordinate variable in {:?}", f.clone()));
 
 
         Ok(NcmlMember {
             filename: f,
             f: nc.clone(),
-            dim: dim_name,
-            n: co
+            n: co,
+            rank: r
         })
     }
 }

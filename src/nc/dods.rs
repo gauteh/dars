@@ -11,7 +11,7 @@ use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
 /// Stream a variable with a predefined chunk size. Chunk size is not guaranteed to be
 /// kept, and may be at worst half of specified size in order to fill up slabs.
 pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>, counts: Vec<usize>) -> impl Stream<Item=Result<Vec<T>, anyhow::Error>>
-    where T: netcdf::Numeric + Clone + Default + Unpin + Send + 'static
+    where T: netcdf::Numeric + Clone + Default + Unpin + Send + 'static + std::fmt::Debug
 {
     const CHUNK_SZ: usize = 1024 * 1024;
 
@@ -51,6 +51,8 @@ pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>,
 
             let mut cache: Vec<T> = vec![T::default(); jump_sz];
             v.values_to(&mut cache, Some(&mind), Some(&mjump))?;
+
+            debug!("writing values: {:?}", cache);
             yield Ok(cache);
 
             // let f = f.clone();
@@ -107,7 +109,8 @@ pub fn pack_var_impl<T>(f: Arc<netcdf::File>, v: String, len: Option<usize>, sla
                 Sized +
                 xdr::XdrSize +
                 std::default::Default +
-                std::clone::Clone
+                std::clone::Clone +
+                std::fmt::Debug
 {
     let vv = f.variable(&v).unwrap();
     let (indices, counts) = slab;

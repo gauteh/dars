@@ -15,8 +15,6 @@ pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>,
 {
     const CHUNK_SZ: usize = 1024 * 1024;
 
-    debug!("stream: {}, I={:?}, C={:?}", vn, indices, counts);
-
     stream! {
         let v = f.variable(&vn).ok_or(anyhow!("Could not find variable"))?;
 
@@ -52,7 +50,6 @@ pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>,
             let mut cache: Vec<T> = vec![T::default(); jump_sz];
             v.values_to(&mut cache, Some(&mind), Some(&mjump))?;
 
-            debug!("writing values: {:?}", cache);
             yield Ok(cache);
 
             // let f = f.clone();

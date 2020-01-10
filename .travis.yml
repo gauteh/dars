@@ -5,8 +5,8 @@ os:
   - linux
 
 rust:
-  - stable
-  - beta
+  # - stable
+  # - beta
   - nightly
 
 sudo: false

@@ -26,6 +26,7 @@ pub mod datasets;
 mod dap2;
 mod nc;
 mod ncml;
+mod testcommon;
 
 use datasets::{Data, Dataset};
 

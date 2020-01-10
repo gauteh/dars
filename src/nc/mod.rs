@@ -123,11 +123,7 @@ impl Dataset for NcDataset {
 #[cfg(test)]
 mod test {
     use super::*;
-
-    fn init () {
-        std::env::set_var("RUST_LOG", "dars=debug");
-        let _ = env_logger::builder().is_test(true).try_init ();
-    }
+    use crate::testcommon::init;
 
     #[test]
     fn open_dataset() {

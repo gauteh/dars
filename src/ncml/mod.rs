@@ -197,6 +197,7 @@ mod tests {
 
     #[test]
     fn test_ncml_open() {
+        crate::testcommon::init();
         let nm = NcmlDataset::open("data/ncml/aggExisting.ncml").unwrap();
 
         println!("files: {:#?}", nm.members);

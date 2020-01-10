@@ -28,6 +28,7 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
 
     stream! {
         for v in vs {
+            trace!("streaming variable: {}", v);
             // TODO: Structures not supported, only single variables.
 
             let mut mv = match v.find(".") {
@@ -72,8 +73,11 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
 
                 let agg_sz = cnt.iter().product::<usize>();
 
+                trace!("Indices: {:?}, counts: {:?}, agg_sz = {}", ind, cnt, agg_sz);
+
                 // loop through files until slab has been exhausted
                 for (s, n, f) in izip!(&ss, &ns, &fs) {
+                    trace!("testing: {}, {} against {} {}", s, n, ind[0], cnt[0]);
                     if ind[0] >= *s && ind[0] < (s + n) {
                         // pack start (incl len x 2)
                         let mut mind = ind.clone();
@@ -83,6 +87,7 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
                         mcnt[0] = min(cnt[0], *n - mind[0]);
 
                         let mvv = f.variable(mv).ok_or(anyhow!("variable not found"))?;
+                        trace!("First file at {} to {} (i = {:?}, c = {:?})", s, s + n, mind, mcnt);
 
                         let pack = pack_var(f.clone(), String::from(mv), Some(agg_sz), (mind, mcnt));
                         pin_mut!(pack);
@@ -92,12 +97,14 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
                         }
                     } else if ind[0] < *s && (*s < ind[0] + cnt[0]) {
                         let mut mcnt = cnt.clone();
-                        mcnt[0] = min((cnt[0] - *s), *n);
+                        mcnt[0] = min((ind[0] + cnt[0] - *s), *n);
 
                         let mut mind = ind.clone();
                         mind[0] = 0;
 
                         let mvv = f.variable(mv).ok_or(anyhow!("variable not found"))?;
+
+                        trace!("Consecutive file at {} to {} (i = {:?}, c = {:?})", s, s + n, mind, mcnt);
 
                         let pack = pack_var(f.clone(), String::from(mv), None, (mind, mcnt));
                         pin_mut!(pack);
@@ -105,8 +112,10 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
                         while let Some(p) = pack.next().await {
                             yield p;
                         }
-                    } else {
+                    } else if ind[0] + cnt[0] < *s {
                         break;
+                    } else {
+                        continue;
                     }
                 }
             } else {
@@ -115,6 +124,8 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
                     Some(t) => t,
                     None => (vec![0usize; vv.dimensions().len()], vv.dimensions().iter().map(|d| d.len()).collect::<Vec<usize>>())
                 };
+
+                trace!("Non aggregated variable, i = {:?}, c = {:?}", slab.0, slab.1);
 
                 let pack = pack_var(fnc.clone(), String::from(mv), Some(slab.1.iter().product::<usize>()), slab);
                 pin_mut!(pack);
@@ -195,5 +206,27 @@ mod tests {
         let ft = feb.variable("T").unwrap().values::<f64>(None, None).unwrap();
 
         assert!(&buf[(31*3*4)..] == ft.as_slice().unwrap());
+    }
+
+    #[test]
+    fn span_time() {
+        crate::testcommon::init();
+        let nm = NcmlDataset::open("data/ncml/scan.ncml").unwrap();
+
+        let t = xdr(&nm, vec!["T.T[0:50][0][0]".to_string()]);
+        pin_mut!(t);
+        let bs: Vec<u8> = block_on_stream(t).collect::<Result<Vec<_>,_>>().unwrap().iter().flatten().skip(4).map(|b| b.clone()).collect();
+        assert!(bs.len() == 4 + 51 * 8);
+
+        let t = xdr(&nm, vec!["T.T[20:50][0][0]".to_string()]);
+        pin_mut!(t);
+        let bs: Vec<u8> = block_on_stream(t).collect::<Result<Vec<_>,_>>().unwrap().iter().flatten().skip(4).map(|b| b.clone()).collect();
+        assert!(bs.len() == 4 + 31 * 8);
+
+        // files are spliced at 31:32
+        let t = xdr(&nm, vec!["T.T[31:32][0][0]".to_string()]);
+        pin_mut!(t);
+        let bs: Vec<u8> = block_on_stream(t).collect::<Result<Vec<_>,_>>().unwrap().iter().flatten().skip(4).map(|b| b.clone()).collect();
+        assert!(bs.len() == 4 + 2 * 8);
     }
 }

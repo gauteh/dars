@@ -90,7 +90,7 @@ impl NcmlDataset {
                                 {
                                     if let Ok(entry) = entry {
                                         match entry.metadata() {
-                                            Ok(m) if m.is_file() && entry.path().extension().map(|e| e == sf).unwrap_or(false) => v.push(entry.into_path()),
+                                            Ok(m) if m.is_file() && entry.path().to_str().map(|s| s.ends_with(sf)).unwrap_or(false) => v.push(entry.into_path()),
                                             _ => ()
                                         }
                                     };

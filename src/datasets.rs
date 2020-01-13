@@ -1,16 +1,20 @@
 use async_trait::async_trait;
 use colored::Colorize;
 use hyper::{Body, Response, StatusCode};
+use notify::{RecommendedWatcher, Watcher};
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use walkdir::WalkDir;
 
 use super::{nc::NcDataset, ncml::NcmlDataset};
 
 pub struct Data {
     pub root: PathBuf,
-    pub datasets: HashMap<String, Arc<dyn Dataset + Send + Sync>>,
+    pub datasets: HashMap<String, Box<dyn Dataset + Send + Sync>>,
+    watcher: Option<RecommendedWatcher>,
 }
 
 enum DsRequestType {
@@ -28,6 +32,7 @@ impl Data {
         Data {
             root: "./".into(),
             datasets: HashMap::new(),
+            watcher: None,
         }
     }
 
@@ -43,11 +48,12 @@ impl Data {
         }
     }
 
-    pub fn init_root<P>(&mut self, root: P) -> ()
+    pub fn init_root<P>(&mut self, root: P, watch: bool) -> ()
     where
         P: Into<PathBuf>,
     {
-        self.root = root.into();
+        let root = root.into();
+        self.root = root.clone();
         self.datasets.clear();
 
         info!(
@@ -72,96 +78,142 @@ impl Data {
                         Some(ext) if ext == "nc" => match NcDataset::open(entry.path()) {
                             Ok(ds) => {
                                 self.datasets
-                                    .insert(self.make_key(entry.path().into()), Arc::new(ds));
+                                    .insert(self.make_key(entry.path().into()), Box::new(ds));
                             }
                             Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e),
                         },
-                        Some(ext) if ext == "ncml" => match NcmlDataset::open(entry.path()) {
-                            Ok(ds) => {
-                                self.datasets
-                                    .insert(self.make_key(entry.path().into()), Arc::new(ds));
+                        Some(ext) if ext == "ncml" => {
+                            match NcmlDataset::open(entry.path(), watch) {
+                                Ok(ds) => {
+                                    self.datasets
+                                        .insert(self.make_key(entry.path().into()), Box::new(ds));
+                                }
+                                Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e),
                             }
-                            Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e),
-                        },
+                        }
                         _ => (),
                     },
                     _ => (),
                 }
             }
         }
+
+        if watch {
+            info!("Watching {:?}", root);
+            self.watcher = Some(
+                Watcher::new_immediate(|res| match res {
+                    Ok(event) => Data::data_event(event),
+                    Err(e) => error!("watch error: {:?}", e),
+                })
+                .expect("could not watch data root"),
+            );
+
+            self.watcher.as_mut().map(|w| {
+                w.watch(root, notify::RecursiveMode::Recursive)
+                    .expect("could not watch data root")
+            });
+        }
     }
 
-    pub fn data_event(e: notify::DebouncedEvent) -> () {
-        use notify::DebouncedEvent::*;
+    pub fn data_event(e: notify::Event) -> () {
+        use notify::event::{CreateKind, EventKind::*, RemoveKind};
 
-        match e {
-            Create(pb) | Write(pb) | Remove(pb) => Data::reload_file(pb),
-            Rename(pba, pbb) => {
-                Data::reload_file(pba);
-                Data::reload_file(pbb)
-            }
+        match e.kind {
+            Create(ck) => match ck {
+                CreateKind::File => e.paths.iter().map(|p| Data::reload_file(p)).collect(),
+                CreateKind::Folder => unimplemented!("scan dir"),
+                _ => (),
+            },
+            Modify(_mk) => e.paths.iter().map(|p| Data::reload_file(p)).collect(),
+            Remove(rk) => match rk {
+                RemoveKind::File => e.paths.iter().map(|p| Data::reload_file(p)).collect(),
+                RemoveKind::Folder => unimplemented!("scan dir"),
+                _ => (),
+            },
             _ => debug!("Unhandled event: {:?}", e),
         }
     }
 
-    pub fn reload_file(pb: PathBuf) {
+    pub fn reload_file<T>(pb: T)
+    where
+        T: Borrow<PathBuf>,
+    {
+        let pb = pb.borrow();
         debug!("Checking file: {:?}", pb);
 
-        if let Some(ext) = pb.extension() {
-            if ext == "nc" || ext == "ncml" {
-                use super::DATA;
+        // if let Some(ext) = pb.extension() {
+        //     if ext == "nc" || ext == "ncml" {
+        //         use super::DATA;
 
-                let rdata = DATA.clone();
-                let mut data = rdata.write().unwrap();
+        //         let rdata = DATA.clone();
+        //         let mut data = rdata.write().unwrap();
 
-                if let Some(fname) = pb.file_name() {
-                    if fname.to_string_lossy().starts_with(".") {
-                        return;
-                    }
-                } else {
-                    return;
-                }
+        //         if let Some(fname) = pb.file_name() {
+        //             if fname.to_string_lossy().starts_with(".") {
+        //                 return;
+        //             }
+        //         } else {
+        //             return;
+        //         }
 
-                let pb = if let Ok(pb) = pb.strip_prefix(data.root.canonicalize().unwrap()) {
-                    data.root.join(pb)
-                } else {
-                    warn!("{:?} not in root: {:?}", pb, data.root);
-                    return;
-                };
+        //         let pb = if let Ok(pb) = pb.strip_prefix(data.root.canonicalize().unwrap()) {
+        //             data.root.join(pb)
+        //         } else {
+        //             warn!("{:?} not in root: {:?}", pb, data.root);
+        //             return;
+        //         };
 
-                let key = data.make_key(&pb);
+        //         let key = data.make_key(&pb);
 
-                if data.datasets.remove(&key).is_some() {
-                    info!("Removed dataset: {}", key);
-                }
+        //         if data.datasets.remove(&key).is_some() {
+        //             info!("Removed dataset: {}", key);
+        //         }
 
-                if pb.exists() {
-                    if ext == "nc" {
-                        match NcDataset::open(pb.clone()) {
-                            Ok(ds) => {
-                                data.datasets.insert(key, Arc::new(ds));
-                            }
-                            Err(e) => warn!("Could not open: {:?} ({:?})", pb, e),
-                        }
-                    } else if ext == "ncml" {
-                        match NcmlDataset::open(pb.clone()) {
-                            Ok(ds) => {
-                                data.datasets.insert(key, Arc::new(ds));
-                            }
-                            Err(e) => warn!("Could not open: {:?} ({:?})", pb, e),
-                        }
-                    }
-                }
-            }
-        }
+        //         if pb.exists() {
+        //             if ext == "nc" {
+        //                 match NcDataset::open(pb.clone()) {
+        //                     Ok(ds) => { data.datasets.insert(key, Box::new(ds)); },
+        //                     Err(e) => warn!("Could not open: {:?} ({:?})", pb, e)
+        //                 }
+        //             } else if ext == "ncml" {
+        //                 match NcmlDataset::open(pb.clone(), true) {
+        //                     Ok(ds) => { data.datasets.insert(key, Box::new(ds)); },
+        //                     Err(e) => warn!("Could not open: {:?} ({:?})", pb, e)
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
     }
 
-    pub fn datasets(_req: hyper::Request<Body>) -> Result<Response<Body>, hyper::http::Error> {
-        let mut datasets: Vec<String> = {
-            let rdata = super::DATA.clone();
-            let data = rdata.read().unwrap();
+    pub fn refresh_dataset<T>(pb: T, e: notify::Event)
+    where
+        T: Borrow<PathBuf>,
+    {
+        let pb = pb.borrow();
+        // debug!("Refreshing dataset: {:?}: {:?}", pb, e);
 
-            data.datasets
+        use super::DATA;
+
+        // let rdata = DATA.clone();
+        // let data = rdata.write().unwrap();
+        // let key = data.make_key(pb);
+
+        // if let Some(ds) = data.datasets.get(&key) {
+        //     let ds = ds.clone();
+        //     let mut mds = futures::executor::block_on(ds.write());
+        //     mds.refresh(e).expect("could not refresh dataset, should remove");
+        // } else {
+        //     error!("could not find dataset.");
+        // }
+    }
+
+    pub async fn datasets(
+        &self,
+        _req: hyper::Request<Body>,
+    ) -> Result<Response<Body>, hyper::http::Error> {
+        let mut datasets: Vec<String> = {
+            self.datasets
                 .keys()
                 .map(|s| format!("  /data/{}", s))
                 .collect()
@@ -198,17 +250,15 @@ impl Data {
         }
     }
 
-    pub async fn dataset(req: hyper::Request<Body>) -> Result<Response<Body>, hyper::http::Error> {
-        use super::DATA;
-
+    pub async fn dataset(
+        &self,
+        req: hyper::Request<Body>,
+    ) -> Result<Response<Body>, hyper::http::Error> {
         let ds: String = req.uri().path().trim_start_matches("/data/").to_string();
         let DsRequest(ds, dst) = Data::parse_request(ds);
 
         let ds = {
-            let rdata = DATA.clone();
-            let data = rdata.read().unwrap();
-
-            match data.datasets.get(&ds) {
+            match self.datasets.get(&ds) {
                 Some(ds) => Some(ds.clone()),
                 None => None,
             }
@@ -239,4 +289,5 @@ pub trait Dataset {
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
     async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
     async fn nc(&self) -> Result<Response<Body>, hyper::http::Error>;
+    fn refresh(&mut self, e: notify::Event) -> Result<(), anyhow::Error>;
 }

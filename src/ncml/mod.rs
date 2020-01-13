@@ -1,11 +1,13 @@
 use async_trait::async_trait;
 use hyper::{Body, Response, StatusCode};
+use notify::{RecommendedWatcher, Watcher};
 use percent_encoding::percent_decode_str;
+use same_file::is_same_file;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
 use super::nc::{self, dds::Dds};
-use super::Dataset;
+use super::{Data, Dataset};
 
 mod dds;
 mod dods;
@@ -35,10 +37,11 @@ pub struct NcmlDataset {
     das: nc::das::NcDas,
     dds: dds::NcmlDds,
     dim_n: usize,
+    watcher: RecommendedWatcher,
 }
 
 impl NcmlDataset {
-    pub fn open<P>(filename: P) -> anyhow::Result<NcmlDataset>
+    pub fn open<P>(filename: P, watch: bool) -> anyhow::Result<NcmlDataset>
     where
         P: Into<PathBuf>,
     {
@@ -73,6 +76,12 @@ impl NcmlDataset {
             .attribute("dimName")
             .ok_or(anyhow!("aggregation dimension not specified"))?;
 
+        let mf = filename.clone();
+        let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res| match res {
+            Ok(event) => Data::refresh_dataset(mf.clone(), event),
+            Err(e) => println!("watch error: {:?}", e),
+        })?;
+
         let mut files: Vec<Vec<PathBuf>> = aggregation
             .children()
             .filter(|c| c.is_element())
@@ -92,6 +101,9 @@ impl NcmlDataset {
 
                     if let Some(sf) = e.attribute("suffix") {
                         debug!("Scanning {:?}, suffix: {}", l, sf);
+                        watcher
+                            .watch(l.clone(), notify::RecursiveMode::NonRecursive)
+                            .expect("coult not watch ncml root");
 
                         let mut v = Vec::new();
 
@@ -142,7 +154,7 @@ impl NcmlDataset {
         let mut members = files
             .iter()
             .flatten()
-            .map(|p| NcmlMember::open(p, aggregation_dim))
+            .map(|p| NcmlMember::open(p, aggregation_dim, watch))
             .collect::<Result<Vec<NcmlMember>, _>>()?;
         members.sort_by(|a, b| {
             a.rank
@@ -165,6 +177,7 @@ impl NcmlDataset {
             das: das,
             dds: dds,
             dim_n: dim_n,
+            watcher: watcher,
         })
     }
 
@@ -234,6 +247,67 @@ impl Dataset for NcmlDataset {
         Response::builder()
             .status(StatusCode::NOT_IMPLEMENTED)
             .body(Body::empty())
+    }
+
+    fn refresh(&mut self, e: notify::Event) -> Result<(), anyhow::Error> {
+        // we only get called for scan tags
+        use notify::event::{CreateKind, EventKind::*, RemoveKind};
+
+        match e.kind {
+            Create(ck) => match ck {
+                CreateKind::File => {
+                    for p in e.paths {
+                        if self
+                            .members
+                            .iter()
+                            .find(|m| is_same_file(&p, &m.filename).unwrap_or(false))
+                            .is_none()
+                        {
+                            warn!("{:?}: adding member: {:?}", self.filename, p);
+                            if let Ok(m) =
+                                NcmlMember::open(p.clone(), self.aggregation_dim.clone(), true)
+                            {
+                                self.members.push(m);
+                            } else {
+                                error!("{:?}: could not add member: {:?}", self.filename, p);
+                            }
+                        }
+                    }
+                }
+                CreateKind::Folder => unimplemented!("scan dir"),
+                _ => (),
+            },
+            Remove(rk) => match rk {
+                RemoveKind::File => {
+                    for p in e.paths {
+                        if let Some((i, _)) = self
+                            .members
+                            .iter()
+                            .enumerate()
+                            .find(|(_, m)| is_same_file(&p, &m.filename).unwrap_or(false))
+                        {
+                            warn!("{:?}: removing member: {:?}", self.filename, p);
+                            self.members.remove(i);
+                        } else {
+                            error!("{:?} not a member", p);
+                        }
+                    }
+                }
+                RemoveKind::Folder => unimplemented!("scan dir"),
+                _ => (),
+            },
+            _ => (), //warn!("{:?}: event not handled: {:?}", self.filename, e)
+        };
+
+        debug!(
+            "{:?}",
+            self.members
+                .iter()
+                .map(|m| m.filename.clone())
+                .collect::<Vec<_>>()
+        );
+
+        Ok(())
     }
 }
 

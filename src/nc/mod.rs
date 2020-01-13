@@ -123,6 +123,10 @@ impl Dataset for NcDataset {
                 .status(StatusCode::NOT_FOUND)
                 .body(Body::empty()))
     }
+
+    fn refresh(&mut self, e: notify::Event) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
 }
 
 #[cfg(test)]

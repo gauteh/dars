@@ -17,11 +17,10 @@ use hyper::{
     service::{make_service_fn, service_fn},
     Body, Error, Method, Response, Server, StatusCode,
 };
-use notify::Watcher;
 use std::env;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex, RwLock};
-use std::time::Duration;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 mod dap2;
 pub mod datasets;
@@ -36,31 +35,6 @@ lazy_static! {
 }
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-
-// This watches for new files and changes, deletions of loaded
-// files. It would be safer to handle change detection / re-load
-// on each access, but that would involve a syscall for every DAS
-// and DDS request.
-//
-// On systems where the actual file is not removed untill all file handles
-// are closed this should work fairly well.
-async fn watch(data: String) -> Result<(), anyhow::Error> {
-    info!("Watching {}", data.yellow());
-
-    let (tx, rx) = std::sync::mpsc::channel();
-    let mut watcher = notify::watcher(tx, Duration::from_secs(2))?;
-    watcher.watch(data, notify::RecursiveMode::Recursive)?;
-
-    let rx = Arc::new(Mutex::new(rx));
-
-    loop {
-        let irx = rx.clone();
-        match tokio::task::spawn_blocking(move || irx.lock().unwrap().recv()).await {
-            Ok(Ok(o)) => Data::data_event(o),
-            _ => break Err(anyhow!("Error while watching data")),
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -101,6 +75,8 @@ async fn main() -> Result<(), anyhow::Error> {
         return Ok::<_, anyhow::Error>(());
     }
 
+    let watch = matches.opt_present("w");
+
     let datadir: String = if !matches.free.is_empty() {
         matches.free[0].clone()
     } else {
@@ -111,8 +87,8 @@ async fn main() -> Result<(), anyhow::Error> {
 
     {
         let rdata = DATA.clone();
-        let mut data = rdata.write().unwrap();
-        data.init_root(datadir.clone());
+        let mut data = rdata.write().await;
+        data.init_root(datadir.clone(), watch);
     }
 
     let msvc = make_service_fn(|_| async move {
@@ -124,8 +100,12 @@ async fn main() -> Result<(), anyhow::Error> {
                 (&Method::GET, "/") => {
                     Response::builder().body(Body::from("DAP!\n\n(checkout /data)"))
                 }
-                (&Method::GET, "/data") | (&Method::GET, "/data/") => Data::datasets(req),
-                (&Method::GET, p) if p.starts_with("/data/") => Data::dataset(req).await,
+                (&Method::GET, "/data") | (&Method::GET, "/data/") => {
+                    DATA.read().await.datasets(req).await
+                }
+                (&Method::GET, p) if p.starts_with("/data/") => {
+                    DATA.read().await.dataset(req).await
+                }
                 _ => Response::builder()
                     .status(StatusCode::NOT_FOUND)
                     .body(Body::empty()),
@@ -151,26 +131,5 @@ async fn main() -> Result<(), anyhow::Error> {
 
     info!("Listening on {}", format!("http://{}", addr).yellow());
 
-    use futures::future::{AbortHandle, Abortable};
-    let (abort_handle, abort_registration) = AbortHandle::new_pair();
-    let server = Abortable::new(server, abort_registration);
-
-    if matches.opt_present("w") {
-        tokio::task::spawn(watch(datadir).then(async move |e| {
-            error!("Error while watching data directory: {:?}", e);
-
-            abort_handle.abort()
-        }));
-    }
-
-    server
-        .map(|r| match r {
-            Ok(r) => r,
-            Err(e) => Err(anyhow!(e)),
-        })
-        .inspect(|r| match r {
-            Ok(_) => info!("Shutting down server."),
-            Err(e) => error!("Server aborted: {:?}", e),
-        })
-        .await
+    server.await
 }

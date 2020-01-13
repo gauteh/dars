@@ -2,12 +2,19 @@ version: '3'
 
 services:
   thredds:
-    image: "unidata/thredds-docker"
+    image: "unidata/thredds-docker:latest"
     ports:
       - "8002:8080"
     volumes:
       - ./thredds/server.xml:/usr/local/tomcat/conf/server.xml:ro
       - ../data:/usr/local/tomcat/webapps/thredds/WEB-INF/altContent/startup/public/testdata/data:ro
+
+  hyrax:
+    image: "opendap/hyrax:latest"
+    ports:
+      - "8003:8080"
+    volumes:
+      - ../data:/usr/share/hyrax
 
   dars:
     build: ..

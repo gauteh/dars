@@ -10,6 +10,10 @@ def tds():
   return "http://localhost:8002/thredds/dodsC/test/data/"
 
 @pytest.fixture
+def hyrax():
+  return "http://localhost:8003/opendap/"
+
+@pytest.fixture
 def data():
   return os.path.join(os.path.dirname(__file__), "../../data/")
 

@@ -12,7 +12,7 @@ This is a _DAP2_ server written in Rust aimed at being fast and lightweight. It 
 Install [rustup nightly](https://github.com/rust-lang/rustup#working-with-nightly-rust), then do:
 
 ```sh
-$ RUST_LOG=info cargo run --release
+$ cargo run --release
 ```
 
 or build the Docker image:

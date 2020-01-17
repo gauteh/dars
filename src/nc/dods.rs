@@ -155,7 +155,9 @@ pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<
 
                 None => {
                     let vv = nc.variable(&mv).ok_or(anyhow!("variable not found"))?;
-                    (vv, vec![0usize; vv.dimensions().len()], vv.dimensions().iter().map(|d| d.len()).collect::<Vec<usize>>())
+                    let n = vv.dimensions().len();
+                    let counts = vv.dimensions().iter().map(|d| d.len()).collect::<Vec<usize>>();
+                    (vv, vec![0usize; n], counts)
                 }
             };
 

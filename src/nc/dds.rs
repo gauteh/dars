@@ -40,7 +40,7 @@ pub trait Dds {
     }
 
     fn format_grid(&self, indent: usize, nc: &netcdf::File, var: &netcdf::Variable, slab: &Option<Vec<usize>>) -> String {
-        if !var.dimensions().iter().all(|d| nc.variable(d.name()).is_some()) {
+        if !var.dimensions().iter().all(|d| nc.variable(&d.name()).is_some()) {
             return format!("{}{} {}{};\n", " ".repeat(indent),
             self.vartype_str(var.vartype()),
             var.name(),
@@ -64,8 +64,8 @@ pub trait Dds {
             );
         grid.push(format!("{} MAPS:", " ".repeat(indent)));
         for d in var.dimensions() {
-            let dvar = nc.variable(d.name()).expect(&format!("No variable found for dimension: {}", d.name()));
-            grid.push(self.format_var(2*indent, dvar, slab));
+            let dvar = nc.variable(&d.name()).expect(&format!("No variable found for dimension: {}", d.name()));
+            grid.push(self.format_var(2*indent, &dvar, slab));
         }
 
         grid.push(format!("{}}} {};\n", " ".repeat(indent), var.name()));
@@ -101,22 +101,22 @@ pub trait Dds {
         for (z, var) in nc.variables().enumerate()
             .filter(|(_, v)| v.vartype() != netcdf_sys::NC_CHAR && v.vartype() != netcdf_sys::NC_BYTE) {
             if var.dimensions().len() < 2 {
-                let mut v = self.format_var(indent, var, &None);
+                let mut v = self.format_var(indent, &var, &None);
                 v.push_str("\n");
                 map.insert(var.name().to_string(), v);
                 posmap.insert(var.name().to_string(), z);
             } else {
-                map.insert(var.name().to_string(), self.format_grid(indent, &nc, var, &None));
+                map.insert(var.name().to_string(), self.format_grid(indent, &nc, &var, &None));
                 posmap.insert(var.name().to_string(), z);
 
-                map.insert(format!("{}.{}", var.name(), var.name()), self.format_struct(indent, &nc, var, var, &None));
+                map.insert(format!("{}.{}", var.name(), var.name()), self.format_struct(indent, &nc, &var, &var, &None));
                 posmap.insert(format!("{}.{}", var.name(), var.name()), z);
 
                 for d in var.dimensions() {
-                    match nc.variable(d.name()) {
+                    match nc.variable(&d.name()) {
                         Some(dvar) => {
                             posmap.insert(format!("{}.{}", var.name(), d.name()), z);
-                            map.insert(format!("{}.{}", var.name(), d.name()), self.format_struct(indent, &nc, var, dvar, &None))
+                            map.insert(format!("{}.{}", var.name(), d.name()), self.format_struct(indent, &nc, &var, &dvar, &None))
                         },
                         _ => None
                     };
@@ -136,7 +136,7 @@ pub trait Dds {
             Some(i) =>
                 match nc.variable(&var[..i]) {
                     Some(ivar) => match nc.variable(&var[i+1..]) {
-                        Some(dvar) => Some(self.format_struct(indent, &nc, ivar, dvar, &Some(slab))),
+                        Some(dvar) => Some(self.format_struct(indent, &nc, &ivar, &dvar, &Some(slab))),
                         _ => None
                     },
                     _ => None
@@ -144,8 +144,8 @@ pub trait Dds {
 
             None => match nc.variable(var) {
                 Some(var) => match var.dimensions().len() {
-                            l if l < 2 => Some(self.format_var(indent, var, &Some(slab))),
-                            _ => Some(self.format_grid(indent, &nc, var, &Some(slab)))
+                            l if l < 2 => Some(self.format_var(indent, &var, &Some(slab))),
+                            _ => Some(self.format_grid(indent, &nc, &var, &Some(slab)))
                     },
                 _ => None
             }

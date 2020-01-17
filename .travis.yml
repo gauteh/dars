@@ -38,7 +38,7 @@ before_script:
   - cargo install cargo-travis || echo "cargo-travis already installed"
   - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo +stable install cargo-tarpaulin || true
   - cargo install-update -a # update outdated cached binaries
-  - rustup component add clippy
+  # - rustup component add clippy
 
 script:
   - |
@@ -48,7 +48,7 @@ script:
       cargo test --all --verbose &&
       cargo bench --all --verbose &&
       cargo doc --all --verbose &&
-      cargo clippy -- --warn clippy::pedantic
+      # cargo clippy -- --warn clippy::pedantic
 
 after_success: |
   if [[ "$TRAVIS_RUST_VERSION" == stable ]] ; then

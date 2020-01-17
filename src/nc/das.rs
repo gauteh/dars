@@ -44,11 +44,11 @@ impl NcDas {
         }
     }
 
-    fn push_attr<'a>(indent: usize, das: &mut String, a: impl Iterator<Item = &'a netcdf::Attribute>) -> () {
-        das.push_str(&a
-            .map(|aa| NcDas::format_attr(indent, aa))
-            .collect::<String>());
-    }
+    // fn push_attr<'a>(indent: usize, das: &mut String, a: impl Iterator<Item = &'a netcdf::Attribute>) -> () {
+    //     das.push_str(&a
+    //         .map(|aa| NcDas::format_attr(indent, aa))
+    //         .collect::<String>());
+    // }
 
     pub fn build(nc: Arc<netcdf::File>) -> anyhow::Result<NcDas>
     {
@@ -57,13 +57,18 @@ impl NcDas {
 
         if let Some(_) = nc.attributes().next() {
             das.push_str("    NC_GLOBAL {\n");
-            NcDas::push_attr(2*indent, &mut das, nc.attributes());
+            das.push_str(&nc.attributes()
+                .map(|aa| NcDas::format_attr(2*indent, &aa))
+                .collect::<String>());
+            // NcDas::push_attr(2*indent, &mut das, nc.attributes());
             das.push_str("    }\n");
         }
 
         for var in nc.variables() {
             das.push_str(&format!("    {} {{\n", var.name()));
-            NcDas::push_attr(2*indent, &mut das, var.attributes());
+            das.push_str(&var.attributes()
+                .map(|aa| NcDas::format_attr(2*indent, &aa))
+                .collect::<String>());
             das.push_str("    }\n");
         }
 

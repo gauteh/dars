@@ -28,6 +28,10 @@ impl NcDas {
             Ok(Double(f)) =>
                 format!("{}Float64 {} {:+E};\n",
                     " ".repeat(indent), a.name(), f),
+            Ok(Doubles(f)) =>
+                format!("{}Float64 {} {};\n",
+                    " ".repeat(indent), a.name(),
+                    f.iter().map(|f| format!("{:+E}", f)).collect::<Vec<String>>().join(", ")),
             Ok(Short(f)) =>
                 format!("{}Int16 {} {};\n",
                     " ".repeat(indent), a.name(), f),

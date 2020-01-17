@@ -1,12 +1,11 @@
 [package]
 authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
-edition = "2018"
-name = "dars"
-version = "0.1.0"
 description = "A fast and light OPeNDAP-subset server"
-repository = "https://github.com/gauteh/dars"
+edition = "2018"
 license = "MIT"
-
+name = "dars"
+repository = "https://github.com/gauteh/dars"
+version = "0.1.0"
 [dependencies]
 anyhow = "1"
 async-stream = "0.2"
@@ -22,9 +21,10 @@ lazy_static = "1.4"
 log = "0.4"
 netcdf = "0.4"
 netcdf-sys = "0.2"
-notify = "4.0"
+notify = "5.0.0-pre.2"
 percent-encoding = "2.1"
 roxmltree = "0.7"
+same-file = "*"
 walkdir = "2.2"
 
 [dependencies.hyper]
@@ -42,4 +42,3 @@ version = "0.2"
 [dependencies.xdr-codec]
 features = ["bytecodec"]
 version = "0.4"
-

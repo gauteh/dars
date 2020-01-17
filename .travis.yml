@@ -47,8 +47,8 @@ script:
       cargo build --examples --verbose &&
       cargo test --all --verbose &&
       cargo bench --all --verbose &&
-      cargo doc --all --verbose &&
-      # cargo clippy -- --warn clippy::pedantic
+      cargo doc --all --verbose
+      # && cargo clippy -- --warn clippy::pedantic
 
 after_success: |
   if [[ "$TRAVIS_RUST_VERSION" == stable ]] ; then

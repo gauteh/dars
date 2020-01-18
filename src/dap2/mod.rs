@@ -19,15 +19,18 @@ pub mod hyperslab {
     }
 
     fn parse_slice(s: &str) -> anyhow::Result<Vec<usize>> {
-        match s.split(":").map(|h| h.parse::<usize>())
-            .collect::<Result<Vec<usize>,_>>()
-            .map_err(|_| anyhow!("Failed to parse index")) {
-                Ok(v) => match v.len() {
-                    l if l <= 3 => Ok(v),
-                    _ => Err(anyhow!("Too many values to unpack."))
-                },
-                e => e
-            }
+        match s
+            .split(":")
+            .map(|h| h.parse::<usize>())
+            .collect::<Result<Vec<usize>, _>>()
+            .map_err(|_| anyhow!("Failed to parse index"))
+        {
+            Ok(v) => match v.len() {
+                l if l <= 3 => Ok(v),
+                _ => Err(anyhow!("Too many values to unpack.")),
+            },
+            e => e,
+        }
     }
 
     pub fn parse_hyberslab(s: &str) -> anyhow::Result<Vec<Vec<usize>>> {
@@ -43,49 +46,65 @@ pub mod hyperslab {
                 } else {
                     return Err(anyhow!("Missing start bracket"));
                 }
-            }).collect()
+            })
+            .collect()
     }
 }
 
 pub mod xdr {
-    use futures::stream::{Stream, StreamExt};
-    use futures::pin_mut;
     use async_stream::stream;
+    use futures::pin_mut;
+    use futures::stream::{Stream, StreamExt};
 
     pub trait XdrSize {
         fn size() -> usize;
     }
 
     impl XdrSize for i8 {
-        fn size() -> usize { 1 }
+        fn size() -> usize {
+            1
+        }
     }
 
     impl XdrSize for u8 {
-        fn size() -> usize { 1 }
+        fn size() -> usize {
+            1
+        }
     }
 
     impl XdrSize for i16 {
-        fn size() -> usize { 2 }
+        fn size() -> usize {
+            2
+        }
     }
 
     impl XdrSize for u32 {
-        fn size() -> usize { 4 }
+        fn size() -> usize {
+            4
+        }
     }
 
     impl XdrSize for i32 {
-        fn size() -> usize { 4 }
+        fn size() -> usize {
+            4
+        }
     }
 
     impl XdrSize for f32 {
-        fn size() -> usize { 4 }
+        fn size() -> usize {
+            4
+        }
     }
 
     impl XdrSize for f64 {
-        fn size() -> usize { 8 }
+        fn size() -> usize {
+            8
+        }
     }
 
     pub fn pack_xdr_val<T>(v: Vec<T>) -> Result<Vec<u8>, anyhow::Error>
-        where T: xdr_codec::Pack<std::io::Cursor<Vec<u8>>> + Sized + XdrSize
+    where
+        T: xdr_codec::Pack<std::io::Cursor<Vec<u8>>> + Sized + XdrSize,
     {
         use std::io::Cursor;
 
@@ -101,12 +120,19 @@ pub mod xdr {
     /// stream of Vec<u8>'s.
     ///
     /// Use if variable has dimensions.
-    pub fn encode_array<S, T>(v: S, len: Option<usize>) -> impl Stream<Item=Result<Vec<u8>, anyhow::Error>>
-        where S: Stream<Item=Result<Vec<T>, anyhow::Error>>,
-            T: netcdf::Numeric + Clone + Default + Unpin +
-                    xdr_codec::Pack<std::io::Cursor<Vec<u8>>> +
-                    Sized +
-                    XdrSize
+    pub fn encode_array<S, T>(
+        v: S,
+        len: Option<usize>,
+    ) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>>
+    where
+        S: Stream<Item = Result<Vec<T>, anyhow::Error>>,
+        T: netcdf::Numeric
+            + Clone
+            + Default
+            + Unpin
+            + xdr_codec::Pack<std::io::Cursor<Vec<u8>>>
+            + Sized
+            + XdrSize,
     {
         use std::io::Cursor;
         use xdr_codec::Pack;
@@ -180,7 +206,10 @@ mod tests {
 
         #[test]
         fn test_multidim_slice() {
-            assert_eq!(parse_hyberslab("[0:30][1][0:1200]").unwrap(), vec!(vec![0, 30], vec![1], vec![0, 1200]));
+            assert_eq!(
+                parse_hyberslab("[0:30][1][0:1200]").unwrap(),
+                vec!(vec![0, 30], vec![1], vec![0, 1200])
+            );
         }
     }
 }

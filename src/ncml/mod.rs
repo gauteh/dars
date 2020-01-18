@@ -1,15 +1,15 @@
-use hyper::{Response, Body, StatusCode};
 use async_trait::async_trait;
-use std::path::PathBuf;
+use hyper::{Body, Response, StatusCode};
 use percent_encoding::percent_decode_str;
+use std::path::PathBuf;
 use walkdir::WalkDir;
 
-use super::Dataset;
 use super::nc::{self, dds::Dds};
+use super::Dataset;
 
-mod member;
 mod dds;
 mod dods;
+mod member;
 
 use member::NcmlMember;
 
@@ -34,12 +34,13 @@ pub struct NcmlDataset {
     members: Vec<NcmlMember>,
     das: nc::das::NcDas,
     dds: dds::NcmlDds,
-    dim_n: usize
+    dim_n: usize,
 }
 
 impl NcmlDataset {
     pub fn open<P>(filename: P) -> anyhow::Result<NcmlDataset>
-        where P: Into<PathBuf>
+    where
+        P: Into<PathBuf>,
     {
         let filename = filename.into();
         info!("Loading {:?}..", filename);
@@ -50,65 +51,104 @@ impl NcmlDataset {
         let xml = roxmltree::Document::parse(&xml)?;
         let root = xml.root_element();
 
-        let aggregation = root.first_element_child().ok_or(anyhow!("no aggregation tag found"))?;
-        ensure!(aggregation.tag_name().name() == "aggregation", "expected aggregation tag");
+        let aggregation = root
+            .first_element_child()
+            .ok_or(anyhow!("no aggregation tag found"))?;
+        ensure!(
+            aggregation.tag_name().name() == "aggregation",
+            "expected aggregation tag"
+        );
 
         // TODO: use match to enum
-        let aggregation_type = aggregation.attribute("type").ok_or(anyhow!("aggregation type not specified"))?;
-        ensure!(aggregation_type == "joinExisting", "only 'joinExisting' type aggregation supported");
+        let aggregation_type = aggregation
+            .attribute("type")
+            .ok_or(anyhow!("aggregation type not specified"))?;
+        ensure!(
+            aggregation_type == "joinExisting",
+            "only 'joinExisting' type aggregation supported"
+        );
 
         // TODO: only available on certain aggregation types
-        let aggregation_dim = aggregation.attribute("dimName").ok_or(anyhow!("aggregation dimension not specified"))?;
+        let aggregation_dim = aggregation
+            .attribute("dimName")
+            .ok_or(anyhow!("aggregation dimension not specified"))?;
 
-        let mut files: Vec<Vec<PathBuf>> = aggregation.children()
+        let mut files: Vec<Vec<PathBuf>> = aggregation
+            .children()
             .filter(|c| c.is_element())
-            .map(|e|
-                match e.tag_name().name() {
-                    "netcdf" => e.attribute("location").map(|l| {
-                        let l = PathBuf::from(l);
-                        match l.is_relative() {
-                            true => vec!(base.map_or(l.clone(), |b| b.join(l))),
-                            false => vec!(l)
-                        }
-                    }),
-                    "scan" => e.attribute("location").map(|l| {
-                        let l: PathBuf = match PathBuf::from(l) {
-                            l if l.is_relative() => base.map_or(l.clone(), |b| b.join(l)),
-                            l => l
-                        };
+            .map(|e| match e.tag_name().name() {
+                "netcdf" => e.attribute("location").map(|l| {
+                    let l = PathBuf::from(l);
+                    match l.is_relative() {
+                        true => vec![base.map_or(l.clone(), |b| b.join(l))],
+                        false => vec![l],
+                    }
+                }),
+                "scan" => e.attribute("location").map(|l| {
+                    let l: PathBuf = match PathBuf::from(l) {
+                        l if l.is_relative() => base.map_or(l.clone(), |b| b.join(l)),
+                        l => l,
+                    };
 
-                        if let Some(sf) = e.attribute("suffix") {
-                            debug!("Scanning {:?}, suffix: {}", l, sf);
+                    if let Some(sf) = e.attribute("suffix") {
+                        debug!("Scanning {:?}, suffix: {}", l, sf);
 
-                            let mut v = Vec::new();
+                        let mut v = Vec::new();
 
-                            for entry in WalkDir::new(l)
+                        for entry in
+                            WalkDir::new(l)
                                 .follow_links(true)
                                 .into_iter()
-                                .filter_entry(|entry|
-                                    !entry.file_name().to_str().map(|s| s.starts_with(".")).unwrap_or(false))
-                                {
-                                    if let Ok(entry) = entry {
-                                        match entry.metadata() {
-                                            Ok(m) if m.is_file() && entry.path().to_str().map(|s| s.ends_with(sf)).unwrap_or(false) => v.push(entry.into_path()),
-                                            _ => ()
-                                        }
-                                    };
+                                .filter_entry(|entry| {
+                                    !entry
+                                        .file_name()
+                                        .to_str()
+                                        .map(|s| s.starts_with("."))
+                                        .unwrap_or(false)
+                                })
+                        {
+                            if let Ok(entry) = entry {
+                                match entry.metadata() {
+                                    Ok(m)
+                                        if m.is_file()
+                                            && entry
+                                                .path()
+                                                .to_str()
+                                                .map(|s| s.ends_with(sf))
+                                                .unwrap_or(false) =>
+                                    {
+                                        v.push(entry.into_path())
+                                    }
+                                    _ => (),
                                 }
-                            v.sort();
-                            v
-                        } else {
-                            error!("no suffix specified in ncml scan tag");
-                            Vec::new()
+                            };
                         }
-                    }),
-                    t => { error!("unknown tag: {}", t); None }
+                        v.sort();
+                        v
+                    } else {
+                        error!("no suffix specified in ncml scan tag");
+                        Vec::new()
+                    }
+                }),
+                t => {
+                    error!("unknown tag: {}", t);
+                    None
                 }
-            ).collect::<Option<Vec<Vec<PathBuf>>>>().ok_or(anyhow!("could not parse file list"))?;
+            })
+            .collect::<Option<Vec<Vec<PathBuf>>>>()
+            .ok_or(anyhow!("could not parse file list"))?;
         files.sort();
 
-        let mut members = files.iter().flatten().map(|p| NcmlMember::open(p, aggregation_dim)).collect::<Result<Vec<NcmlMember>,_>>()?;
-        members.sort_by(|a, b| a.rank.partial_cmp(&b.rank).unwrap_or(std::cmp::Ordering::Equal));
+        let mut members = files
+            .iter()
+            .flatten()
+            .map(|p| NcmlMember::open(p, aggregation_dim))
+            .collect::<Result<Vec<NcmlMember>, _>>()?;
+        members.sort_by(|a, b| {
+            a.rank
+                .partial_cmp(&b.rank)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // DAS should be same for all members (hopefully), using first.
         let first = members.first().ok_or(anyhow!("no members in aggregate"))?;
@@ -124,7 +164,7 @@ impl NcmlDataset {
             members: members,
             das: das,
             dds: dds,
-            dim_n: dim_n
+            dim_n: dim_n,
         })
     }
 
@@ -132,11 +172,12 @@ impl NcmlDataset {
     /// through the URL query part.
     fn parse_query(&self, query: Option<String>) -> Vec<String> {
         match query {
-            Some(q) => q.split(",").map(|s|
-                    percent_decode_str(s).decode_utf8_lossy().into_owned()
-                ).collect(),
+            Some(q) => q
+                .split(",")
+                .map(|s| percent_decode_str(s).decode_utf8_lossy().into_owned())
+                .collect(),
 
-            None => self.dds.default_vars()
+            None => self.dds.default_vars(),
         }
     }
 }
@@ -156,7 +197,9 @@ impl Dataset for NcmlDataset {
 
         match self.dds.dds(&self.members[0].f.clone(), &mut query) {
             Ok(dds) => Response::builder().body(Body::from(dds)),
-            _ => Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
+            _ => Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(Body::empty()),
         }
     }
 
@@ -167,18 +210,21 @@ impl Dataset for NcmlDataset {
         let dds = if let Ok(r) = self.dds.dds(&self.members[0].f.clone(), &mut query) {
             r.into_bytes()
         } else {
-            return Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty());
+            return Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(Body::empty());
         };
 
         let dods = dods::xdr(&self, query);
 
-        let s = stream::once(async move { Ok::<_,anyhow::Error>(dds) })
-            .chain(
-                stream::once(async { Ok::<_,anyhow::Error>(String::from("\nData:\r\n").into_bytes()) }))
+        let s = stream::once(async move { Ok::<_, anyhow::Error>(dds) })
+            .chain(stream::once(async {
+                Ok::<_, anyhow::Error>(String::from("\nData:\r\n").into_bytes())
+            }))
             .chain(dods)
             .inspect(|e| match e {
                 Err(ee) => error!("error while streaming: {:?}", ee),
-                _ => ()
+                _ => (),
             });
 
         Response::builder().body(Body::wrap_stream(s))
@@ -202,5 +248,4 @@ mod tests {
 
         println!("files: {:#?}", nm.members);
     }
-
 }

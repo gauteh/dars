@@ -1,17 +1,26 @@
-use std::sync::Arc;
+use async_stream::stream;
+use futures::pin_mut;
+use futures::stream::{self, Stream, StreamExt};
 use itertools::izip;
 use std::cmp::min;
 use std::pin::Pin;
-use futures::pin_mut;
-use futures::stream::{self, Stream, StreamExt};
-use async_stream::stream;
+use std::sync::Arc;
 
-use crate::dap2::{xdr, hyperslab::{count_slab, parse_hyberslab}};
+use crate::dap2::{
+    hyperslab::{count_slab, parse_hyberslab},
+    xdr,
+};
 
 /// Stream a variable with a predefined chunk size. Chunk size is not guaranteed to be
 /// kept, and may be at worst half of specified size in order to fill up slabs.
-pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>, counts: Vec<usize>) -> impl Stream<Item=Result<Vec<T>, anyhow::Error>>
-    where T: netcdf::Numeric + Clone + Default + Unpin + Send + 'static + std::fmt::Debug
+pub fn stream_variable<T>(
+    f: Arc<netcdf::File>,
+    vn: String,
+    indices: Vec<usize>,
+    counts: Vec<usize>,
+) -> impl Stream<Item = Result<Vec<T>, anyhow::Error>>
+where
+    T: netcdf::Numeric + Clone + Default + Unpin + Send + 'static + std::fmt::Debug,
 {
     const CHUNK_SZ: usize = 1024 * 1024;
 
@@ -78,7 +87,12 @@ pub fn stream_variable<T>(f: Arc<netcdf::File>, vn: String, indices: Vec<usize>,
 }
 
 /// This only picks the correct generic for variable type.
-pub fn pack_var(f: Arc<netcdf::File>, v: String, len: Option<usize>, slab: (Vec<usize>, Vec<usize>)) -> impl Stream<Item=Result<Vec<u8>, anyhow::Error>> {
+pub fn pack_var(
+    f: Arc<netcdf::File>,
+    v: String,
+    len: Option<usize>,
+    slab: (Vec<usize>, Vec<usize>),
+) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
     let f = f.clone();
 
     stream! {
@@ -100,14 +114,24 @@ pub fn pack_var(f: Arc<netcdf::File>, v: String, len: Option<usize>, slab: (Vec<
     }
 }
 
-pub fn pack_var_impl<T>(f: Arc<netcdf::File>, v: String, len: Option<usize>, slab: (Vec<usize>, Vec<usize>)) -> Pin<Box<dyn Stream<Item=Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>>
-    where T: netcdf::variable::Numeric + Unpin + Sync + Send + 'static +
-                xdr_codec::Pack<std::io::Cursor<Vec<u8>>> +
-                Sized +
-                xdr::XdrSize +
-                std::default::Default +
-                std::clone::Clone +
-                std::fmt::Debug
+pub fn pack_var_impl<T>(
+    f: Arc<netcdf::File>,
+    v: String,
+    len: Option<usize>,
+    slab: (Vec<usize>, Vec<usize>),
+) -> Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>>
+where
+    T: netcdf::variable::Numeric
+        + Unpin
+        + Sync
+        + Send
+        + 'static
+        + xdr_codec::Pack<std::io::Cursor<Vec<u8>>>
+        + Sized
+        + xdr::XdrSize
+        + std::default::Default
+        + std::clone::Clone
+        + std::fmt::Debug,
 {
     let vv = f.variable(&v).unwrap();
     let (indices, counts) = slab;
@@ -120,12 +144,15 @@ pub fn pack_var_impl<T>(f: Arc<netcdf::File>, v: String, len: Option<usize>, sla
         let mut vbuf: Vec<T> = vec![T::default(); 1];
         match vv.values_to(&mut vbuf, None, None) {
             Ok(_) => Box::pin(stream::once(async move { xdr::pack_xdr_val(vbuf) })),
-            Err(e) => Box::pin(stream::once(async move { Err(e)? }))
+            Err(e) => Box::pin(stream::once(async move { Err(e)? })),
         }
     }
 }
 
-pub fn xdr(nc: Arc<netcdf::File>, vs: Vec<String>) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
+pub fn xdr(
+    nc: Arc<netcdf::File>,
+    vs: Vec<String>,
+) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
     stream! {
         for v in vs {
             // TODO: Structures not supported, only single variables.
@@ -184,7 +211,7 @@ mod tests {
 
     #[bench]
     fn open_nc(b: &mut Bencher) {
-        b.iter(|| { netcdf::open("data/coads_climatology.nc").unwrap() });
+        b.iter(|| netcdf::open("data/coads_climatology.nc").unwrap());
     }
 
     #[bench]
@@ -200,9 +227,7 @@ mod tests {
 
     #[bench]
     fn read_native_all(b: &mut Bencher) {
-        b.iter(|| {
-            std::fs::read("data/coads_climatology.nc").unwrap()
-        });
+        b.iter(|| std::fs::read("data/coads_climatology.nc").unwrap());
     }
 
     #[bench]
@@ -212,7 +237,8 @@ mod tests {
             let v = f.variable("SST").unwrap();
 
             let mut vbuf: Vec<f32> = vec![0.0; v.len()];
-            v.values_to(&mut vbuf, None, None).expect("could not read values");
+            v.values_to(&mut vbuf, None, None)
+                .expect("could not read values");
 
             vbuf
         });
@@ -233,16 +259,14 @@ mod tests {
 
     #[bench]
     fn xdr_stream(b: &mut Bencher) {
-        use futures::pin_mut;
         use futures::executor::block_on_stream;
+        use futures::pin_mut;
 
         let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
 
         b.iter(|| {
             let f = f.clone();
-            let v = xdr(
-                f,
-                vec![ "SST".to_string() ]);
+            let v = xdr(f, vec!["SST".to_string()]);
 
             pin_mut!(v);
             block_on_stream(v).collect::<Vec<_>>()
@@ -254,7 +278,13 @@ mod tests {
         use futures::executor::block_on_stream;
 
         let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
-        let counts: Vec<usize> = f.variable("SST").unwrap().dimensions().iter().map(|d| d.len()).collect();
+        let counts: Vec<usize> = f
+            .variable("SST")
+            .unwrap()
+            .dimensions()
+            .iter()
+            .map(|d| d.len())
+            .collect();
 
         b.iter(|| {
             let f = f.clone();
@@ -273,20 +303,27 @@ mod tests {
 
         let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
 
-        let v = xdr(
-            f.clone(),
-            vec![ "SST".to_string() ]);
+        let v = xdr(f.clone(), vec!["SST".to_string()]);
 
         pin_mut!(v);
         let x = block_on_stream(v).flatten().flatten().collect::<Vec<u8>>();
 
-        let counts: Vec<usize> = f.variable("SST").unwrap().dimensions().iter().map(|d| d.len()).collect();
+        let counts: Vec<usize> = f
+            .variable("SST")
+            .unwrap()
+            .dimensions()
+            .iter()
+            .map(|d| d.len())
+            .collect();
         let v = stream_variable::<f32>(f, "SST".to_string(), vec![0, 0, 0], counts.clone());
 
         let x2 = xdr::encode_array(v, Some(counts.iter().product::<usize>()));
         pin_mut!(x2);
 
-        let s: Vec<u8> = futures::executor::block_on_stream(x2).flatten().flatten().collect();
+        let s: Vec<u8> = futures::executor::block_on_stream(x2)
+            .flatten()
+            .flatten()
+            .collect();
 
         assert_eq!(x, s);
     }
@@ -304,15 +341,19 @@ mod tests {
             println!("{}", v.vartype() == netcdf_sys::NC_FLOAT);
 
             let mut vbuf: Vec<f32> = vec![0.0; counts.iter().product()];
-            v.values_to(&mut vbuf, Some(&[1, 10, 10]), Some(&counts)).expect("could not read values");
+            v.values_to(&mut vbuf, Some(&[1, 10, 10]), Some(&counts))
+                .expect("could not read values");
 
             vbuf
         };
 
-        let v = stream_variable::<f32>(f, "SST".to_string(), vec![1,10,10], counts.clone());
+        let v = stream_variable::<f32>(f, "SST".to_string(), vec![1, 10, 10], counts.clone());
         pin_mut!(v);
 
-        let s: Vec<f32> = futures::executor::block_on_stream(v).flatten().flatten().collect();
+        let s: Vec<f32> = futures::executor::block_on_stream(v)
+            .flatten()
+            .flatten()
+            .collect();
 
         assert_eq!(dir, s);
     }
@@ -328,7 +369,8 @@ mod tests {
             let v = f.variable("SST").unwrap();
 
             let mut vbuf: Vec<f32> = vec![0.0; counts.iter().product()];
-            v.values_to(&mut vbuf, Some(&[0, 0, 0]), Some(&counts)).expect("could not read values");
+            v.values_to(&mut vbuf, Some(&[0, 0, 0]), Some(&counts))
+                .expect("could not read values");
 
             vbuf
         };
@@ -336,7 +378,10 @@ mod tests {
         let v = stream_variable::<f32>(f, "SST".to_string(), vec![0, 0, 0], counts.clone());
         pin_mut!(v);
 
-        let s: Vec<f32> = futures::executor::block_on_stream(v).flatten().flatten().collect();
+        let s: Vec<f32> = futures::executor::block_on_stream(v)
+            .flatten()
+            .flatten()
+            .collect();
         assert_eq!(dir, s);
     }
 
@@ -345,13 +390,20 @@ mod tests {
         use futures::pin_mut;
         let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
 
-        let counts: Vec<usize> = f.variable("SST").unwrap().dimensions().iter().map(|d| d.len()).collect();
+        let counts: Vec<usize> = f
+            .variable("SST")
+            .unwrap()
+            .dimensions()
+            .iter()
+            .map(|d| d.len())
+            .collect();
 
         let dir = {
             let v = f.variable("SST").unwrap();
 
             let mut vbuf: Vec<f32> = vec![0.0; counts.iter().product()];
-            v.values_to(&mut vbuf, Some(&[0, 0, 0]), Some(&counts)).expect("could not read values");
+            v.values_to(&mut vbuf, Some(&[0, 0, 0]), Some(&counts))
+                .expect("could not read values");
 
             vbuf
         };
@@ -359,9 +411,11 @@ mod tests {
         let v = stream_variable::<f32>(f, "SST".to_string(), vec![0, 0, 0], counts.clone());
         pin_mut!(v);
 
-        let s: Vec<f32> = futures::executor::block_on_stream(v).flatten().flatten().collect();
+        let s: Vec<f32> = futures::executor::block_on_stream(v)
+            .flatten()
+            .flatten()
+            .collect();
 
         assert_eq!(dir, s);
     }
-
 }

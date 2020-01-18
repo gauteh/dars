@@ -1,16 +1,19 @@
-use std::sync::Arc;
+use async_stream::stream;
 use futures::pin_mut;
 use futures::stream::{Stream, StreamExt};
-use async_stream::stream;
 use itertools::izip;
-use std::iter::once;
 use std::cmp::min;
+use std::iter::once;
+use std::sync::Arc;
 
-use crate::dap2::hyperslab::{count_slab, parse_hyberslab};
-use super::NcmlDataset;
 use super::nc::dods::pack_var;
+use super::NcmlDataset;
+use crate::dap2::hyperslab::{count_slab, parse_hyberslab};
 
-pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
+pub fn xdr(
+    ncml: &NcmlDataset,
+    vs: Vec<String>,
+) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
     let fnc = ncml.members[0].f.clone();
     let dim = ncml.aggregation_dim.clone();
     let dim_len = ncml.dim_n;
@@ -18,13 +21,20 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
     let ns = ncml.members.iter().map(|m| m.n).collect::<Vec<usize>>();
 
     // start index of each member
-    let ss = ns.iter().scan(0, |acc, &n| {
-        let c = *acc;
-        *acc = *acc + n;
-        Some(c)
-    }).collect::<Vec<usize>>();
+    let ss = ns
+        .iter()
+        .scan(0, |acc, &n| {
+            let c = *acc;
+            *acc = *acc + n;
+            Some(c)
+        })
+        .collect::<Vec<usize>>();
 
-    let fs = ncml.members.iter().map(|m| m.f.clone()).collect::<Vec<Arc<netcdf::File>>>();
+    let fs = ncml
+        .members
+        .iter()
+        .map(|m| m.f.clone())
+        .collect::<Vec<Arc<netcdf::File>>>();
 
     stream! {
         for v in vs {
@@ -141,8 +151,8 @@ pub fn xdr(ncml: &NcmlDataset, vs: Vec<String>) -> impl Stream<Item = Result<Vec
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures_util::pin_mut;
     use futures::executor::block_on_stream;
+    use futures_util::pin_mut;
     use std::io::Cursor;
 
     #[test]
@@ -150,7 +160,14 @@ mod tests {
         let nm = NcmlDataset::open("data/ncml/aggExisting.ncml").unwrap();
         let t = xdr(&nm, vec!["time".to_string()]);
         pin_mut!(t);
-        let bs: Vec<u8> = block_on_stream(t).collect::<Result<Vec<_>,_>>().unwrap().iter().flatten().skip(4).map(|b| b.clone()).collect();
+        let bs: Vec<u8> = block_on_stream(t)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+            .iter()
+            .flatten()
+            .skip(4)
+            .map(|b| b.clone())
+            .collect();
 
         println!("len: {}", bs.len() / 4);
         let n: usize = (bs.len() / 4) - 1;
@@ -167,12 +184,20 @@ mod tests {
         assert_eq!(sz, (31 + 28) * 4);
 
         let jan = netcdf::open("data/ncml/jan.nc").unwrap();
-        let jt = jan.variable("time").unwrap().values::<i32>(None, None).unwrap();
+        let jt = jan
+            .variable("time")
+            .unwrap()
+            .values::<i32>(None, None)
+            .unwrap();
 
         assert!(&buf[0..31] == jt.as_slice().unwrap());
 
         let feb = netcdf::open("data/ncml/feb.nc").unwrap();
-        let ft = feb.variable("time").unwrap().values::<i32>(None, None).unwrap();
+        let ft = feb
+            .variable("time")
+            .unwrap()
+            .values::<i32>(None, None)
+            .unwrap();
 
         assert!(&buf[31..] == ft.as_slice().unwrap());
     }
@@ -182,30 +207,45 @@ mod tests {
         let nm = NcmlDataset::open("data/ncml/aggExisting.ncml").unwrap();
         let t = xdr(&nm, vec!["T".to_string()]);
         pin_mut!(t);
-        let bs: Vec<u8> = block_on_stream(t).collect::<Result<Vec<_>,_>>().unwrap().iter().flatten().skip(4).map(|b| b.clone()).collect();
+        let bs: Vec<u8> = block_on_stream(t)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+            .iter()
+            .flatten()
+            .skip(4)
+            .map(|b| b.clone())
+            .collect();
 
         println!("len: {}", bs.len() / 8);
         let n: usize = bs.len() / 8;
 
         println!("transmitted length: {:?}", &bs[0..4]);
-        assert_eq!(n, 3*4*(31+28));
+        assert_eq!(n, 3 * 4 * (31 + 28));
 
         let mut temp = Cursor::new(&bs[4..]);
 
         let mut buf: Vec<f64> = vec![0.0; n];
         let sz = xdr_codec::unpack_array(&mut temp, &mut buf, n, None).unwrap();
 
-        assert_eq!(sz, (31 + 28)*3*4 * 8);
+        assert_eq!(sz, (31 + 28) * 3 * 4 * 8);
 
         let jan = netcdf::open("data/ncml/jan.nc").unwrap();
-        let jt = jan.variable("T").unwrap().values::<f64>(None, None).unwrap();
+        let jt = jan
+            .variable("T")
+            .unwrap()
+            .values::<f64>(None, None)
+            .unwrap();
 
-        assert!(&buf[0..(31*3*4)] == jt.as_slice().unwrap());
+        assert!(&buf[0..(31 * 3 * 4)] == jt.as_slice().unwrap());
 
         let feb = netcdf::open("data/ncml/feb.nc").unwrap();
-        let ft = feb.variable("T").unwrap().values::<f64>(None, None).unwrap();
+        let ft = feb
+            .variable("T")
+            .unwrap()
+            .values::<f64>(None, None)
+            .unwrap();
 
-        assert!(&buf[(31*3*4)..] == ft.as_slice().unwrap());
+        assert!(&buf[(31 * 3 * 4)..] == ft.as_slice().unwrap());
     }
 
     #[test]
@@ -215,18 +255,39 @@ mod tests {
 
         let t = xdr(&nm, vec!["T.T[0:50][0][0]".to_string()]);
         pin_mut!(t);
-        let bs: Vec<u8> = block_on_stream(t).collect::<Result<Vec<_>,_>>().unwrap().iter().flatten().skip(4).map(|b| b.clone()).collect();
+        let bs: Vec<u8> = block_on_stream(t)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+            .iter()
+            .flatten()
+            .skip(4)
+            .map(|b| b.clone())
+            .collect();
         assert!(bs.len() == 4 + 51 * 8);
 
         let t = xdr(&nm, vec!["T.T[20:50][0][0]".to_string()]);
         pin_mut!(t);
-        let bs: Vec<u8> = block_on_stream(t).collect::<Result<Vec<_>,_>>().unwrap().iter().flatten().skip(4).map(|b| b.clone()).collect();
+        let bs: Vec<u8> = block_on_stream(t)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+            .iter()
+            .flatten()
+            .skip(4)
+            .map(|b| b.clone())
+            .collect();
         assert!(bs.len() == 4 + 31 * 8);
 
         // files are spliced at 31:32
         let t = xdr(&nm, vec!["T.T[31:32][0][0]".to_string()]);
         pin_mut!(t);
-        let bs: Vec<u8> = block_on_stream(t).collect::<Result<Vec<_>,_>>().unwrap().iter().flatten().skip(4).map(|b| b.clone()).collect();
+        let bs: Vec<u8> = block_on_stream(t)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+            .iter()
+            .flatten()
+            .skip(4)
+            .map(|b| b.clone())
+            .collect();
         assert!(bs.len() == 4 + 2 * 8);
     }
 }

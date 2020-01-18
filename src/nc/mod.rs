@@ -1,7 +1,7 @@
-use hyper::{Response, Body, StatusCode};
-use std::sync::Arc;
 use async_trait::async_trait;
+use hyper::{Body, Response, StatusCode};
 use percent_encoding::percent_decode_str;
+use std::sync::Arc;
 
 use super::Dataset;
 
@@ -9,8 +9,8 @@ pub mod das;
 pub mod dds;
 pub mod dods;
 
-use dds::{NcDds, Dds};
 use das::NcDas;
+use dds::{Dds, NcDds};
 
 /// NetCDF dataset for DAP server.
 ///
@@ -24,7 +24,8 @@ pub struct NcDataset {
 
 impl NcDataset {
     pub fn open<P>(filename: P) -> anyhow::Result<NcDataset>
-        where P: Into<std::path::PathBuf>
+    where
+        P: Into<std::path::PathBuf>,
     {
         let filename = filename.into();
         info!("Loading {:?}..", filename);
@@ -37,7 +38,7 @@ impl NcDataset {
             filename: filename,
             f: f,
             das: das,
-            dds: dds
+            dds: dds,
         })
     }
 
@@ -45,12 +46,12 @@ impl NcDataset {
     /// through the URL query part.
     fn parse_query(&self, query: Option<String>) -> Vec<String> {
         match query {
-            Some(q) => q.split(",")
-                        .map(|s|
-                            percent_decode_str(s).decode_utf8_lossy().into_owned()
-                        ).collect(),
+            Some(q) => q
+                .split(",")
+                .map(|s| percent_decode_str(s).decode_utf8_lossy().into_owned())
+                .collect(),
 
-            None => self.dds.default_vars()
+            None => self.dds.default_vars(),
         }
     }
 }
@@ -70,7 +71,9 @@ impl Dataset for NcDataset {
 
         match self.dds.dds(&self.f, &mut query) {
             Ok(dds) => Response::builder().body(Body::from(dds)),
-            _ => Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
+            _ => Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(Body::empty()),
         }
     }
 
@@ -81,42 +84,44 @@ impl Dataset for NcDataset {
         let dds = if let Ok(r) = self.dds.dds(&self.f.clone(), &mut query) {
             r.into_bytes()
         } else {
-            return Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty());
+            return Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(Body::empty());
         };
 
         let dods = dods::xdr(self.f.clone(), query);
 
-        let s = stream::once(async move { Ok::<_,anyhow::Error>(dds) })
-            .chain(
-                stream::once(async { Ok::<_,anyhow::Error>(String::from("\nData:\r\n").into_bytes()) }))
+        let s = stream::once(async move { Ok::<_, anyhow::Error>(dds) })
+            .chain(stream::once(async {
+                Ok::<_, anyhow::Error>(String::from("\nData:\r\n").into_bytes())
+            }))
             .chain(dods)
             .inspect(|e| match e {
                 Err(ee) => error!("error while streaming: {:?}", ee),
-                _ => ()
+                _ => (),
             });
 
         Response::builder().body(Body::wrap_stream(s))
     }
 
     async fn nc(&self) -> Result<Response<Body>, hyper::http::Error> {
-        use tokio_util::codec;
-        use tokio::fs::File;
         use futures::StreamExt;
+        use tokio::fs::File;
+        use tokio_util::codec;
 
         let filename = self.filename.clone();
 
         File::open(filename)
             .await
-            .map(|file|
-                Response::new(
-                    Body::wrap_stream(
-                        codec::FramedRead::new(
-                            file, codec::BytesCodec::new())
-                        .map(|r| r.map(|bytes| bytes.freeze())))))
+            .map(|file| {
+                Response::new(Body::wrap_stream(
+                    codec::FramedRead::new(file, codec::BytesCodec::new())
+                        .map(|r| r.map(|bytes| bytes.freeze())),
+                ))
+            })
             .or(Response::builder()
-                    .status(StatusCode::NOT_FOUND)
-                    .body(Body::empty()))
-
+                .status(StatusCode::NOT_FOUND)
+                .body(Body::empty()))
     }
 }
 
@@ -132,4 +137,3 @@ mod test {
         NcDataset::open("data/coads_climatology.nc").unwrap();
     }
 }
-

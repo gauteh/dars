@@ -1,19 +1,16 @@
-use hyper::{Response, Body, StatusCode};
 use async_trait::async_trait;
-use std::sync::Arc;
+use colored::Colorize;
+use hyper::{Body, Response, StatusCode};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use walkdir::WalkDir;
-use colored::Colorize;
 
-use super::{
-    nc::NcDataset,
-    ncml::NcmlDataset
-};
+use super::{nc::NcDataset, ncml::NcmlDataset};
 
 pub struct Data {
     pub root: PathBuf,
-    pub datasets: HashMap<String, Arc<dyn Dataset + Send + Sync>>
+    pub datasets: HashMap<String, Arc<dyn Dataset + Send + Sync>>,
 }
 
 enum DsRequestType {
@@ -21,7 +18,7 @@ enum DsRequestType {
     Dds,
     Dods,
     Nc,
-    Unknown
+    Unknown,
 }
 
 struct DsRequest(String, DsRequestType);
@@ -30,54 +27,65 @@ impl Data {
     pub fn new() -> Data {
         Data {
             root: "./".into(),
-            datasets: HashMap::new()
+            datasets: HashMap::new(),
         }
     }
 
     pub fn make_key(&self, p: &Path) -> String {
         if self.root.to_string_lossy().ends_with("/") {
             // remove root
-            p.to_str().unwrap().trim_start_matches(self.root.to_str().unwrap()).to_string()
+            p.to_str()
+                .unwrap()
+                .trim_start_matches(self.root.to_str().unwrap())
+                .to_string()
         } else {
             p.to_str().unwrap().to_string()
         }
     }
 
     pub fn init_root<P>(&mut self, root: P) -> ()
-        where P: Into<PathBuf>
+    where
+        P: Into<PathBuf>,
     {
         self.root = root.into();
         self.datasets.clear();
 
-        info!("Scanning {} for datasets..", self.root.to_string_lossy().yellow());
+        info!(
+            "Scanning {} for datasets..",
+            self.root.to_string_lossy().yellow()
+        );
 
         for entry in WalkDir::new(&self.root)
             .follow_links(true)
             .into_iter()
-            .filter_entry(|entry| !entry.file_name().to_str().map(|s| s.starts_with(".")).unwrap_or(false))
+            .filter_entry(|entry| {
+                !entry
+                    .file_name()
+                    .to_str()
+                    .map(|s| s.starts_with("."))
+                    .unwrap_or(false)
+            })
         {
             if let Ok(entry) = entry {
                 match entry.metadata() {
-                    Ok(m) if m.is_file() => {
-                        match entry.path().extension() {
-                            Some(ext) if ext == "nc" => {
-                                match NcDataset::open(entry.path()) {
-                                    Ok(ds) => { self.datasets.insert(self.make_key(entry.path().into()),
-                                    Arc::new(ds)); },
-                                    Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e)
-                                }
-                            },
-                            Some(ext) if ext == "ncml" => {
-                                match NcmlDataset::open(entry.path()) {
-                                    Ok(ds) => { self.datasets.insert(self.make_key(entry.path().into()),
-                                    Arc::new(ds)); },
-                                    Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e)
-                                }
-                            },
-                            _ => ()
-                        }
+                    Ok(m) if m.is_file() => match entry.path().extension() {
+                        Some(ext) if ext == "nc" => match NcDataset::open(entry.path()) {
+                            Ok(ds) => {
+                                self.datasets
+                                    .insert(self.make_key(entry.path().into()), Arc::new(ds));
+                            }
+                            Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e),
+                        },
+                        Some(ext) if ext == "ncml" => match NcmlDataset::open(entry.path()) {
+                            Ok(ds) => {
+                                self.datasets
+                                    .insert(self.make_key(entry.path().into()), Arc::new(ds));
+                            }
+                            Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e),
+                        },
+                        _ => (),
                     },
-                    _ => ()
+                    _ => (),
                 }
             }
         }
@@ -88,8 +96,11 @@ impl Data {
 
         match e {
             Create(pb) | Write(pb) | Remove(pb) => Data::reload_file(pb),
-            Rename(pba, pbb) => { Data::reload_file(pba); Data::reload_file(pbb) },
-            _ => debug!("Unhandled event: {:?}", e)
+            Rename(pba, pbb) => {
+                Data::reload_file(pba);
+                Data::reload_file(pbb)
+            }
+            _ => debug!("Unhandled event: {:?}", e),
         }
     }
 
@@ -127,13 +138,17 @@ impl Data {
                 if pb.exists() {
                     if ext == "nc" {
                         match NcDataset::open(pb.clone()) {
-                            Ok(ds) => { data.datasets.insert(key, Arc::new(ds)); },
-                            Err(e) => warn!("Could not open: {:?} ({:?})", pb, e)
+                            Ok(ds) => {
+                                data.datasets.insert(key, Arc::new(ds));
+                            }
+                            Err(e) => warn!("Could not open: {:?} ({:?})", pb, e),
                         }
                     } else if ext == "ncml" {
                         match NcmlDataset::open(pb.clone()) {
-                            Ok(ds) => { data.datasets.insert(key, Arc::new(ds)); },
-                            Err(e) => warn!("Could not open: {:?} ({:?})", pb, e)
+                            Ok(ds) => {
+                                data.datasets.insert(key, Arc::new(ds));
+                            }
+                            Err(e) => warn!("Could not open: {:?} ({:?})", pb, e),
                         }
                     }
                 }
@@ -146,22 +161,36 @@ impl Data {
             let rdata = super::DATA.clone();
             let data = rdata.read().unwrap();
 
-            data.datasets.keys().map(|s| format!("  /data/{}", s)).collect()
+            data.datasets
+                .keys()
+                .map(|s| format!("  /data/{}", s))
+                .collect()
         };
 
         datasets.sort();
 
-        Response::builder().body(Body::from(
-                format!("Index of datasets:\n\n{}\n", datasets.join("\n"))))
+        Response::builder().body(Body::from(format!(
+            "Index of datasets:\n\n{}\n",
+            datasets.join("\n")
+        )))
     }
 
     fn parse_request(ds: String) -> DsRequest {
         if ds.ends_with(".das") {
-            DsRequest(String::from(ds.trim_end_matches(".das")), DsRequestType::Das)
+            DsRequest(
+                String::from(ds.trim_end_matches(".das")),
+                DsRequestType::Das,
+            )
         } else if ds.ends_with(".dds") {
-            DsRequest(String::from(ds.trim_end_matches(".dds")), DsRequestType::Dds)
+            DsRequest(
+                String::from(ds.trim_end_matches(".dds")),
+                DsRequestType::Dds,
+            )
         } else if ds.ends_with(".dods") {
-            DsRequest(String::from(ds.trim_end_matches(".dods")), DsRequestType::Dods)
+            DsRequest(
+                String::from(ds.trim_end_matches(".dods")),
+                DsRequestType::Dods,
+            )
         } else if ds.ends_with(".nc") {
             DsRequest(String::from(&ds), DsRequestType::Nc)
         } else {
@@ -181,23 +210,23 @@ impl Data {
 
             match data.datasets.get(&ds) {
                 Some(ds) => Some(ds.clone()),
-                None => None
+                None => None,
             }
         };
 
         match ds {
-            Some(ds) => {
-                match dst {
-                    DsRequestType::Das => ds.das().await,
-                    DsRequestType::Dds => ds.dds(req.uri().query().map(|s| s.to_string())).await,
-                    DsRequestType::Dods => ds.dods(req.uri().query().map(|s| s.to_string())).await,
-                    DsRequestType::Nc => ds.nc().await,
-                    _ => Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
-                }
+            Some(ds) => match dst {
+                DsRequestType::Das => ds.das().await,
+                DsRequestType::Dds => ds.dds(req.uri().query().map(|s| s.to_string())).await,
+                DsRequestType::Dods => ds.dods(req.uri().query().map(|s| s.to_string())).await,
+                DsRequestType::Nc => ds.nc().await,
+                _ => Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(Body::empty()),
             },
-            None => {
-                Response::builder().status(StatusCode::NOT_FOUND).body(Body::empty())
-            }
+            None => Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(Body::empty()),
         }
     }
 }

@@ -11,10 +11,6 @@ rust:
 
 sudo: false
 
-matrix:
-  allow_failures:
-    - rust: nightly
-
 addons:
   apt:
     packages:
@@ -36,7 +32,7 @@ before_script:
   - export PATH=$HOME/.cargo/bin:$PATH
   - cargo install cargo-update || echo "cargo-update already installed"
   - cargo install cargo-travis || echo "cargo-travis already installed"
-  - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo +stable install cargo-tarpaulin || true
+  - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin || true
   - cargo install-update -a # update outdated cached binaries
   # - rustup component add clippy
 
@@ -51,11 +47,9 @@ script:
       # && cargo clippy -- --warn clippy::pedantic
 
 after_success: |
-  if [[ "$TRAVIS_RUST_VERSION" == stable ]] ; then
     cargo tarpaulin --verbose --out Xml --ignore-tests &&
     bash <(curl -s https://codecov.io/bash) &&
     cargo coveralls --verbose --exclude-pattern="tests/"
-  fi
 
 env:
   global:

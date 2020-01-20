@@ -35,10 +35,10 @@ impl NcDataset {
         let dds = NcDds::build(filename.clone())?;
 
         Ok(NcDataset {
-            filename: filename,
-            f: f,
-            das: das,
-            dds: dds,
+            filename,
+            f,
+            das,
+            dds,
         })
     }
 
@@ -47,7 +47,7 @@ impl NcDataset {
     fn parse_query(&self, query: Option<String>) -> Vec<String> {
         match query {
             Some(q) => q
-                .split(",")
+                .split(',')
                 .map(|s| percent_decode_str(s).decode_utf8_lossy().into_owned())
                 .collect(),
 
@@ -96,9 +96,10 @@ impl Dataset for NcDataset {
                 Ok::<_, anyhow::Error>(String::from("\nData:\r\n").into_bytes())
             }))
             .chain(dods)
-            .inspect(|e| match e {
-                Err(ee) => error!("error while streaming: {:?}", ee),
-                _ => (),
+            .inspect(|e| {
+                if let Err(e) = e {
+                    error!("error while streaming: {:?}", e);
+                }
             });
 
         Response::builder().body(Body::wrap_stream(s))
@@ -119,9 +120,11 @@ impl Dataset for NcDataset {
                         .map(|r| r.map(|bytes| bytes.freeze())),
                 ))
             })
-            .or(Response::builder()
-                .status(StatusCode::NOT_FOUND)
-                .body(Body::empty()))
+            .or_else(|_| {
+                Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(Body::empty())
+            })
     }
 
     fn file_event(&mut self, _: FileEvent) -> Result<(), anyhow::Error> {

@@ -56,7 +56,7 @@ impl NcmlDataset {
 
         let aggregation = root
             .first_element_child()
-            .ok_or(anyhow!("no aggregation tag found"))?;
+            .ok_or_else(|| anyhow!("no aggregation tag found"))?;
         ensure!(
             aggregation.tag_name().name() == "aggregation",
             "expected aggregation tag"
@@ -65,7 +65,7 @@ impl NcmlDataset {
         // TODO: use match to enum
         let aggregation_type = aggregation
             .attribute("type")
-            .ok_or(anyhow!("aggregation type not specified"))?;
+            .ok_or_else(|| anyhow!("aggregation type not specified"))?;
         ensure!(
             aggregation_type == "joinExisting",
             "only 'joinExisting' type aggregation supported"
@@ -74,7 +74,7 @@ impl NcmlDataset {
         // TODO: only available on certain aggregation types
         let aggregation_dim = aggregation
             .attribute("dimName")
-            .ok_or(anyhow!("aggregation dimension not specified"))?;
+            .ok_or_else(|| anyhow!("aggregation dimension not specified"))?;
 
         let mut watchers = Vec::new();
 
@@ -84,9 +84,10 @@ impl NcmlDataset {
             .map(|e| match e.tag_name().name() {
                 "netcdf" => e.attribute("location").map(|l| {
                     let l = PathBuf::from(l);
-                    match l.is_relative() {
-                        true => vec![base.map_or(l.clone(), |b| b.join(l))],
-                        false => vec![l],
+                    if l.is_relative() {
+                        vec![base.map_or(l.clone(), |b| b.join(l))]
+                    } else {
+                        vec![l]
                     }
                 }),
                 "scan" => e.attribute("location").map(|l| {
@@ -135,7 +136,7 @@ impl NcmlDataset {
                                     !entry
                                         .file_name()
                                         .to_str()
-                                        .map(|s| s.starts_with("."))
+                                        .map(|s| s.starts_with('.'))
                                         .unwrap_or(false)
                                 })
                         {
@@ -168,7 +169,7 @@ impl NcmlDataset {
                 }
             })
             .collect::<Option<Vec<Vec<PathBuf>>>>()
-            .ok_or(anyhow!("could not parse file list"))?;
+            .ok_or_else(|| anyhow!("could not parse file list"))?;
         files.sort();
 
         let mut members = files
@@ -184,7 +185,9 @@ impl NcmlDataset {
         });
 
         // DAS should be same for all members (hopefully), using first.
-        let first = members.first().ok_or(anyhow!("no members in aggregate"))?;
+        let first = members
+            .first()
+            .ok_or_else(|| anyhow!("no members in aggregate"))?;
         let das = nc::das::NcDas::build(first.f.clone())?;
 
         let dim_n: usize = members.iter().map(|m| m.n).sum();
@@ -194,10 +197,10 @@ impl NcmlDataset {
             filename: filename.clone(),
             _aggregation_type: AggregationType::JoinExisting,
             aggregation_dim: aggregation_dim.to_string(),
-            members: members,
-            das: das,
-            dds: dds,
-            dim_n: dim_n,
+            members,
+            das,
+            dds,
+            dim_n,
             _watchers: watchers,
         })
     }
@@ -207,7 +210,7 @@ impl NcmlDataset {
     fn parse_query(&self, query: Option<String>) -> Vec<String> {
         match query {
             Some(q) => q
-                .split(",")
+                .split(',')
                 .map(|s| percent_decode_str(s).decode_utf8_lossy().into_owned())
                 .collect(),
 
@@ -256,9 +259,10 @@ impl Dataset for NcmlDataset {
                 Ok::<_, anyhow::Error>(String::from("\nData:\r\n").into_bytes())
             }))
             .chain(dods)
-            .inspect(|e| match e {
-                Err(ee) => error!("error while streaming: {:?}", ee),
-                _ => (),
+            .inspect(|e| {
+                if let Err(e) = e {
+                    error!("error while streaming: {:?}", e);
+                }
             });
 
         Response::builder().body(Body::wrap_stream(s))
@@ -336,7 +340,7 @@ impl Dataset for NcmlDataset {
             let first = self
                 .members
                 .first()
-                .ok_or(anyhow!("no members in aggregate"))?;
+                .ok_or_else(|| anyhow!("no members in aggregate"))?;
             self.das = nc::das::NcDas::build(first.f.clone())?;
 
             let dim_n: usize = self.members.iter().map(|m| m.n).sum();

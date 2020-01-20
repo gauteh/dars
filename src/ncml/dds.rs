@@ -17,33 +17,33 @@ impl Dds for NcmlDds {
     fn dds(&self, nc: &netcdf::File, vars: &mut Vec<String>) -> Result<String, anyhow::Error> {
         let dds: String = {
             vars.sort_by(|a, b| {
-                let a = a.find("[").map_or(&a[..], |i| &a[..i]);
-                let b = b.find("[").map_or(&b[..], |i| &b[..i]);
+                let a = a.find('[').map_or(&a[..], |i| &a[..i]);
+                let b = b.find('[').map_or(&b[..], |i| &b[..i]);
 
                 let a = self
                     .varpos
                     .get(a)
-                    .expect(&format!("variable not found: {}", a));
+                    .unwrap_or_else(|| panic!("variable not found: {}", a));
                 let b = self
                     .varpos
                     .get(b)
-                    .expect(&format!("variable not found: {}", b));
+                    .unwrap_or_else(|| panic!("variable not found: {}", b));
 
                 a.cmp(b)
             });
             vars.iter()
-                .map(|v| match v.find("[") {
+                .map(|v| match v.find('[') {
                     Some(i) => match parse_hyberslab(&v[i..]) {
                         Ok(slab) => self.build_var(nc, &v[..i], slab),
                         _ => None,
                     },
                     None => self
                         .vars
-                        .get(v.split("[").next().unwrap_or(v))
+                        .get(v.split('[').next().unwrap_or(v))
                         .map(|s| s.to_string()),
                 })
                 .collect::<Option<String>>()
-                .ok_or(anyhow!("variable not found"))?
+                .ok_or_else(|| anyhow!("variable not found"))?
         };
 
         Ok(format!(
@@ -56,7 +56,7 @@ impl Dds for NcmlDds {
     fn default_vars(&self) -> Vec<String> {
         self.vars
             .iter()
-            .filter(|(k, _)| !k.contains("."))
+            .filter(|(k, _)| !k.contains('.'))
             .map(|(k, _)| k.clone())
             .collect()
     }
@@ -89,8 +89,8 @@ impl NcmlDds {
             f: dataset,
             vars: HashMap::new(),
             varpos: HashMap::new(),
-            dim: dim,
-            dim_n: dim_n,
+            dim,
+            dim_n,
         };
 
         let (posmap, map) = dds.build_vars(&nc);

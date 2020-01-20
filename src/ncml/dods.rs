@@ -25,7 +25,7 @@ pub fn xdr(
         .iter()
         .scan(0, |acc, &n| {
             let c = *acc;
-            *acc = *acc + n;
+            *acc += n;
             Some(c)
         })
         .collect::<Vec<usize>>();
@@ -51,7 +51,7 @@ pub fn xdr(
                     let slab = parse_hyberslab(&mv[i..])?;
                     mv = &mv[..i];
 
-                    let counts = slab.iter().map(count_slab).collect::<Vec<usize>>();
+                    let counts = slab.iter().map(|v| count_slab(&v)).collect::<Vec<usize>>();
                     let indices = slab.iter().map(|slab| slab[0]).collect::<Vec<usize>>();
 
                     if slab.iter().any(|s| s.len() > 2) {

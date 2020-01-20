@@ -32,7 +32,7 @@ pub trait Dds {
         var: &netcdf::Variable,
         slab: &Option<Vec<usize>>,
     ) -> String {
-        if var.dimensions().len() >= 1 {
+        if !var.dimensions().is_empty() {
             format!(
                 "{}{} {}[{} = {}];",
                 " ".repeat(indent),
@@ -109,7 +109,7 @@ pub trait Dds {
         for d in var.dimensions() {
             let dvar = nc
                 .variable(&d.name())
-                .expect(&format!("No variable found for dimension: {}", d.name()));
+                .unwrap_or_else(|| panic!("No variable found for dimension: {}", d.name()));
             grid.push(self.format_var(2 * indent, &dvar, slab));
         }
 
@@ -201,9 +201,9 @@ pub trait Dds {
     fn build_var(&self, nc: &netcdf::File, var: &str, slab: Vec<Vec<usize>>) -> Option<String> {
         let indent: usize = 4;
 
-        let slab: Vec<usize> = slab.iter().map(count_slab).collect();
+        let slab: Vec<usize> = slab.iter().map(|v| count_slab(&v)).collect();
 
-        match var.find(".") {
+        match var.find('.') {
             Some(i) => match nc.variable(&var[..i]) {
                 Some(ivar) => match nc.variable(&var[i + 1..]) {
                     Some(dvar) => Some(self.format_struct(indent, &nc, &ivar, &dvar, &Some(slab))),
@@ -230,33 +230,33 @@ impl Dds for NcDds {
     fn dds(&self, nc: &netcdf::File, vars: &mut Vec<String>) -> Result<String, anyhow::Error> {
         let dds: String = {
             vars.sort_by(|a, b| {
-                let a = a.find("[").map_or(&a[..], |i| &a[..i]);
-                let b = b.find("[").map_or(&b[..], |i| &b[..i]);
+                let a = a.find('[').map_or(&a[..], |i| &a[..i]);
+                let b = b.find('[').map_or(&b[..], |i| &b[..i]);
 
                 let a = self
                     .varpos
                     .get(a)
-                    .expect(&format!("variable not found: {}", a));
+                    .unwrap_or_else(|| panic!("variable not found: {}", a));
                 let b = self
                     .varpos
                     .get(b)
-                    .expect(&format!("variable not found: {}", b));
+                    .unwrap_or_else(|| panic!("variable not found: {}", b));
 
                 a.cmp(b)
             });
             vars.iter()
-                .map(|v| match v.find("[") {
+                .map(|v| match v.find('[') {
                     Some(i) => match parse_hyberslab(&v[i..]) {
                         Ok(slab) => self.build_var(nc, &v[..i], slab),
                         _ => None,
                     },
                     None => self
                         .vars
-                        .get(v.split("[").next().unwrap_or(v))
+                        .get(v.split('[').next().unwrap_or(v))
                         .map(|s| s.to_string()),
                 })
                 .collect::<Option<String>>()
-                .ok_or(anyhow!("variable not found"))?
+                .ok_or_else(|| anyhow!("variable not found"))?
         };
 
         Ok(format!(
@@ -269,7 +269,7 @@ impl Dds for NcDds {
     fn default_vars(&self) -> Vec<String> {
         self.vars
             .iter()
-            .filter(|(k, _)| !k.contains("."))
+            .filter(|(k, _)| !k.contains('.'))
             .map(|(k, _)| k.clone())
             .collect()
     }
@@ -289,7 +289,7 @@ impl NcDds {
         let nc = netcdf::open(f.clone())?;
 
         let mut dds = NcDds {
-            f: f,
+            f,
             vars: HashMap::new(),
             varpos: HashMap::new(),
         };

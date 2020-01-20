@@ -6,7 +6,7 @@
 /// - a range with strides:     [1:2:7] -> [1, 3, 5, 7]
 ///                             [1:2:8] -> [1, 3, 5, 7]
 pub mod hyperslab {
-    pub fn count_slab(slab: &Vec<usize>) -> usize {
+    pub fn count_slab(slab: &[usize]) -> usize {
         if slab.len() == 1 {
             1
         } else if slab.len() == 2 {
@@ -20,7 +20,7 @@ pub mod hyperslab {
 
     fn parse_slice(s: &str) -> anyhow::Result<Vec<usize>> {
         match s
-            .split(":")
+            .split(':')
             .map(|h| h.parse::<usize>())
             .collect::<Result<Vec<usize>, _>>()
             .map_err(|_| anyhow!("Failed to parse index"))
@@ -34,17 +34,17 @@ pub mod hyperslab {
     }
 
     pub fn parse_hyberslab(s: &str) -> anyhow::Result<Vec<Vec<usize>>> {
-        if s.len() < 3 || !s.starts_with("[") || !s.ends_with("]") {
+        if s.len() < 3 || !s.starts_with('[') || !s.ends_with(']') {
             return Err(anyhow!("Hyberslab missing brackets"));
         }
 
-        s.split("]")
-            .filter(|slab| slab.len() != 0)
+        s.split(']')
+            .filter(|slab| !slab.is_empty())
             .map(|slab| {
-                if slab.starts_with("[") {
+                if slab.starts_with('[') {
                     parse_slice(&slab[1..])
                 } else {
-                    return Err(anyhow!("Missing start bracket"));
+                    Err(anyhow!("Missing start bracket"))
                 }
             })
             .collect()

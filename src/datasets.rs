@@ -9,6 +9,7 @@ use walkdir::WalkDir;
 
 use super::{nc::NcDataset, ncml::NcmlDataset};
 
+#[derive(Default)]
 pub struct Data {
     pub root: PathBuf,
     pub datasets: HashMap<String, Box<dyn Dataset + Send + Sync>>,
@@ -26,16 +27,8 @@ enum DsRequestType {
 struct DsRequest(String, DsRequestType);
 
 impl Data {
-    pub fn new() -> Data {
-        Data {
-            root: "./".into(),
-            datasets: HashMap::new(),
-            watcher: None,
-        }
-    }
-
     pub fn make_key(&self, p: &Path) -> String {
-        if self.root.to_string_lossy().ends_with("/") {
+        if self.root.to_string_lossy().ends_with('/') {
             // remove root
             p.to_str()
                 .unwrap()
@@ -46,7 +39,7 @@ impl Data {
         }
     }
 
-    pub fn init_root<P>(&mut self, root: P, watch: bool) -> ()
+    pub fn init_root<P>(&mut self, root: P, watch: bool)
     where
         P: Into<PathBuf>,
     {
@@ -66,7 +59,7 @@ impl Data {
                 !entry
                     .file_name()
                     .to_str()
-                    .map(|s| s.starts_with("."))
+                    .map(|s| s.starts_with('.'))
                     .unwrap_or(false)
             })
         {
@@ -76,7 +69,7 @@ impl Data {
                         Some(ext) if ext == "nc" => match NcDataset::open(entry.path()) {
                             Ok(ds) => {
                                 self.datasets
-                                    .insert(self.make_key(entry.path().into()), Box::new(ds));
+                                    .insert(self.make_key(entry.path()), Box::new(ds));
                             }
                             Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e),
                         },
@@ -84,7 +77,7 @@ impl Data {
                             match NcmlDataset::open(entry.path(), watch) {
                                 Ok(ds) => {
                                     self.datasets
-                                        .insert(self.make_key(entry.path().into()), Box::new(ds));
+                                        .insert(self.make_key(entry.path()), Box::new(ds));
                                 }
                                 Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e),
                             }
@@ -106,25 +99,25 @@ impl Data {
                 .expect("could not watch data root"),
             );
 
-            self.watcher.as_mut().map(|w| {
+            if let Some(w) = self.watcher.as_mut() {
                 w.watch(root, notify::RecursiveMode::Recursive)
                     .expect("could not watch data root")
-            });
+            };
         }
     }
 
-    pub fn data_event(e: notify::Event) -> () {
+    pub fn data_event(e: notify::Event) {
         use notify::event::{CreateKind, EventKind::*, RemoveKind};
 
         match e.kind {
             Create(ck) => match ck {
-                CreateKind::File => e.paths.iter().map(|p| Data::reload_file(p)).collect(),
+                CreateKind::File => e.paths.iter().map(Data::reload_file).collect(),
                 CreateKind::Folder => unimplemented!("scan dir"),
                 _ => (),
             },
-            Modify(_mk) => e.paths.iter().map(|p| Data::reload_file(p)).collect(),
+            Modify(_mk) => e.paths.iter().map(Data::reload_file).collect(),
             Remove(rk) => match rk {
-                RemoveKind::File => e.paths.iter().map(|p| Data::reload_file(p)).collect(),
+                RemoveKind::File => e.paths.iter().map(Data::reload_file).collect(),
                 RemoveKind::Folder => unimplemented!("scan dir"),
                 _ => (),
             },
@@ -146,7 +139,7 @@ impl Data {
                 let mut data = futures::executor::block_on(DATA.write());
 
                 if let Some(fname) = pb.file_name() {
-                    if fname.to_string_lossy().starts_with(".") {
+                    if fname.to_string_lossy().starts_with('.') {
                         return;
                     }
                 } else {
@@ -236,14 +229,7 @@ impl Data {
         let ds: String = req.uri().path().trim_start_matches("/data/").to_string();
         let DsRequest(ds, dst) = Data::parse_request(ds);
 
-        let ds = {
-            match self.datasets.get(&ds) {
-                Some(ds) => Some(ds.clone()),
-                None => None,
-            }
-        };
-
-        match ds {
+        match self.datasets.get(&ds) {
             Some(ds) => match dst {
                 DsRequestType::Das => ds.das().await,
                 DsRequestType::Dds => ds.dds(req.uri().query().map(|s| s.to_string())).await,

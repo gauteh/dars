@@ -32,7 +32,7 @@ where
                 Some(1)
             } else {
                 let p = min(CHUNK_SZ / *n, c);
-                *n = *n * p;
+                *n *= p;
 
                 Some(p)
             }
@@ -42,7 +42,7 @@ where
         // size of count dimensions
         let mut dim_sz: Vec<usize> = counts.iter().rev().scan(1, |p, &c| {
             let sz = *p;
-            *p = *p * c;
+            *p *= c;
             Some(sz)
         }).collect();
         dim_sz.reverse();
@@ -76,7 +76,7 @@ where
             let mut carry = offset.iter().zip(&dim_sz).map(|(a,b)| a * b).sum::<usize>() + jump_sz;
             for (o, c) in izip!(offset.iter_mut().rev(), counts.iter().rev()) {
                 *o = carry % *c;
-                carry = carry / c;
+                carry /= c;
             }
 
             if carry > 0 {
@@ -93,8 +93,6 @@ pub fn pack_var(
     len: Option<usize>,
     slab: (Vec<usize>, Vec<usize>),
 ) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
-    let f = f.clone();
-
     stream! {
         let vv = f.variable(&v).unwrap();
         let mut s = match vv.vartype() {
@@ -136,7 +134,7 @@ where
     let vv = f.variable(&v).unwrap();
     let (indices, counts) = slab;
 
-    if vv.dimensions().len() > 0 {
+    if !vv.dimensions().is_empty() {
         let v = stream_variable::<T>(f, v, indices, counts);
 
         Box::pin(xdr::encode_array(v, len))
@@ -144,7 +142,7 @@ where
         let mut vbuf: Vec<T> = vec![T::default(); 1];
         match vv.values_to(&mut vbuf, None, None) {
             Ok(_) => Box::pin(stream::once(async move { xdr::pack_xdr_val(vbuf) })),
-            Err(e) => Box::pin(stream::once(async move { Err(e)? })),
+            Err(e) => Box::pin(stream::once(async move { Err(e.into()) })),
         }
     }
 }
@@ -169,7 +167,7 @@ pub fn xdr(
                     let slab = parse_hyberslab(&mv[i..])?;
                     mv = &mv[..i];
 
-                    let counts = slab.iter().map(count_slab).collect::<Vec<usize>>();
+                    let counts = slab.iter().map(|v| count_slab(&v)).collect::<Vec<usize>>();
                     let indices = slab.iter().map(|slab| slab[0]).collect::<Vec<usize>>();
 
                     if slab.iter().any(|s| s.len() > 2) {

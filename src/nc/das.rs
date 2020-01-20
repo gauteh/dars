@@ -50,7 +50,7 @@ impl NcDas {
         let indent = 4;
         let mut das: String = "Attributes {\n".to_string();
 
-        if let Some(_) = nc.attributes().next() {
+        if nc.attributes().next().is_some() {
             das.push_str("    NC_GLOBAL {\n");
             das.push_str(
                 &nc.attributes()
@@ -84,6 +84,6 @@ impl NcDas {
 
         das.push_str("}");
 
-        Ok(NcDas { das: das })
+        Ok(NcDas { das })
     }
 }

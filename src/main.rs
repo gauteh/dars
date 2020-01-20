@@ -31,10 +31,10 @@ mod testcommon;
 use datasets::{Data, Dataset};
 
 lazy_static! {
-    pub static ref DATA: Arc<RwLock<Data>> = Arc::new(RwLock::new(Data::new()));
+    pub static ref DATA: Arc<RwLock<Data>> = Arc::new(RwLock::new(Data::default()));
 }
 
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -112,10 +112,13 @@ async fn main() -> Result<(), anyhow::Error> {
             };
 
             let s = match &r {
-                Ok(ir) => match ir.status().is_success() {
-                    true => ir.status().to_string().yellow(),
-                    false => ir.status().to_string().red(),
-                },
+                Ok(ir) => {
+                    if ir.status().is_success() {
+                        ir.status().to_string().yellow()
+                    } else {
+                        ir.status().to_string().red()
+                    }
+                }
                 Err(e) => e.to_string().red(),
             };
 

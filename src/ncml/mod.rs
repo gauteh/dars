@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use walkdir::WalkDir;
 
 use super::nc::{self, dds::Dds};
-use super::{Data, Dataset};
+use super::{datasets::FileEvent, Dataset};
 
 mod dds;
 mod dods;
@@ -37,7 +37,7 @@ pub struct NcmlDataset {
     das: nc::das::NcDas,
     dds: dds::NcmlDds,
     dim_n: usize,
-    watcher: RecommendedWatcher,
+    _watchers: Vec<RecommendedWatcher>,
 }
 
 impl NcmlDataset {
@@ -76,11 +76,7 @@ impl NcmlDataset {
             .attribute("dimName")
             .ok_or(anyhow!("aggregation dimension not specified"))?;
 
-        let mf = filename.clone();
-        let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res| match res {
-            Ok(event) => Data::refresh_dataset(mf.clone(), event),
-            Err(e) => println!("watch error: {:?}", e),
-        })?;
+        let mut watchers = Vec::new();
 
         let mut files: Vec<Vec<PathBuf>> = aggregation
             .children()
@@ -101,9 +97,33 @@ impl NcmlDataset {
 
                     if let Some(sf) = e.attribute("suffix") {
                         debug!("Scanning {:?}, suffix: {}", l, sf);
+
+                        let mf = filename.clone();
+                        let ml = l.clone();
+                        let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res: Result<notify::Event, _>|
+                            match res {
+                                Ok(event) => {
+                                    debug!("Refreshing dataset: {:?}: {:?}", mf, event.paths);
+
+                                    use super::DATA;
+
+                                    let mut data = futures::executor::block_on(DATA.write());
+                                    let key = data.make_key(&mf);
+
+                                    if let Some(ds) = data.datasets.get_mut(&key) {
+                                        ds.file_event(FileEvent::ScanMember(ml.clone(), event)).expect("could not refresh ncml scan tag, should remove");
+                                    } else {
+                                        error!("could not find dataset.");
+                                    }
+                                },
+                                Err(event) => println!("watch error: {:?}", event),
+                        }).expect("could not create watcher");
+
                         watcher
                             .watch(l.clone(), notify::RecursiveMode::NonRecursive)
-                            .expect("coult not watch ncml root");
+                            .expect("could not watch ncml root");
+                        watchers.push(watcher);
+
 
                         let mut v = Vec::new();
 
@@ -129,19 +149,19 @@ impl NcmlDataset {
                                                 .map(|s| s.ends_with(sf))
                                                 .unwrap_or(false) =>
                                     {
-                                        v.push(entry.into_path())
+                                        v.push(std::fs::canonicalize(entry.into_path()).ok())
                                     }
                                     _ => (),
                                 }
                             };
                         }
                         v.sort();
-                        v
+                        v.into_iter().collect::<Option<Vec<PathBuf>>>()
                     } else {
                         error!("no suffix specified in ncml scan tag");
-                        Vec::new()
+                        None
                     }
-                }),
+                }).flatten(),
                 t => {
                     error!("unknown tag: {}", t);
                     None
@@ -156,6 +176,7 @@ impl NcmlDataset {
             .flatten()
             .map(|p| NcmlMember::open(p, aggregation_dim, watch))
             .collect::<Result<Vec<NcmlMember>, _>>()?;
+
         members.sort_by(|a, b| {
             a.rank
                 .partial_cmp(&b.rank)
@@ -177,7 +198,7 @@ impl NcmlDataset {
             das: das,
             dds: dds,
             dim_n: dim_n,
-            watcher: watcher,
+            _watchers: watchers,
         })
     }
 
@@ -249,9 +270,13 @@ impl Dataset for NcmlDataset {
             .body(Body::empty())
     }
 
-    fn refresh(&mut self, e: notify::Event) -> Result<(), anyhow::Error> {
+    fn file_event(&mut self, e: FileEvent) -> Result<(), anyhow::Error> {
         // we only get called for scan tags
         use notify::event::{CreateKind, EventKind::*, RemoveKind};
+
+        let FileEvent::ScanMember(_, e) = e;
+
+        let mut changed = false;
 
         match e.kind {
             Create(ck) => match ck {
@@ -268,6 +293,7 @@ impl Dataset for NcmlDataset {
                                 NcmlMember::open(p.clone(), self.aggregation_dim.clone(), true)
                             {
                                 self.members.push(m);
+                                changed = true;
                             } else {
                                 error!("{:?}: could not add member: {:?}", self.filename, p);
                             }
@@ -284,10 +310,11 @@ impl Dataset for NcmlDataset {
                             .members
                             .iter()
                             .enumerate()
-                            .find(|(_, m)| is_same_file(&p, &m.filename).unwrap_or(false))
+                            .find(|(_, m)| p == m.filename)
                         {
                             warn!("{:?}: removing member: {:?}", self.filename, p);
                             self.members.remove(i);
+                            changed = true;
                         } else {
                             error!("{:?} not a member", p);
                         }
@@ -299,13 +326,27 @@ impl Dataset for NcmlDataset {
             _ => (), //warn!("{:?}: event not handled: {:?}", self.filename, e)
         };
 
-        debug!(
-            "{:?}",
-            self.members
-                .iter()
-                .map(|m| m.filename.clone())
-                .collect::<Vec<_>>()
-        );
+        if changed {
+            self.members.sort_by(|a, b| {
+                a.rank
+                    .partial_cmp(&b.rank)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+
+            let first = self
+                .members
+                .first()
+                .ok_or(anyhow!("no members in aggregate"))?;
+            self.das = nc::das::NcDas::build(first.f.clone())?;
+
+            let dim_n: usize = self.members.iter().map(|m| m.n).sum();
+            self.dds = dds::NcmlDds::build(
+                first.f.clone(),
+                &self.filename,
+                &self.aggregation_dim,
+                dim_n,
+            )?;
+        }
 
         Ok(())
     }
@@ -318,7 +359,7 @@ mod tests {
     #[test]
     fn test_ncml_open() {
         crate::testcommon::init();
-        let nm = NcmlDataset::open("data/ncml/aggExisting.ncml").unwrap();
+        let nm = NcmlDataset::open("data/ncml/aggExisting.ncml", true).unwrap();
 
         println!("files: {:#?}", nm.members);
     }

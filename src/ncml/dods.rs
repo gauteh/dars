@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn ncml_xdr_time_dim() {
-        let nm = NcmlDataset::open("data/ncml/aggExisting.ncml").unwrap();
+        let nm = NcmlDataset::open("data/ncml/aggExisting.ncml", false).unwrap();
         let t = xdr(&nm, vec!["time".to_string()]);
         pin_mut!(t);
         let bs: Vec<u8> = block_on_stream(t)
@@ -204,7 +204,7 @@ mod tests {
 
     #[test]
     fn ncml_xdr_temp() {
-        let nm = NcmlDataset::open("data/ncml/aggExisting.ncml").unwrap();
+        let nm = NcmlDataset::open("data/ncml/aggExisting.ncml", false).unwrap();
         let t = xdr(&nm, vec!["T".to_string()]);
         pin_mut!(t);
         let bs: Vec<u8> = block_on_stream(t)
@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn span_time() {
         crate::testcommon::init();
-        let nm = NcmlDataset::open("data/ncml/scan.ncml").unwrap();
+        let nm = NcmlDataset::open("data/ncml/scan.ncml", false).unwrap();
 
         let t = xdr(&nm, vec!["T.T[0:50][0][0]".to_string()]);
         pin_mut!(t);

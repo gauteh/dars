@@ -5,8 +5,6 @@ use notify::{RecommendedWatcher, Watcher};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use walkdir::WalkDir;
 
 use super::{nc::NcDataset, ncml::NcmlDataset};
@@ -141,71 +139,52 @@ impl Data {
         let pb = pb.borrow();
         debug!("Checking file: {:?}", pb);
 
-        // if let Some(ext) = pb.extension() {
-        //     if ext == "nc" || ext == "ncml" {
-        //         use super::DATA;
+        if let Some(ext) = pb.extension() {
+            if ext == "nc" || ext == "ncml" {
+                use super::DATA;
 
-        //         let rdata = DATA.clone();
-        //         let mut data = rdata.write().unwrap();
+                let mut data = futures::executor::block_on(DATA.write());
 
-        //         if let Some(fname) = pb.file_name() {
-        //             if fname.to_string_lossy().starts_with(".") {
-        //                 return;
-        //             }
-        //         } else {
-        //             return;
-        //         }
+                if let Some(fname) = pb.file_name() {
+                    if fname.to_string_lossy().starts_with(".") {
+                        return;
+                    }
+                } else {
+                    return;
+                }
 
-        //         let pb = if let Ok(pb) = pb.strip_prefix(data.root.canonicalize().unwrap()) {
-        //             data.root.join(pb)
-        //         } else {
-        //             warn!("{:?} not in root: {:?}", pb, data.root);
-        //             return;
-        //         };
+                let pb = if let Ok(pb) = pb.strip_prefix(data.root.canonicalize().unwrap()) {
+                    data.root.join(pb)
+                } else {
+                    warn!("{:?} not in root: {:?}", pb, data.root);
+                    return;
+                };
 
-        //         let key = data.make_key(&pb);
+                let key = data.make_key(&pb);
 
-        //         if data.datasets.remove(&key).is_some() {
-        //             info!("Removed dataset: {}", key);
-        //         }
+                if data.datasets.remove(&key).is_some() {
+                    info!("Removed dataset: {}", key);
+                }
 
-        //         if pb.exists() {
-        //             if ext == "nc" {
-        //                 match NcDataset::open(pb.clone()) {
-        //                     Ok(ds) => { data.datasets.insert(key, Box::new(ds)); },
-        //                     Err(e) => warn!("Could not open: {:?} ({:?})", pb, e)
-        //                 }
-        //             } else if ext == "ncml" {
-        //                 match NcmlDataset::open(pb.clone(), true) {
-        //                     Ok(ds) => { data.datasets.insert(key, Box::new(ds)); },
-        //                     Err(e) => warn!("Could not open: {:?} ({:?})", pb, e)
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-    }
-
-    pub fn refresh_dataset<T>(pb: T, e: notify::Event)
-    where
-        T: Borrow<PathBuf>,
-    {
-        let pb = pb.borrow();
-        // debug!("Refreshing dataset: {:?}: {:?}", pb, e);
-
-        use super::DATA;
-
-        // let rdata = DATA.clone();
-        // let data = rdata.write().unwrap();
-        // let key = data.make_key(pb);
-
-        // if let Some(ds) = data.datasets.get(&key) {
-        //     let ds = ds.clone();
-        //     let mut mds = futures::executor::block_on(ds.write());
-        //     mds.refresh(e).expect("could not refresh dataset, should remove");
-        // } else {
-        //     error!("could not find dataset.");
-        // }
+                if pb.exists() {
+                    if ext == "nc" {
+                        match NcDataset::open(pb.clone()) {
+                            Ok(ds) => {
+                                data.datasets.insert(key, Box::new(ds));
+                            }
+                            Err(e) => warn!("Could not open: {:?} ({:?})", pb, e),
+                        }
+                    } else if ext == "ncml" {
+                        match NcmlDataset::open(pb.clone(), true) {
+                            Ok(ds) => {
+                                data.datasets.insert(key, Box::new(ds));
+                            }
+                            Err(e) => warn!("Could not open: {:?} ({:?})", pb, e),
+                        }
+                    }
+                }
+            }
+        }
     }
 
     pub async fn datasets(
@@ -281,6 +260,10 @@ impl Data {
     }
 }
 
+pub enum FileEvent {
+    ScanMember(PathBuf, notify::Event),
+}
+
 #[async_trait]
 pub trait Dataset {
     fn name(&self) -> String;
@@ -289,5 +272,5 @@ pub trait Dataset {
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
     async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
     async fn nc(&self) -> Result<Response<Body>, hyper::http::Error>;
-    fn refresh(&mut self, e: notify::Event) -> Result<(), anyhow::Error>;
+    fn file_event(&mut self, event: FileEvent) -> Result<(), anyhow::Error>;
 }

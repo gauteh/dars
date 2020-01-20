@@ -3,7 +3,7 @@ use hyper::{Body, Response, StatusCode};
 use percent_encoding::percent_decode_str;
 use std::sync::Arc;
 
-use super::Dataset;
+use super::{datasets::FileEvent, Dataset};
 
 pub mod das;
 pub mod dds;
@@ -124,7 +124,7 @@ impl Dataset for NcDataset {
                 .body(Body::empty()))
     }
 
-    fn refresh(&mut self, e: notify::Event) -> Result<(), anyhow::Error> {
+    fn file_event(&mut self, _: FileEvent) -> Result<(), anyhow::Error> {
         Ok(())
     }
 }

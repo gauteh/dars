@@ -18,7 +18,7 @@ impl fmt::Debug for NcmlMember {
 }
 
 impl NcmlMember {
-    pub fn open<P, S>(f: P, dim_name: S, watch: bool) -> Result<NcmlMember, anyhow::Error>
+    pub fn open<P, S>(f: P, dim_name: S, _watch: bool) -> Result<NcmlMember, anyhow::Error>
     where
         P: Into<PathBuf>,
         S: Into<String>,
@@ -38,6 +38,7 @@ impl NcmlMember {
             f.clone()
         ));
 
+        // TODO: watch member for modifications
         Ok(NcmlMember {
             filename: f,
             f: nc.clone(),

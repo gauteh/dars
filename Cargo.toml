@@ -24,7 +24,7 @@ netcdf-sys = "0.2"
 notify = "5.0.0-pre.2"
 percent-encoding = "2.1"
 roxmltree = "0.7"
-same-file = "*"
+same-file = "1"
 walkdir = "2.2"
 
 [dependencies.hyper]

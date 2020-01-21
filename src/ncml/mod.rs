@@ -188,10 +188,10 @@ impl NcmlDataset {
         let first = members
             .first()
             .ok_or_else(|| anyhow!("no members in aggregate"))?;
-        let das = nc::das::NcDas::build(first.f.clone())?;
+        let das = nc::das::NcDas::build(&first.f)?;
 
         let dim_n: usize = members.iter().map(|m| m.n).sum();
-        let dds = dds::NcmlDds::build(first.f.clone(), &filename, aggregation_dim, dim_n)?;
+        let dds = dds::NcmlDds::build(&first.f, &filename, aggregation_dim, dim_n)?;
 
         Ok(NcmlDataset {
             filename: filename.clone(),
@@ -341,15 +341,10 @@ impl Dataset for NcmlDataset {
                 .members
                 .first()
                 .ok_or_else(|| anyhow!("no members in aggregate"))?;
-            self.das = nc::das::NcDas::build(first.f.clone())?;
+            self.das = nc::das::NcDas::build(&first.f)?;
 
             let dim_n: usize = self.members.iter().map(|m| m.n).sum();
-            self.dds = dds::NcmlDds::build(
-                first.f.clone(),
-                &self.filename,
-                &self.aggregation_dim,
-                dim_n,
-            )?;
+            self.dds = dds::NcmlDds::build(&first.f, &self.filename, &self.aggregation_dim, dim_n)?;
         }
 
         Ok(())

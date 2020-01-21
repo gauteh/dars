@@ -49,13 +49,7 @@ impl NcDas {
         }
     }
 
-    // fn push_attr<'a>(indent: usize, das: &mut String, a: impl Iterator<Item = &'a netcdf::Attribute>) -> () {
-    //     das.push_str(&a
-    //         .map(|aa| NcDas::format_attr(indent, aa))
-    //         .collect::<String>());
-    // }
-
-    pub fn build(nc: Arc<netcdf::File>) -> anyhow::Result<NcDas> {
+    pub fn build(nc: &Arc<netcdf::File>) -> anyhow::Result<NcDas> {
         let indent = 4;
         let mut das: String = "Attributes {\n".to_string();
 

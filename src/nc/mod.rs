@@ -31,8 +31,8 @@ impl NcDataset {
         info!("Loading {:?}..", filename);
 
         let f = Arc::new(netcdf::open(filename.clone())?);
-        let das = NcDas::build(f.clone())?;
-        let dds = NcDds::build(filename.clone())?;
+        let das = NcDas::build(&f)?;
+        let dds = NcDds::build(filename.clone(), &f)?;
 
         Ok(NcDataset {
             filename,

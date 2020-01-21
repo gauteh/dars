@@ -71,7 +71,7 @@ impl Dds for NcmlDds {
 
 impl NcmlDds {
     pub fn build<P, S>(
-        nc: Arc<netcdf::File>,
+        nc: &Arc<netcdf::File>,
         dataset: P,
         dim: S,
         dim_n: usize,
@@ -93,7 +93,7 @@ impl NcmlDds {
             dim_n,
         };
 
-        let (posmap, map) = dds.build_vars(&nc);
+        let (posmap, map) = dds.build_vars(nc);
         dds.vars = map;
         dds.varpos = posmap;
         Ok(dds)

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::dap2::hyperslab::{count_slab, parse_hyberslab};
 
@@ -280,13 +281,12 @@ impl Dds for NcDds {
 }
 
 impl NcDds {
-    pub fn build<P>(f: P) -> Result<NcDds, anyhow::Error>
+    pub fn build<P>(f: P, nc: &Arc<netcdf::File>) -> anyhow::Result<NcDds>
     where
         P: Into<PathBuf>,
     {
         let f = f.into();
         debug!("Building Data Descriptor Structure (DDS) for {:?}", f);
-        let nc = netcdf::open(f.clone())?;
 
         let mut dds = NcDds {
             f,

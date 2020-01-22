@@ -53,6 +53,12 @@ async fn main() -> Result<(), anyhow::Error> {
         "listening socket address (default: 127.0.0.1:8001)",
         "ADDR",
     );
+    opts.optopt(
+        "",
+        "root-url",
+        "root URL of service (default: http://address)",
+        "ROOT",
+    );
     opts.optflag("w", "watch", "watch for changes in data dir");
     opts.optflag("h", "help", "print this help menu");
 
@@ -85,10 +91,14 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let addr: SocketAddr = matches.opt_get_default("a", "127.0.0.1:8001".parse()?)?;
 
+    let root: String = matches
+        .opt_str("root-url")
+        .unwrap_or_else(|| format!("http://{}", addr.to_string()));
+
     {
         let rdata = DATA.clone();
         let mut data = rdata.write().await;
-        data.init_root(datadir.clone(), watch);
+        data.init_root(datadir.clone(), root.clone(), watch);
     }
 
     let msvc = make_service_fn(|_| async move {
@@ -132,7 +142,11 @@ async fn main() -> Result<(), anyhow::Error> {
         .serve(msvc)
         .map(|r| r.map_err(|e| anyhow!(e)));
 
-    info!("Listening on {}", format!("http://{}", addr).yellow());
+    info!(
+        "Listening on {} ({})",
+        format!("http://{}", addr).yellow(),
+        root.blue()
+    );
 
     server.await
 }

@@ -12,6 +12,7 @@ use super::{nc::NcDataset, ncml::NcmlDataset};
 #[derive(Default)]
 pub struct Data {
     pub root: PathBuf,
+    pub url: String,
     pub datasets: HashMap<String, Box<dyn Dataset + Send + Sync>>,
     watcher: Option<RecommendedWatcher>,
 }
@@ -39,12 +40,13 @@ impl Data {
         }
     }
 
-    pub fn init_root<P>(&mut self, root: P, watch: bool)
+    pub fn init_root<P>(&mut self, root: P, rooturl: String, watch: bool)
     where
         P: Into<PathBuf>,
     {
         let root = root.into();
         self.root = root.clone();
+        self.url = rooturl;
         self.datasets.clear();
 
         info!(
@@ -187,16 +189,28 @@ impl Data {
         let mut datasets: Vec<String> = {
             self.datasets
                 .keys()
-                .map(|s| format!("  /data/{}", s))
+                .map(|s| format!("<a href=\"{}/data/{}\">/data/{}</a>", self.url, s, s))
                 .collect()
         };
 
         datasets.sort();
 
-        Response::builder().body(Body::from(format!(
-            "Index of datasets:\n\n{}\n",
-            datasets.join("\n")
-        )))
+        Response::builder()
+            .header("Content-Type", "text/html")
+            .body(Body::from(format!(
+                r#"
+<html>
+    <head>
+        <title>Index of datasets</title>
+    </head>
+    <body>
+        <h1>Index of datasets:</h1><br/>
+{}
+    </body>
+</html>
+            "#,
+                datasets.join("<br/>\n")
+            )))
     }
 
     fn parse_request(ds: String) -> DsRequest {

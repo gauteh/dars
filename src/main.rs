@@ -71,12 +71,13 @@ async fn main() -> Result<(), anyhow::Error> {
         let brief = format!("Usage: {} [options] DATA", program);
         print!("{}", opts.usage(&brief));
         println!(
-            "\nThe directory specified with DATA is searched for supported datasets.\n\
-                    If DATA is specified with a trailing \"/\" (e.g. \"data/\"), the folder\n\
-                    name is not included at the end-point for the dataset. All datasets are\n\
-                    available under the /data root. A list of datasets may be queried at /data.\n\
-                    \n\
-                    If no DATA is specified, \"data/\" is used."
+            r#"
+The directory specified with DATA is searched for supported datasets.
+If DATA is specified with a trailing "/" (e.g. "data/"), the folder
+name is not included at the end-point for the dataset. All datasets are
+available under the /data root. A list of datasets may be queried at /data.
+
+If no DATA is specified, "data/" is used."#
         );
         return Ok::<_, anyhow::Error>(());
     }

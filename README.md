@@ -4,7 +4,6 @@ This is a _DAP2_ server written in Rust aimed at being fast and lightweight. It 
 
 # Features
 * Asynchronous
-* Low memory footprint
 * Fast
 
 # Running

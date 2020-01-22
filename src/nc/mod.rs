@@ -63,14 +63,22 @@ impl Dataset for NcDataset {
     }
 
     async fn das(&self) -> Result<Response<Body>, hyper::http::Error> {
-        Response::builder().body(Body::from(self.das.to_string()))
+        Response::builder()
+            .header("Content-Type", "text/plain")
+            .header("Content-Description", "dods-das")
+            .header("XDODS-Server", "dars")
+            .body(Body::from(self.das.to_string()))
     }
 
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
         let mut query = self.parse_query(query);
 
         match self.dds.dds(&self.f, &mut query) {
-            Ok(dds) => Response::builder().body(Body::from(dds)),
+            Ok(dds) => Response::builder()
+                .header("Content-Type", "text/plain")
+                .header("Content-Description", "dods-dds")
+                .header("XDODS-Server", "dars")
+                .body(Body::from(dds)),
             _ => Response::builder()
                 .status(StatusCode::NOT_FOUND)
                 .body(Body::empty()),
@@ -102,10 +110,14 @@ impl Dataset for NcDataset {
                 }
             });
 
-        Response::builder().body(Body::wrap_stream(s))
+        Response::builder()
+            .header("Content-Type", "application/octet-stream")
+            .header("Content-Description", "dods-data")
+            .header("XDODS-Server", "dars")
+            .body(Body::wrap_stream(s))
     }
 
-    async fn nc(&self) -> Result<Response<Body>, hyper::http::Error> {
+    async fn raw(&self) -> Result<Response<Body>, hyper::http::Error> {
         use futures::StreamExt;
         use tokio::fs::File;
         use tokio_util::codec;
@@ -115,12 +127,16 @@ impl Dataset for NcDataset {
         File::open(filename)
             .await
             .map(|file| {
-                Response::new(Body::wrap_stream(
-                    codec::FramedRead::new(file, codec::BytesCodec::new())
-                        .map(|r| r.map(|bytes| bytes.freeze())),
-                ))
+                Response::builder()
+                    .header("Content-Type", "application/octet-stream")
+                    .header("Content-Disposition", "attachment")
+                    .header("XDODS-Server", "dars")
+                    .body(Body::wrap_stream(
+                        codec::FramedRead::new(file, codec::BytesCodec::new())
+                            .map(|r| r.map(|bytes| bytes.freeze())),
+                    ))
             })
-            .or_else(|_| {
+            .unwrap_or_else(|_| {
                 Response::builder()
                     .status(StatusCode::NOT_FOUND)
                     .body(Body::empty())

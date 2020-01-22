@@ -21,8 +21,7 @@ enum DsRequestType {
     Das,
     Dds,
     Dods,
-    Nc,
-    Unknown,
+    Raw,
 }
 
 struct DsRequest(String, DsRequestType);
@@ -229,10 +228,8 @@ impl Data {
                 String::from(ds.trim_end_matches(".dods")),
                 DsRequestType::Dods,
             )
-        } else if ds.ends_with(".nc") {
-            DsRequest(String::from(&ds), DsRequestType::Nc)
         } else {
-            DsRequest(String::from(&ds), DsRequestType::Unknown)
+            DsRequest(String::from(&ds), DsRequestType::Raw)
         }
     }
 
@@ -248,10 +245,7 @@ impl Data {
                 DsRequestType::Das => ds.das().await,
                 DsRequestType::Dds => ds.dds(req.uri().query().map(|s| s.to_string())).await,
                 DsRequestType::Dods => ds.dods(req.uri().query().map(|s| s.to_string())).await,
-                DsRequestType::Nc => ds.nc().await,
-                _ => Response::builder()
-                    .status(StatusCode::NOT_FOUND)
-                    .body(Body::empty()),
+                DsRequestType::Raw => ds.raw().await,
             },
             None => Response::builder()
                 .status(StatusCode::NOT_FOUND)
@@ -271,6 +265,6 @@ pub trait Dataset {
     async fn das(&self) -> Result<Response<Body>, hyper::http::Error>;
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
     async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
-    async fn nc(&self) -> Result<Response<Body>, hyper::http::Error>;
+    async fn raw(&self) -> Result<Response<Body>, hyper::http::Error>;
     fn file_event(&mut self, event: FileEvent) -> Result<(), anyhow::Error>;
 }

@@ -226,14 +226,22 @@ impl Dataset for NcmlDataset {
     }
 
     async fn das(&self) -> Result<Response<Body>, hyper::http::Error> {
-        Response::builder().body(Body::from(self.das.to_string()))
+        Response::builder()
+            .header("Content-Type", "text/plain")
+            .header("Content-Description", "dods-das")
+            .header("XDODS-Server", "dars")
+            .body(Body::from(self.das.to_string()))
     }
 
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
         let mut query = self.parse_query(query);
 
         match self.dds.dds(&self.members[0].f.clone(), &mut query) {
-            Ok(dds) => Response::builder().body(Body::from(dds)),
+            Ok(dds) => Response::builder()
+                .header("Content-Type", "text/plain")
+                .header("Content-Description", "dods-dds")
+                .header("XDODS-Server", "dars")
+                .body(Body::from(dds)),
             _ => Response::builder()
                 .status(StatusCode::NOT_FOUND)
                 .body(Body::empty()),
@@ -265,13 +273,18 @@ impl Dataset for NcmlDataset {
                 }
             });
 
-        Response::builder().body(Body::wrap_stream(s))
+        Response::builder()
+            .header("Content-Type", "application/octet-stream")
+            .header("Content-Description", "dods-data")
+            .header("XDODS-Server", "dars")
+            .body(Body::wrap_stream(s))
     }
 
-    async fn nc(&self) -> Result<Response<Body>, hyper::http::Error> {
+    async fn raw(&self) -> Result<Response<Body>, hyper::http::Error> {
         Response::builder()
-            .status(StatusCode::NOT_IMPLEMENTED)
-            .body(Body::empty())
+            .status(StatusCode::UPGRADE_REQUIRED)
+            .header("Upgrade", "DAP/2")
+            .body(Body::from("Try using a DAP client."))
     }
 
     fn file_event(&mut self, e: FileEvent) -> Result<(), anyhow::Error> {

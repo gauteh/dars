@@ -57,7 +57,7 @@ async fn main() -> Result<(), anyhow::Error> {
     opts.optopt(
         "",
         "root-url",
-        "root URL of service (default: http://address)",
+        "root URL of service (default: empty)",
         "ROOT",
     );
     opts.optflag("w", "watch", "watch for changes in data dir");
@@ -93,9 +93,7 @@ If no DATA is specified, "data/" is used."#
 
     let addr: SocketAddr = matches.opt_get_default("a", "127.0.0.1:8001".parse()?)?;
 
-    let root: String = matches
-        .opt_str("root-url")
-        .unwrap_or_else(|| format!("http://{}", addr.to_string()));
+    let root: String = matches.opt_str("root-url").unwrap_or_else(|| String::new());
 
     {
         let rdata = DATA.clone();
@@ -105,49 +103,65 @@ If no DATA is specified, "data/" is used."#
 
     let msvc = make_service_fn(|socket: &AddrStream| {
         let remote: SocketAddr = socket.remote_addr();
+        let mroot = root.clone();
         async move {
-            Ok::<_, Error>(service_fn(move |req| async move {
-                let m = req.method().clone();
-                let u = req.uri().clone();
+            Ok::<_, Error>(service_fn(move |req| {
+                let mroot = mroot.clone();
+                async move {
+                    let m = req.method().clone();
+                    let u = req.uri().clone();
 
-                let r = match (req.method(), req.uri().path()) {
-                    (&Method::GET, "/") => {
-                        Response::builder().body(Body::from("DAP!\n\n(checkout /data)"))
-                    }
+                    let r = match (req.method(), req.uri().path()) {
+                        (&Method::GET, "/") => Response::builder()
+                            .header("Content-Type", "text/html")
+                            .body(Body::from(format!(
+                                r#"
+<html>
+    <head>
+        <title>DAP!</title>
+    </head>
+    <body>
+        Checkout <a href="{}/data">data/</a>.
+    </body>
+</html>
+"#,
+                                &mroot
+                            ))),
 
-                    (&Method::GET, "/data") | (&Method::GET, "/data/") => {
-                        DATA.read().await.datasets(req).await
-                    }
-
-                    (&Method::GET, p) if p.starts_with("/data/") => {
-                        DATA.read().await.dataset(req).await
-                    }
-
-                    _ => Response::builder()
-                        .status(StatusCode::NOT_FOUND)
-                        .body(Body::empty()),
-                };
-
-                let s = match &r {
-                    Ok(ir) => {
-                        if ir.status().is_success() {
-                            ir.status().to_string().yellow()
-                        } else {
-                            ir.status().to_string().red()
+                        (&Method::GET, "/data") | (&Method::GET, "/data/") => {
+                            DATA.read().await.datasets(req).await
                         }
-                    }
-                    Err(e) => e.to_string().red(),
-                };
 
-                debug!(
-                    "{} {} {} -> {}",
-                    remote.ip().to_string().yellow(),
-                    m.to_string().blue(),
-                    u,
-                    s
-                );
+                        (&Method::GET, p) if p.starts_with("/data/") => {
+                            DATA.read().await.dataset(req).await
+                        }
 
-                r
+                        _ => Response::builder()
+                            .status(StatusCode::NOT_FOUND)
+                            .body(Body::empty()),
+                    };
+
+                    let s = match &r {
+                        Ok(ir) => {
+                            if ir.status().is_success() {
+                                ir.status().to_string().yellow()
+                            } else {
+                                ir.status().to_string().red()
+                            }
+                        }
+                        Err(e) => e.to_string().red(),
+                    };
+
+                    debug!(
+                        "[{}] {} {} -> {}",
+                        remote.ip().to_string().yellow(),
+                        m.to_string().blue(),
+                        u,
+                        s
+                    );
+
+                    r
+                }
             }))
         }
     });

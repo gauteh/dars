@@ -286,7 +286,6 @@ impl NcDds {
         P: Into<PathBuf>,
     {
         let f = f.into();
-        debug!("Building Data Descriptor Structure (DDS) for {:?}", f);
 
         let mut dds = NcDds {
             f,

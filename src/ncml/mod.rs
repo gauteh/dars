@@ -273,11 +273,7 @@ impl Dataset for NcmlDataset {
                 }
             });
 
-        Response::builder()
-            .header("Content-Type", "application/octet-stream")
-            .header("Content-Description", "dods-data")
-            .header("XDODS-Server", "dars")
-            .body(Body::wrap_stream(s))
+        Response::builder().body(Body::wrap_stream(s))
     }
 
     async fn raw(&self) -> Result<Response<Body>, hyper::http::Error> {

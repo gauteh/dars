@@ -83,8 +83,6 @@ impl NcmlDds {
         let dataset = dataset.into();
         let dim = dim.into();
 
-        debug!("Building Data Descriptor Structure (DDS) for {:?}", dataset);
-
         let mut dds = NcmlDds {
             f: dataset,
             vars: HashMap::new(),

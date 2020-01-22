@@ -14,6 +14,7 @@ use colored::Colorize;
 use futures::FutureExt;
 use getopts::Options;
 use hyper::{
+    server::conn::AddrStream,
     service::{make_service_fn, service_fn},
     Body, Error, Method, Response, Server, StatusCode,
 };
@@ -102,41 +103,53 @@ If no DATA is specified, "data/" is used."#
         data.init_root(datadir.clone(), root.clone(), watch);
     }
 
-    let msvc = make_service_fn(|_| async move {
-        Ok::<_, Error>(service_fn(|req| async move {
-            let m = req.method().clone();
-            let u = req.uri().clone();
+    let msvc = make_service_fn(|socket: &AddrStream| {
+        let remote: SocketAddr = socket.remote_addr();
+        async move {
+            Ok::<_, Error>(service_fn(move |req| async move {
+                let m = req.method().clone();
+                let u = req.uri().clone();
 
-            let r = match (req.method(), req.uri().path()) {
-                (&Method::GET, "/") => {
-                    Response::builder().body(Body::from("DAP!\n\n(checkout /data)"))
-                }
-                (&Method::GET, "/data") | (&Method::GET, "/data/") => {
-                    DATA.read().await.datasets(req).await
-                }
-                (&Method::GET, p) if p.starts_with("/data/") => {
-                    DATA.read().await.dataset(req).await
-                }
-                _ => Response::builder()
-                    .status(StatusCode::NOT_FOUND)
-                    .body(Body::empty()),
-            };
-
-            let s = match &r {
-                Ok(ir) => {
-                    if ir.status().is_success() {
-                        ir.status().to_string().yellow()
-                    } else {
-                        ir.status().to_string().red()
+                let r = match (req.method(), req.uri().path()) {
+                    (&Method::GET, "/") => {
+                        Response::builder().body(Body::from("DAP!\n\n(checkout /data)"))
                     }
-                }
-                Err(e) => e.to_string().red(),
-            };
 
-            debug!("{} {} -> {}", m.to_string().blue(), u, s);
+                    (&Method::GET, "/data") | (&Method::GET, "/data/") => {
+                        DATA.read().await.datasets(req).await
+                    }
 
-            r
-        }))
+                    (&Method::GET, p) if p.starts_with("/data/") => {
+                        DATA.read().await.dataset(req).await
+                    }
+
+                    _ => Response::builder()
+                        .status(StatusCode::NOT_FOUND)
+                        .body(Body::empty()),
+                };
+
+                let s = match &r {
+                    Ok(ir) => {
+                        if ir.status().is_success() {
+                            ir.status().to_string().yellow()
+                        } else {
+                            ir.status().to_string().red()
+                        }
+                    }
+                    Err(e) => e.to_string().red(),
+                };
+
+                debug!(
+                    "{} {} {} -> {}",
+                    remote.ip().to_string().yellow(),
+                    m.to_string().blue(),
+                    u,
+                    s
+                );
+
+                r
+            }))
+        }
     });
 
     let server = Server::bind(&addr)

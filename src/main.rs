@@ -171,9 +171,13 @@ If no DATA is specified, "data/" is used."#
         .map(|r| r.map_err(|e| anyhow!(e)));
 
     info!(
-        "Listening on {} ({})",
+        "Listening on {} {}",
         format!("http://{}", addr).yellow(),
-        root.blue()
+        if root.is_empty() {
+            String::new()
+        } else {
+            format!("({})", root.blue())
+        }
     );
 
     server.await

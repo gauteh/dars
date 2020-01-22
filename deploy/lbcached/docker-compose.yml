@@ -3,7 +3,6 @@ version: '3'
 services:
   redis:
     image: redis
-    restart: always
 
   dars:
     build: ../..
@@ -24,7 +23,7 @@ services:
     depends_on:
       - bloom
     ports:
-      - 8080:80
+      - 8001:80
     volumes:
       - ./nginx:/etc/nginx:ro
 

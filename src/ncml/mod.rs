@@ -260,13 +260,11 @@ impl Dataset for NcmlDataset {
                 .body(Body::empty());
         };
 
-        let dods = dods::xdr(&self, query);
-
         let s = stream::once(async move { Ok::<_, anyhow::Error>(dds) })
             .chain(stream::once(async {
                 Ok::<_, anyhow::Error>(String::from("\nData:\r\n").into_bytes())
             }))
-            .chain(dods)
+            .chain(dods::xdr(&self, query))
             .inspect(|e| {
                 if let Err(e) = e {
                     error!("error while streaming: {:?}", e);

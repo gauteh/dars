@@ -22,7 +22,7 @@ pub fn stream_variable<T>(
 where
     T: netcdf::Numeric + Clone + Default + Unpin + Send + 'static + std::fmt::Debug,
 {
-    const CHUNK_SZ: usize = 1024 * 1024;
+    const CHUNK_SZ: usize = 256 * 1024 * 1024;
 
     stream! {
         let v = f.variable(&vn).ok_or(anyhow!("Could not find variable"))?;
@@ -127,9 +127,11 @@ where
         + xdr_codec::Pack<std::io::Cursor<Vec<u8>>>
         + Sized
         + xdr::XdrSize
+        + xdr::XdrPack
         + std::default::Default
         + std::clone::Clone
         + std::fmt::Debug,
+    Vec<T>: byte_slice_cast::IntoByteVec,
 {
     let vv = f.variable(&v).unwrap();
     let (indices, counts) = slab;

@@ -53,8 +53,39 @@ pub mod hyperslab {
 
 pub mod xdr {
     use async_stream::stream;
+    use byteorder::{BigEndian, ByteOrder};
     use futures::pin_mut;
     use futures::stream::{Stream, StreamExt};
+
+    pub trait XdrPack {
+        fn xdrify(arr: &mut [Self])
+        where
+            Self: Sized;
+    }
+
+    impl XdrPack for u8 {
+        fn xdrify(_arr: &mut [u8]) {
+            // BigEndian::from_slice_u8(arr);
+        }
+    }
+
+    impl XdrPack for i32 {
+        fn xdrify(arr: &mut [i32]) {
+            BigEndian::from_slice_i32(arr);
+        }
+    }
+
+    impl XdrPack for f32 {
+        fn xdrify(arr: &mut [f32]) {
+            BigEndian::from_slice_f32(arr);
+        }
+    }
+
+    impl XdrPack for f64 {
+        fn xdrify(arr: &mut [f64]) {
+            BigEndian::from_slice_f64(arr);
+        }
+    }
 
     pub trait XdrSize {
         fn size() -> usize;
@@ -132,7 +163,11 @@ pub mod xdr {
             + Unpin
             + xdr_codec::Pack<std::io::Cursor<Vec<u8>>>
             + Sized
-            + XdrSize,
+            + XdrSize
+            + Send
+            + Sync
+            + XdrPack,
+        Vec<T>: byte_slice_cast::IntoByteVec,
     {
         use std::io::Cursor;
         use xdr_codec::Pack;
@@ -148,24 +183,37 @@ pub mod xdr {
                 yield Ok(buf.into_inner());
             }
 
-            while let Some(val) = v.next().await {
+            while let Some(mut val) = v.next().await {
                 match val {
-                    Ok(val) => {
-                        let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(<T as XdrSize>::size() * val.len()));
+                    Ok(mut val) => {
+                        T::xdrify(&mut val);
+                        use byte_slice_cast::*;
+                        yield Ok(val.into_byte_vec())
 
-                        if cfg!(not(test)) {
-                            tokio::task::block_in_place(|| {
-                                for v in val {
-                                    v.pack(&mut buf).unwrap();
-                                }
-                            });
-                        } else {
-                            for v in val {
-                                v.pack(&mut buf).unwrap();
-                            }
-                        }
+                        // let val = unsafe { std::mem::transmute::<&[T], &[u8]>(&val) };
+                        // yield Ok(val)
+                        // val.as_slice().xdrify();
 
-                        yield Ok(buf.into_inner())
+                        // let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(<T as XdrSize>::size() * val.len()));
+
+                        // if cfg!(not(test)) {
+                        //     tokio::task::block_in_place(|| {
+                        //         for v in val {
+                        //             v.pack(&mut buf).unwrap();
+                        //         }
+                        //     });
+                        // } else {
+                        // use rayon::prelude::*;
+                        // val.par_iter()
+                        //     .map(|v|
+                        //         let mut buf: Cursor<Vec< = Cursor::new(Vec::w
+                        //         v.pack(&mut buf).unwrap());
+                        // for v in (&val).into_par_iter() {
+                        //     v.pack(&mut buf).unwrap();
+                        // }
+                        // }
+
+                        // yield Ok(buf.into_inner())
                     },
                     Err(e) => yield Err(e)
                 };

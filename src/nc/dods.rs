@@ -21,9 +21,9 @@ pub fn stream_variable<T>(
     counts: Vec<usize>,
 ) -> impl Stream<Item = Result<Vec<T>, anyhow::Error>>
 where
-    T: netcdf::Numeric + Clone + Default + Unpin + Send + 'static + std::fmt::Debug,
+    T: netcdf::Numeric + Unpin + Clone + std::default::Default,
 {
-    const CHUNK_SZ: usize = 256 * 1024 * 1024;
+    const CHUNK_SZ: usize = 10 * 1024 * 1024;
 
     stream! {
         let v = f.variable(&vn).ok_or(anyhow!("Could not find variable"))?;

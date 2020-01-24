@@ -130,13 +130,6 @@ pub mod xdr {
             while let Some(mut val) = v.next().await {
                 match val {
                     Ok(mut val) => {
-                        // TODO: get rid of all xdr-codec stuff
-                        // TODO: clean up deps (remove rayon)
-                        // TODO: check if smaller chunk sz is same speed
-                        // TODO: check if block_in_place is better
-                        // TODO: move XdrSize into XdrPack, or use Sized. can compile
-                        //       time check size of types?
-                        //
                         val.pack();
                         yield Ok(val.into_byte_vec())
 

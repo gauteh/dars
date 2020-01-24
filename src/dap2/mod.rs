@@ -53,98 +53,52 @@ pub mod hyperslab {
 
 pub mod xdr {
     use async_stream::stream;
+    use byte_slice_cast::IntoByteVec;
     use byteorder::{BigEndian, ByteOrder};
     use futures::pin_mut;
     use futures::stream::{Stream, StreamExt};
 
     pub trait XdrPack {
-        fn xdrify(arr: &mut [Self])
-        where
-            Self: Sized;
+        fn pack(&mut self);
     }
 
-    impl XdrPack for u8 {
-        fn xdrify(_arr: &mut [u8]) {
-            // BigEndian::from_slice_u8(arr);
+    impl XdrPack for [u8] {
+        fn pack(&mut self) {}
+    }
+
+    impl XdrPack for [i32] {
+        fn pack(&mut self) {
+            BigEndian::from_slice_i32(self);
         }
     }
 
-    impl XdrPack for i32 {
-        fn xdrify(arr: &mut [i32]) {
-            BigEndian::from_slice_i32(arr);
+    impl XdrPack for [f32] {
+        fn pack(&mut self) {
+            BigEndian::from_slice_f32(self);
         }
     }
 
-    impl XdrPack for f32 {
-        fn xdrify(arr: &mut [f32]) {
-            BigEndian::from_slice_f32(arr);
+    impl XdrPack for [f64] {
+        fn pack(&mut self) {
+            BigEndian::from_slice_f64(self);
         }
     }
 
-    impl XdrPack for f64 {
-        fn xdrify(arr: &mut [f64]) {
-            BigEndian::from_slice_f64(arr);
+    impl XdrPack for [u32] {
+        fn pack(&mut self) {
+            BigEndian::from_slice_u32(self);
         }
     }
 
-    pub trait XdrSize {
-        fn size() -> usize;
-    }
-
-    impl XdrSize for i8 {
-        fn size() -> usize {
-            1
-        }
-    }
-
-    impl XdrSize for u8 {
-        fn size() -> usize {
-            1
-        }
-    }
-
-    impl XdrSize for i16 {
-        fn size() -> usize {
-            2
-        }
-    }
-
-    impl XdrSize for u32 {
-        fn size() -> usize {
-            4
-        }
-    }
-
-    impl XdrSize for i32 {
-        fn size() -> usize {
-            4
-        }
-    }
-
-    impl XdrSize for f32 {
-        fn size() -> usize {
-            4
-        }
-    }
-
-    impl XdrSize for f64 {
-        fn size() -> usize {
-            8
-        }
-    }
-
-    pub fn pack_xdr_val<T>(v: Vec<T>) -> Result<Vec<u8>, anyhow::Error>
+    pub fn pack_xdr_val<T>(mut v: Vec<T>) -> Result<Vec<u8>, anyhow::Error>
     where
-        T: xdr_codec::Pack<std::io::Cursor<Vec<u8>>> + Sized + XdrSize,
+        [T]: XdrPack,
+        Vec<T>: IntoByteVec,
     {
-        use std::io::Cursor;
-
         ensure!(v.len() == 1, "value with more than one element");
 
-        let sz: usize = <T as XdrSize>::size();
-        let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(sz));
-        v[0].pack(&mut buf)?;
-        Ok(buf.into_inner())
+        v.pack();
+        Ok(v.into_byte_vec())
     }
 
     /// Encodes a chunked stream of Vec<T> as XDR array into a new chunked
@@ -157,44 +111,34 @@ pub mod xdr {
     ) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>>
     where
         S: Stream<Item = Result<Vec<T>, anyhow::Error>>,
-        T: netcdf::Numeric
-            + Clone
-            + Default
-            + Unpin
-            + xdr_codec::Pack<std::io::Cursor<Vec<u8>>>
-            + Sized
-            + XdrSize
-            + Send
-            + Sync
-            + XdrPack,
-        Vec<T>: byte_slice_cast::IntoByteVec,
+        [T]: XdrPack,
+        Vec<T>: IntoByteVec,
     {
-        use std::io::Cursor;
-        use xdr_codec::Pack;
-
         stream! {
             pin_mut!(v);
 
             if let Some(sz) = len {
-                let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(2 * 4));
-                sz.pack(&mut buf)?;
-                sz.pack(&mut buf)?;
+                if sz > std::u32::MAX as usize {
+                    yield Err(anyhow!("XDR cannot send slices larger than {}", std::u32::MAX));
+                }
 
-                yield Ok(buf.into_inner());
+                let mut val = vec![sz as u32, sz as u32];
+                val.pack();
+                yield Ok(val.into_byte_vec());
             }
 
             while let Some(mut val) = v.next().await {
                 match val {
                     Ok(mut val) => {
-                        T::xdrify(&mut val);
-                        use byte_slice_cast::*;
+                        // TODO: get rid of all xdr-codec stuff
+                        // TODO: clean up deps (remove rayon)
+                        // TODO: check if smaller chunk sz is same speed
+                        // TODO: check if block_in_place is better
+                        // TODO: move XdrSize into XdrPack, or use Sized. can compile
+                        //       time check size of types?
+                        //
+                        val.pack();
                         yield Ok(val.into_byte_vec())
-
-                        // let val = unsafe { std::mem::transmute::<&[T], &[u8]>(&val) };
-                        // yield Ok(val)
-                        // val.as_slice().xdrify();
-
-                        // let mut buf: Cursor<Vec<u8>> = Cursor::new(Vec::with_capacity(<T as XdrSize>::size() * val.len()));
 
                         // if cfg!(not(test)) {
                         //     tokio::task::block_in_place(|| {

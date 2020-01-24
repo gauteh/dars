@@ -1,4 +1,5 @@
 use async_stream::stream;
+use byte_slice_cast::IntoByteVec;
 use futures::pin_mut;
 use futures::stream::{self, Stream, StreamExt};
 use itertools::izip;
@@ -8,7 +9,7 @@ use std::sync::Arc;
 
 use crate::dap2::{
     hyperslab::{count_slab, parse_hyberslab},
-    xdr,
+    xdr::{self, XdrPack},
 };
 
 /// Stream a variable with a predefined chunk size. Chunk size is not guaranteed to be
@@ -56,10 +57,10 @@ where
 
             let mind: Vec<usize> = indices.iter().zip(&offset).map(|(a,b)| a + b).collect();
 
-            let mut cache: Vec<T> = vec![T::default(); jump_sz];
-            v.values_to(&mut cache, Some(&mind), Some(&mjump))?;
+            let mut buf: Vec<T> = vec![T::default(); jump_sz];
+            v.values_to(&mut buf, Some(&mind), Some(&mjump))?;
 
-            yield Ok(cache);
+            yield Ok(buf);
 
             // let f = f.clone();
             // let mvn = vn.clone();
@@ -124,14 +125,11 @@ where
         + Sync
         + Send
         + 'static
-        + xdr_codec::Pack<std::io::Cursor<Vec<u8>>>
-        + Sized
-        + xdr::XdrSize
-        + xdr::XdrPack
         + std::default::Default
         + std::clone::Clone
         + std::fmt::Debug,
-    Vec<T>: byte_slice_cast::IntoByteVec,
+    [T]: XdrPack,
+    Vec<T>: IntoByteVec,
 {
     let vv = f.variable(&v).unwrap();
     let (indices, counts) = slab;

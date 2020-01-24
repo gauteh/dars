@@ -132,25 +132,6 @@ pub mod xdr {
                     Ok(mut val) => {
                         val.pack();
                         yield Ok(val.into_byte_vec())
-
-                        // if cfg!(not(test)) {
-                        //     tokio::task::block_in_place(|| {
-                        //         for v in val {
-                        //             v.pack(&mut buf).unwrap();
-                        //         }
-                        //     });
-                        // } else {
-                        // use rayon::prelude::*;
-                        // val.par_iter()
-                        //     .map(|v|
-                        //         let mut buf: Cursor<Vec< = Cursor::new(Vec::w
-                        //         v.pack(&mut buf).unwrap());
-                        // for v in (&val).into_par_iter() {
-                        //     v.pack(&mut buf).unwrap();
-                        // }
-                        // }
-
-                        // yield Ok(buf.into_inner())
                     },
                     Err(e) => yield Err(e)
                 };

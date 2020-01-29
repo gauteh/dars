@@ -266,5 +266,5 @@ pub trait Dataset {
     async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
     async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
     async fn raw(&self) -> Result<Response<Body>, hyper::http::Error>;
-    fn file_event(&mut self, event: FileEvent) -> Result<(), anyhow::Error>;
+    fn changed(&mut self, event: FileEvent) -> Result<(), anyhow::Error>;
 }

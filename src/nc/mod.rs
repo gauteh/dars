@@ -141,7 +141,7 @@ impl Dataset for NcDataset {
             })
     }
 
-    fn file_event(&mut self, _: FileEvent) -> Result<(), anyhow::Error> {
+    fn changed(&mut self, _: FileEvent) -> Result<(), anyhow::Error> {
         Ok(())
     }
 }

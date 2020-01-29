@@ -99,32 +99,33 @@ impl NcmlDataset {
                     if let Some(sf) = e.attribute("suffix") {
                         debug!("Scanning {:?}, suffix: {}", l, sf);
 
-                        let mf = filename.clone();
-                        let ml = l.clone();
-                        let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res: Result<notify::Event, _>|
-                            match res {
-                                Ok(event) => {
-                                    debug!("Refreshing dataset: {:?}: {:?}", mf, event.paths);
+                        if watch {
+                            let mf = filename.clone();
+                            let ml = l.clone();
+                            let mut watcher: RecommendedWatcher = Watcher::new_immediate(move |res: Result<notify::Event, _>|
+                                match res {
+                                    Ok(event) => {
+                                        debug!("Refreshing dataset: {:?}: {:?}", mf, event.paths);
 
-                                    use super::DATA;
+                                        use super::DATA;
 
-                                    let mut data = futures::executor::block_on(DATA.write());
-                                    let key = data.make_key(&mf);
+                                        let mut data = futures::executor::block_on(DATA.write());
+                                        let key = data.make_key(&mf);
 
-                                    if let Some(ds) = data.datasets.get_mut(&key) {
-                                        ds.file_event(FileEvent::ScanMember(ml.clone(), event)).expect("could not refresh ncml scan tag, should remove");
-                                    } else {
-                                        error!("could not find dataset.");
-                                    }
-                                },
-                                Err(event) => println!("watch error: {:?}", event),
-                        }).expect("could not create watcher");
+                                        if let Some(ds) = data.datasets.get_mut(&key) {
+                                            ds.changed(FileEvent::ScanMember(ml.clone(), event)).expect("could not refresh ncml scan tag, should remove");
+                                        } else {
+                                            error!("could not find dataset.");
+                                        }
+                                    },
+                                    Err(event) => println!("watch error: {:?}", event),
+                            }).expect("could not create watcher");
 
-                        watcher
-                            .watch(l.clone(), notify::RecursiveMode::NonRecursive)
-                            .expect("could not watch ncml root");
-                        watchers.push(watcher);
-
+                            watcher
+                                .watch(l.clone(), notify::RecursiveMode::NonRecursive)
+                                .expect("could not watch ncml root");
+                            watchers.push(watcher);
+                        }
 
                         let mut v = Vec::new();
 
@@ -281,7 +282,7 @@ impl Dataset for NcmlDataset {
             .body(Body::from("Try using a DAP client."))
     }
 
-    fn file_event(&mut self, e: FileEvent) -> Result<(), anyhow::Error> {
+    fn changed(&mut self, e: FileEvent) -> Result<(), anyhow::Error> {
         // we only get called for scan tags
         use notify::event::{CreateKind, EventKind::*, RemoveKind};
 

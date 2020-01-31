@@ -4,8 +4,13 @@ edition = "2018"
 license = "LGPL"
 name = "hdfidx"
 version = "0.1.0"
-
 [dependencies]
 anyhow = "*"
-hdf5 = { git = "https://github.com/aldanor/hdf5-rust" }
+byte-slice-cast = "*"
+byteorder = "*"
 
+[dependencies.hdf5]
+path = "../../hdf5-rust"
+
+[dependencies.hdf5-sys]
+path = "../../hdf5-rust/hdf5-sys"

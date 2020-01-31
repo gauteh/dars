@@ -1,4 +1,5 @@
+#[derive(Debug)]
 pub struct Chunk {
     pub size: u64,
-    pub offset: u64
+    pub offset: u64,
 }

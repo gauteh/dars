@@ -2,10 +2,7 @@
 extern crate anyhow;
 
 pub mod idx;
-pub mod chunk;
-pub mod dataset;
-
+pub mod reader;
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

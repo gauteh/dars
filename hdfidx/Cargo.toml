@@ -14,3 +14,4 @@ path = "../../hdf5-rust"
 
 [dependencies.hdf5-sys]
 path = "../../hdf5-rust/hdf5-sys"
+features = [ 'static' ]

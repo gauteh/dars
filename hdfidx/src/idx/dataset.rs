@@ -1,6 +1,6 @@
 use super::chunk::Chunk;
 
-use hdf5::{Datatype, Ix};
+use hdf5::Datatype;
 use hdf5_sys::h5t::H5T_order_t;
 
 #[derive(Debug)]
@@ -17,12 +17,24 @@ impl Dataset {
         let chunks: Vec<Chunk> = match (ds.is_chunked(), ds.offset()) {
             // Continuous
             (false, Some(offset)) => Ok::<_, anyhow::Error>(vec![Chunk {
+                offset: vec![0; ds.ndim()],
                 size: ds.storage_size(),
-                offset,
+                addr: offset,
             }]),
 
             // Chunked
-            (true, None) => Err(anyhow!("Chunked datasets not implemented")),
+            (true, None) => {
+                let n = ds.num_chunks().expect("weird..");
+
+                (0..n).map(|i|
+                    ds.chunk_info(i).map(|ci|
+                        Chunk {
+                            offset: ci.offset,
+                            size: ci.size,
+                            addr: ci.addr
+                        }).ok_or_else(|| anyhow!("Could not get chunk info"))
+                ).collect()
+            },
 
             _ => Err(anyhow!("Unsupported data layout")),
         }?;

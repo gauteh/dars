@@ -59,4 +59,11 @@ mod test {
 
         println!("index: {:#?}", i);
     }
+
+    #[test]
+    fn chunked() {
+        let i = Index::index("test/data/chunked_oneD.h5").unwrap();
+
+        println!("index: {:#?}", i);
+    }
 }

@@ -40,11 +40,11 @@ impl<'a> DatasetReader<'a> {
             .map(|v: &usize| v * sz)
             .collect();
 
-        let offset: usize = self.ds.chunks[0].offset as usize + indices.iter().product::<usize>();
+        let addr: usize = self.ds.chunks[0].addr as usize + indices.iter().product::<usize>();
         let sz: usize = counts.iter().product();
 
         let mut fd = self.fd.borrow_mut();
-        fd.seek(SeekFrom::Start(offset as u64))?;
+        fd.seek(SeekFrom::Start(addr as u64))?;
 
         let mut buf = vec![0_u8; sz];
         fd.read_exact(buf.as_mut_slice())?;
@@ -79,6 +79,21 @@ mod tests {
 
         let h = hdf5::File::open(i.path()).unwrap();
         let hvs = h.dataset("d32_1").unwrap().read_raw::<f32>().unwrap();
+
+        assert_eq!(vs, hvs);
+    }
+
+    #[test]
+    fn read_chunked() {
+        let i = Index::index("test/data/chunked_oneD.h5").unwrap();
+        let r = DatasetReader::with_dataset(i.dataset("d_4_chunks").unwrap(), i.path()).unwrap();
+
+        let vs = r.values::<f32>(None, None).unwrap();
+
+        let h = hdf5::File::open(i.path()).unwrap();
+        let hvs = h.dataset("d_4_chunks").unwrap().read_raw::<f32>().unwrap();
+
+        println!("valuse: {:?}", vs);
 
         assert_eq!(vs, hvs);
     }

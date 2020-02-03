@@ -8,6 +8,7 @@ version = "0.1.0"
 anyhow = "*"
 byte-slice-cast = "*"
 byteorder = "*"
+itertools = "0.8.2"
 
 [dependencies.hdf5]
 path = "../../hdf5-rust"

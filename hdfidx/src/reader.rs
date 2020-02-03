@@ -61,6 +61,8 @@ impl<'a> DatasetReader<'a> {
         T: FromByteVec,
     {
         // TODO: BE, LE conversion
+        // TODO: use as_slice_of() to avoid copy, or possible values_to(&mut buf) so that
+        //       caller keeps ownership of slice too.
         Ok(self.read(indices, counts)?.into_vec_of::<T>()?)
     }
 }
@@ -84,7 +86,7 @@ mod tests {
     }
 
     #[test]
-    fn read_chunked() {
+    fn read_chunked_1d() {
         let i = Index::index("test/data/chunked_oneD.h5").unwrap();
         let r = DatasetReader::with_dataset(i.dataset("d_4_chunks").unwrap(), i.path()).unwrap();
 
@@ -93,7 +95,18 @@ mod tests {
         let h = hdf5::File::open(i.path()).unwrap();
         let hvs = h.dataset("d_4_chunks").unwrap().read_raw::<f32>().unwrap();
 
-        println!("valuse: {:?}", vs);
+        assert_eq!(vs, hvs);
+    }
+
+    #[test]
+    fn read_chunked_2d() {
+        let i = Index::index("test/data/chunked_twoD.h5").unwrap();
+        let r = DatasetReader::with_dataset(i.dataset("d_4_chunks").unwrap(), i.path()).unwrap();
+
+        let vs = r.values::<f32>(None, None).unwrap();
+
+        let h = hdf5::File::open(i.path()).unwrap();
+        let hvs = h.dataset("d_4_chunks").unwrap().read_raw::<f32>().unwrap();
 
         assert_eq!(vs, hvs);
     }

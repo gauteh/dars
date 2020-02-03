@@ -61,8 +61,15 @@ mod test {
     }
 
     #[test]
-    fn chunked() {
+    fn chunked_1d() {
         let i = Index::index("test/data/chunked_oneD.h5").unwrap();
+
+        println!("index: {:#?}", i);
+    }
+
+    #[test]
+    fn chunked_2d() {
+        let i = Index::index("test/data/chunked_twoD.h5").unwrap();
 
         println!("index: {:#?}", i);
     }

@@ -8,9 +8,31 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use crate::dap2::{
+    dods::{self, XdrPack},
     hyperslab::{count_slab, parse_hyberslab},
-    xdr::{self, XdrPack},
 };
+
+trait StreamingDataset {
+    /// Stream variable as chunks of values.
+    fn stream_variable<T>(
+        &self,
+        variable: &str,
+        indices: Option<&usize>,
+        counts: Option<&usize>,
+    ) -> Box<dyn Stream<Item = Result<Vec<T>, anyhow::Error>>>;
+
+    /// Stream variable as chunks of bytes encoded as XDR. Some datasets can return this directly,
+    /// rather than first reading the variable.
+    fn stream_encoded_variable(
+        &self,
+        variable: &str,
+        indices: Option<&usize>,
+        counts: Option<&usize>,
+    ) -> Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>>> {
+        // TODO: call stream_variable and encode
+        unimplemented!()
+    }
+}
 
 /// Stream a variable with a predefined chunk size. Chunk size is not guaranteed to be
 /// kept, and may be at worst half of specified size in order to fill up slabs.
@@ -137,11 +159,11 @@ where
     if !vv.dimensions().is_empty() {
         let v = stream_variable::<T>(f, v, indices, counts);
 
-        Box::pin(xdr::encode_array(v, len))
+        Box::pin(dods::encode_array(v, len))
     } else {
         let mut vbuf: Vec<T> = vec![T::default(); 1];
         match vv.values_to(&mut vbuf, None, None) {
-            Ok(_) => Box::pin(stream::once(async move { xdr::pack_xdr_val(vbuf) })),
+            Ok(_) => Box::pin(stream::once(async move { dods::encode_value(vbuf) })),
             Err(e) => Box::pin(stream::once(async move { Err(e.into()) })),
         }
     }
@@ -289,7 +311,7 @@ mod tests {
 
             let v = stream_variable::<f32>(f, "SST".to_string(), vec![0, 0, 0], counts.clone());
 
-            let x2 = xdr::encode_array(v, Some(counts.iter().product::<usize>()));
+            let x2 = dods::encode_array(v, Some(counts.iter().product::<usize>()));
             pin_mut!(x2);
             block_on_stream(x2).collect::<Vec<_>>()
         });
@@ -315,7 +337,7 @@ mod tests {
             .collect();
         let v = stream_variable::<f32>(f, "SST".to_string(), vec![0, 0, 0], counts.clone());
 
-        let x2 = xdr::encode_array(v, Some(counts.iter().product::<usize>()));
+        let x2 = dods::encode_array(v, Some(counts.iter().product::<usize>()));
         pin_mut!(x2);
 
         let s: Vec<u8> = futures::executor::block_on_stream(x2)

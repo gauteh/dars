@@ -51,9 +51,9 @@ script:
       cargo audit
 
 after_success: |
-    cargo tarpaulin --verbose --out Xml --ignore-tests &&
+    cargo tarpaulin --all --verbose --out Xml --ignore-tests &&
     bash <(curl -s https://codecov.io/bash) &&
-    cargo coveralls --verbose --exclude-pattern="tests/"
+    cargo coveralls --all --verbose --exclude-pattern="tests/"
 
 env:
   global:

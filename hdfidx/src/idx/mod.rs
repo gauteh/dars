@@ -55,21 +55,21 @@ mod tests {
 
     #[test]
     fn index_t_float32() {
-        let i = Index::index("test/data/t_float.h5").unwrap();
+        let i = Index::index("tests/data/t_float.h5").unwrap();
 
         println!("index: {:#?}", i);
     }
 
     #[test]
     fn chunked_1d() {
-        let i = Index::index("test/data/chunked_oneD.h5").unwrap();
+        let i = Index::index("tests/data/chunked_oneD.h5").unwrap();
 
         println!("index: {:#?}", i);
     }
 
     #[test]
     fn chunked_2d() {
-        let i = Index::index("test/data/chunked_twoD.h5").unwrap();
+        let i = Index::index("tests/data/chunked_twoD.h5").unwrap();
 
         println!("index: {:#?}", i);
     }

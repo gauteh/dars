@@ -31,7 +31,8 @@ impl<'a> DatasetReader<'a> {
 
         let dsz = self.ds.dtype.size() as u64;
         let vsz = counts.iter().product::<u64>() * dsz;
-        let mut buf = vec![0_u8; vsz as usize];
+        let mut buf = Vec::with_capacity(vsz as usize);
+        unsafe { buf.set_len(vsz as usize); }
         let mut buf_slice = &mut buf[..];
 
         let mut fd = self.fd.borrow_mut();
@@ -70,7 +71,7 @@ mod tests {
 
     #[test]
     fn read_t_float32() {
-        let i = Index::index("test/data/t_float.h5").unwrap();
+        let i = Index::index("tests/data/t_float.h5").unwrap();
         let r = DatasetReader::with_dataset(i.dataset("d32_1").unwrap(), i.path()).unwrap();
 
         let vs = r.values::<f32>(None, None).unwrap();
@@ -83,7 +84,7 @@ mod tests {
 
     #[test]
     fn read_chunked_1d() {
-        let i = Index::index("test/data/chunked_oneD.h5").unwrap();
+        let i = Index::index("tests/data/chunked_oneD.h5").unwrap();
         let r = DatasetReader::with_dataset(i.dataset("d_4_chunks").unwrap(), i.path()).unwrap();
 
         let vs = r.values::<f32>(None, None).unwrap();
@@ -96,7 +97,7 @@ mod tests {
 
     #[test]
     fn read_chunked_2d() {
-        let i = Index::index("test/data/chunked_twoD.h5").unwrap();
+        let i = Index::index("tests/data/chunked_twoD.h5").unwrap();
         let r = DatasetReader::with_dataset(i.dataset("d_4_chunks").unwrap(), i.path()).unwrap();
 
         let vs = r.values::<f32>(None, None).unwrap();

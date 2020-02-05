@@ -76,35 +76,13 @@ impl Dataset {
         indices: Option<&[u64]>,
         counts: Option<&[u64]>,
     ) -> impl Iterator<Item = (&Chunk, u64, u64)> {
-        // Go through each chunk and figure out if there is a slice in it, skip if empty. if the
-        // chunk is compressed or filtered the entire chunk needs to be read, and decompressed and
-        // unfiltered, before being sliced.
-        //
-        // Note: HDF5 uses a default chunk cache of 1MB per dataset.
-
-        // | 1 | 1 | 1 |
-        // | 2 | 2 | 2 |
-        // | 3 | 3 | 3 |
-        //
-        // | 1 | 1 | 1 | 2 | 2 | 2 | 3 | 3 | 3 |
-        //
-        // input:  (0, 0), (1, 3)
-        // output: | 1 | 1 | 1 |
-        //
-        // input:  (0, 0), (3, 1)
-        // output: | 1 | 2 | 3 |
-
-        let indices: Vec<u64> = indices
-            .unwrap_or(&vec![0; self.shape.len()])
-            .iter()
-            .cloned()
-            .collect();
-        let counts: Vec<u64> = counts.unwrap_or(&self.shape).iter().cloned().collect();
+        let indices: Vec<u64> = indices.unwrap_or(&vec![0; self.shape.len()]).to_vec();
+        let counts: &[u64] = counts.unwrap_or(&self.shape);
 
         assert!(
             indices
                 .iter()
-                .zip(&counts)
+                .zip(counts)
                 .map(|(i, c)| i + c)
                 .zip(&self.shape)
                 .all(|(l, &s)| l <= s),
@@ -174,10 +152,10 @@ impl Dataset {
 
             // advance offset
             let mut carry = 0;
-            for (o, c) in offset.iter_mut().zip(&counts).rev() {
+            for (o, c) in offset.iter_mut().zip(counts).rev() {
                 *o += carry;
                 carry = *o / c;
-                *o = *o % c;
+                *o %= c;
             }
 
             if carry > 0 {
@@ -190,6 +168,8 @@ impl Dataset {
 
     /// Find chunk containing coordinate.
     fn chunk_at_coord(&self, indices: &[u64]) -> Result<&Chunk, anyhow::Error> {
+        // TODO: can probably be replaced by explicit experssion since
+        // sort order can be assumed.
         self.chunks
             .binary_search_by(|c| c.contains(indices, self.chunk_shape.as_slice()).reverse())
             .map(|i| &self.chunks[i])

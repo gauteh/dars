@@ -27,27 +27,23 @@ impl<'a> DatasetReader<'a> {
         indices: Option<&[u64]>,
         counts: Option<&[u64]>,
     ) -> Result<Vec<u8>, anyhow::Error> {
-        let sz = self.ds.dtype.size() as u64;
+        let counts: &[u64] = counts.unwrap_or(self.ds.shape.as_slice());
 
-        let indices: Vec<u64> = indices
-            .unwrap_or(&vec![0; self.ds.shape.len()])
-            .iter()
-            .map(|v| v * sz)
-            .collect();
-        let counts: Vec<u64> = counts
-            .unwrap_or(&self.ds.shape)
-            .iter()
-            .map(|v| v * sz)
-            .collect();
-
-        let addr: u64 = self.ds.chunks[0].addr + indices.iter().product::<u64>();
-        let sz: u64 = counts.iter().product();
+        let dsz = self.ds.dtype.size() as u64;
+        let vsz = counts.iter().product::<u64>() * dsz;
+        let mut buf = vec![0_u8; vsz as usize];
+        let mut buf_slice = &mut buf[..];
 
         let mut fd = self.fd.borrow_mut();
-        fd.seek(SeekFrom::Start(addr as u64))?;
 
-        let mut buf = vec![0_u8; sz as usize];
-        fd.read_exact(buf.as_mut_slice())?;
+        for (c, start, end) in self.ds.chunk_slices(indices, Some(&counts)) {
+            let addr = c.addr + start * dsz;
+            let slice_sz = ((end - start) * dsz) as usize;
+
+            fd.seek(SeekFrom::Start(addr))?;
+            fd.read_exact(&mut buf_slice[..slice_sz])?;
+            buf_slice = &mut buf_slice[slice_sz..];
+        }
 
         Ok(buf)
     }

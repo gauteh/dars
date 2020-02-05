@@ -24,29 +24,29 @@ impl<'a> DatasetReader<'a> {
 
     pub fn read(
         &self,
-        indices: Option<&[usize]>,
-        counts: Option<&[usize]>,
+        indices: Option<&[u64]>,
+        counts: Option<&[u64]>,
     ) -> Result<Vec<u8>, anyhow::Error> {
-        let sz = self.ds.dtype.size();
+        let sz = self.ds.dtype.size() as u64;
 
-        let indices: Vec<usize> = indices
-            .unwrap_or(&vec![0usize; self.ds.shape.len()])
+        let indices: Vec<u64> = indices
+            .unwrap_or(&vec![0; self.ds.shape.len()])
             .iter()
-            .map(|v: &usize| v * sz)
+            .map(|v| v * sz)
             .collect();
-        let counts: Vec<usize> = counts
+        let counts: Vec<u64> = counts
             .unwrap_or(&self.ds.shape)
             .iter()
-            .map(|v: &usize| v * sz)
+            .map(|v| v * sz)
             .collect();
 
-        let addr: usize = self.ds.chunks[0].addr as usize + indices.iter().product::<usize>();
-        let sz: usize = counts.iter().product();
+        let addr: u64 = self.ds.chunks[0].addr + indices.iter().product::<u64>();
+        let sz: u64 = counts.iter().product();
 
         let mut fd = self.fd.borrow_mut();
         fd.seek(SeekFrom::Start(addr as u64))?;
 
-        let mut buf = vec![0_u8; sz];
+        let mut buf = vec![0_u8; sz as usize];
         fd.read_exact(buf.as_mut_slice())?;
 
         Ok(buf)
@@ -54,8 +54,8 @@ impl<'a> DatasetReader<'a> {
 
     pub fn values<T>(
         &self,
-        indices: Option<&[usize]>,
-        counts: Option<&[usize]>,
+        indices: Option<&[u64]>,
+        counts: Option<&[u64]>,
     ) -> Result<Vec<T>, anyhow::Error>
     where
         T: FromByteVec,

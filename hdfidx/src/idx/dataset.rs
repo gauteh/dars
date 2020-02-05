@@ -8,7 +8,7 @@ pub struct Dataset {
     pub dtype: Datatype,
     pub order: H5T_order_t,
     pub chunks: Vec<Chunk>,
-    pub shape: Vec<usize>,
+    pub shape: Vec<u64>,
     pub chunk_shape: Vec<u64>,
 }
 
@@ -50,13 +50,15 @@ impl Dataset {
 
         let dtype = ds.dtype()?;
         let order = dtype.byte_order();
-        let shape = ds.shape();
-        let chunk_shape = ds
-            .chunks()
-            .unwrap_or(shape.clone())
+        let shape = ds
+            .shape()
             .into_iter()
             .map(|u| u as u64)
-            .collect();
+            .collect::<Vec<u64>>();
+        let chunk_shape = ds
+            .chunks()
+            .map(|cs| cs.into_iter().map(|u| u as u64).collect())
+            .unwrap_or(shape.clone());
 
         Ok(Dataset {
             dtype,
@@ -71,8 +73,8 @@ impl Dataset {
     /// variable.
     pub fn chunk_slices(
         &self,
-        indices: Option<&[usize]>,
-        counts: Option<&[usize]>,
+        indices: Option<&[u64]>,
+        counts: Option<&[u64]>,
     ) -> impl Iterator<Item = (usize, usize)> {
         // Go through each chunk and figure out if there is a slice in it, skip if empty. if the
         // chunk is compressed or filtered the entire chunk needs to be read, and decompressed and
@@ -94,12 +96,12 @@ impl Dataset {
 
         let sz = self.dtype.size();
 
-        let indices: Vec<usize> = indices
-            .unwrap_or(&vec![0usize; self.shape.len()])
+        let indices: Vec<u64> = indices
+            .unwrap_or(&vec![0; self.shape.len()])
             .iter()
             .cloned()
             .collect();
-        let counts: Vec<usize> = counts.unwrap_or(&self.shape).iter().cloned().collect();
+        let counts: Vec<u64> = counts.unwrap_or(&self.shape).iter().cloned().collect();
 
         assert!(
             indices

@@ -142,7 +142,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hdfidx"
+name = "hidefix"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -150,7 +150,6 @@ dependencies = [
  "byteorder",
  "hdf5",
  "hdf5-sys",
- "itertools 0.8.2",
 ]
 
 [[package]]
@@ -158,15 +157,6 @@ name = "itertools"
 version = "0.7.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d47946d458e94a1b7bcabbf6521ea7c037062c81f534615abcad76e84d4970d"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f56a2d0bc861f9165be4eb3442afd3c236d8a98afd426f65d92324ae1091a484"
 dependencies = [
  "either",
 ]
@@ -241,7 +231,7 @@ version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cf380a8af901ad627594013a3bbac903ae0a6f94e176e47e46b5bbc1877b928"
 dependencies = [
- "itertools 0.7.11",
+ "itertools",
  "matrixmultiply",
  "num-complex",
  "num-traits",

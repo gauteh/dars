@@ -2,7 +2,7 @@
 extern crate test;
 use test::Bencher;
 
-use hdfidx::{idx::Index, reader::DatasetReader};
+use hidefix::{idx::Index, reader::DatasetReader};
 
 #[bench]
 fn read_2d_chunked_idx(b: &mut Bencher) {

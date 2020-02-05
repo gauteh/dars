@@ -3,15 +3,13 @@ use super::chunk::Chunk;
 use hdf5::Datatype;
 use hdf5_sys::h5t::H5T_order_t;
 
-use itertools::izip;
-
 #[derive(Debug)]
 pub struct Dataset {
     pub dtype: Datatype,
     pub order: H5T_order_t,
     pub chunks: Vec<Chunk>,
     pub shape: Vec<usize>,
-    pub chunk_shape: Vec<usize>,
+    pub chunk_shape: Vec<u64>,
 }
 
 impl Dataset {
@@ -20,7 +18,7 @@ impl Dataset {
             return Err(anyhow!("Filtered or compressed datasets not supported"));
         }
 
-        let chunks: Vec<Chunk> = match (ds.is_chunked(), ds.offset()) {
+        let mut chunks: Vec<Chunk> = match (ds.is_chunked(), ds.offset()) {
             // Continuous
             (false, Some(offset)) => Ok::<_, anyhow::Error>(vec![Chunk {
                 offset: vec![0; ds.ndim()],
@@ -48,10 +46,17 @@ impl Dataset {
             _ => Err(anyhow!("Unsupported data layout")),
         }?;
 
+        chunks.sort();
+
         let dtype = ds.dtype()?;
         let order = dtype.byte_order();
         let shape = ds.shape();
-        let chunk_shape = ds.chunks().unwrap_or(shape.clone());
+        let chunk_shape = ds
+            .chunks()
+            .unwrap_or(shape.clone())
+            .into_iter()
+            .map(|u| u as u64)
+            .collect();
 
         Ok(Dataset {
             dtype,
@@ -62,7 +67,7 @@ impl Dataset {
         })
     }
 
-    /// Returns an iterator over offset and size which if joined will make up the slice through the
+    /// Returns an iterator over chunk, offset and size which if joined will make up the specified slice through the
     /// variable.
     pub fn chunk_slices(
         &self,
@@ -74,8 +79,6 @@ impl Dataset {
         // unfiltered, before being sliced.
         //
         // Note: HDF5 uses a default chunk cache of 1MB per dataset.
-        //
-        // Start with doing one read for each intersecting chunk, then move to joining reads.
 
         // | 1 | 1 | 1 |
         // | 2 | 2 | 2 |
@@ -113,20 +116,57 @@ impl Dataset {
         std::iter::empty()
     }
 
-    fn chunk_at_coord(&self, indices: &[usize]) -> &Chunk {
-        self.chunks.iter().find(|c| {
-            let lower = &c.offset;
-            let upper = lower.iter().zip(&self.shape).map(|(l, &s)| *l + s as u64).collect::<Vec<u64>>();
-
-            for (&i, &l, u) in izip!(indices, lower, upper) {
-                if (i as u64) < l || (i as u64) >= u {
-                    return false;
-                }
-            }
-
-            return true;
-        }).unwrap()
+    /// Find chunk containing coordinate.
+    fn chunk_at_coord(&self, indices: &[u64]) -> Result<&Chunk, anyhow::Error> {
+        self.chunks
+            .binary_search_by(|c| c.contains(indices, self.chunk_shape.as_slice()).reverse())
+            .map(|i| &self.chunks[i])
+            .map_err(|_| anyhow!("could not find chunk"))
     }
+}
 
-    fn advance_chunk(chunk: &Chunk, indices: &[usize], counts: &[usize]) -> () {}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn chunk_at_coord() {
+        let d = Dataset {
+            dtype: Datatype::from_type::<f32>().unwrap(),
+            order: H5T_order_t::H5T_ORDER_LE,
+            shape: vec![100, 100],
+            chunk_shape: vec![10, 10],
+            chunks: vec![
+                Chunk {
+                    offset: vec![0, 0],
+                    size: 400,
+                    addr: 0,
+                },
+                Chunk {
+                    offset: vec![0, 10],
+                    size: 400,
+                    addr: 400,
+                },
+                Chunk {
+                    offset: vec![10, 0],
+                    size: 400,
+                    addr: 800,
+                },
+                Chunk {
+                    offset: vec![10, 10],
+                    size: 400,
+                    addr: 1200,
+                },
+            ],
+        };
+
+        assert_eq!(d.chunk_at_coord(&[0, 0]).unwrap().offset, [0, 0]);
+        assert_eq!(d.chunk_at_coord(&[0, 5]).unwrap().offset, [0, 0]);
+        assert_eq!(d.chunk_at_coord(&[5, 5]).unwrap().offset, [0, 0]);
+        assert_eq!(d.chunk_at_coord(&[0, 10]).unwrap().offset, [0, 10]);
+        assert_eq!(d.chunk_at_coord(&[0, 15]).unwrap().offset, [0, 10]);
+        assert_eq!(d.chunk_at_coord(&[10, 0]).unwrap().offset, [10, 0]);
+        assert_eq!(d.chunk_at_coord(&[10, 1]).unwrap().offset, [10, 0]);
+        assert_eq!(d.chunk_at_coord(&[15, 1]).unwrap().offset, [10, 0]);
+    }
 }

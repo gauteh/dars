@@ -75,7 +75,7 @@ impl Dataset {
         &self,
         indices: Option<&[u64]>,
         counts: Option<&[u64]>,
-    ) -> impl Iterator<Item = (usize, usize)> {
+    ) -> impl Iterator<Item = (&Chunk, u64, u64)> {
         // Go through each chunk and figure out if there is a slice in it, skip if empty. if the
         // chunk is compressed or filtered the entire chunk needs to be read, and decompressed and
         // unfiltered, before being sliced.
@@ -94,8 +94,6 @@ impl Dataset {
         // input:  (0, 0), (3, 1)
         // output: | 1 | 2 | 3 |
 
-        let sz = self.dtype.size();
-
         let indices: Vec<u64> = indices
             .unwrap_or(&vec![0; self.shape.len()])
             .iter()
@@ -106,16 +104,88 @@ impl Dataset {
         assert!(
             indices
                 .iter()
-                .zip(counts)
+                .zip(&counts)
                 .map(|(i, c)| i + c)
                 .zip(&self.shape)
-                .all(|(l, &s)| l < s),
+                .all(|(l, &s)| l <= s),
             "out of bounds"
         );
 
-        let mut slices: Vec<(&Chunk, usize, usize)> = Vec::new();
+        // size of chunk dimensions
+        let chunk_sz = {
+            let mut d = self
+                .chunk_shape
+                .iter()
+                .rev()
+                .scan(1, |p, &c| {
+                    let sz = *p;
+                    *p *= c;
+                    Some(sz)
+                })
+                .collect::<Vec<u64>>();
+            d.reverse();
+            d
+        };
 
-        std::iter::empty()
+        let mut slices: Vec<(&Chunk, u64, u64)> = Vec::new();
+        let mut offset: Vec<u64> = vec![0; indices.len()];
+
+        loop {
+            let idx: Vec<u64> = indices.iter().zip(&offset).map(|(i, o)| i + o).collect();
+
+            let chunk: &Chunk = self
+                .chunk_at_coord(&idx)
+                .expect("Moved index out of dataset!");
+
+            let chunk_last = chunk.offset.last().unwrap();
+            let shape_last = self.chunk_shape.last().unwrap();
+
+            use std::cmp::min;
+
+            // position in chunk of current offset
+            let chunk_start = idx
+                .iter()
+                .zip(&chunk.offset)
+                .map(|(o, c)| o - c)
+                .zip(&chunk_sz)
+                .map(|(d, sz)| d * sz)
+                .sum::<u64>();
+
+            let last = offset.last_mut().unwrap();
+
+            // determine how far we can advance the offset along in the current chunk.
+            *last = min(
+                *counts.last().unwrap(),
+                chunk_last + shape_last - indices.last().unwrap(),
+            );
+
+            // position in chunk of new offset
+            let chunk_end = indices
+                .iter()
+                .zip(&offset)
+                .map(|(i, o)| i + o)
+                .zip(&chunk.offset)
+                .map(|(o, c)| o - c)
+                .zip(&chunk_sz)
+                .map(|(d, sz)| d * sz)
+                .sum::<u64>();
+
+            slices.push((chunk, chunk_start, chunk_end));
+
+            // advance offset
+            let mut carry = 0;
+            for (o, c) in offset.iter_mut().zip(&counts).rev() {
+                *o += carry;
+                carry = *o / c;
+                *o = *o % c;
+            }
+
+            if carry > 0 {
+                break;
+            }
+        }
+
+        slices.into_iter()
     }
 
     /// Find chunk containing coordinate.
@@ -170,5 +240,107 @@ mod tests {
         assert_eq!(d.chunk_at_coord(&[10, 0]).unwrap().offset, [10, 0]);
         assert_eq!(d.chunk_at_coord(&[10, 1]).unwrap().offset, [10, 0]);
         assert_eq!(d.chunk_at_coord(&[15, 1]).unwrap().offset, [10, 0]);
+    }
+
+    #[test]
+    fn chunk_slices() {
+        let d = Dataset {
+            dtype: Datatype::from_type::<f32>().unwrap(),
+            order: H5T_order_t::H5T_ORDER_LE,
+            shape: vec![20, 20],
+            chunk_shape: vec![10, 10],
+            chunks: vec![
+                Chunk {
+                    offset: vec![0, 0],
+                    size: 400,
+                    addr: 0,
+                },
+                Chunk {
+                    offset: vec![0, 10],
+                    size: 400,
+                    addr: 400,
+                },
+                Chunk {
+                    offset: vec![10, 0],
+                    size: 400,
+                    addr: 800,
+                },
+                Chunk {
+                    offset: vec![10, 10],
+                    size: 400,
+                    addr: 1200,
+                },
+            ],
+        };
+
+        assert_eq!(
+            d.chunk_slices(Some(&[0, 0]), Some(&[1, 10]))
+                .collect::<Vec<(&Chunk, u64, u64)>>(),
+            [(&d.chunks[0], 0, 10)]
+        );
+
+        assert_eq!(
+            d.chunk_slices(Some(&[0, 0]), Some(&[1, 20]))
+                .collect::<Vec<(&Chunk, u64, u64)>>(),
+            [(&d.chunks[0], 0, 10), (&d.chunks[1], 0, 10)]
+        );
+
+        assert_eq!(
+            d.chunk_slices(Some(&[0, 5]), Some(&[1, 15]))
+                .collect::<Vec<(&Chunk, u64, u64)>>(),
+            [(&d.chunks[0], 5, 10), (&d.chunks[1], 0, 10)]
+        );
+
+        assert_eq!(
+            d.chunk_slices(Some(&[0, 0]), Some(&[2, 10]))
+                .collect::<Vec<(&Chunk, u64, u64)>>(),
+            [(&d.chunks[0], 0, 10), (&d.chunks[0], 10, 20)]
+        );
+
+        assert_eq!(
+            d.chunk_slices(Some(&[0, 5]), Some(&[2, 10]))
+                .collect::<Vec<(&Chunk, u64, u64)>>(),
+            [
+                (&d.chunks[0], 5, 10),
+                (&d.chunks[1], 0, 5),
+                (&d.chunks[0], 15, 20),
+                (&d.chunks[1], 10, 15)
+            ]
+        );
+
+        assert_eq!(
+            d.chunk_slices(Some(&[0, 0]), Some(&[2, 20]))
+                .collect::<Vec<(&Chunk, u64, u64)>>(),
+            [
+                (&d.chunks[0], 0, 10),
+                (&d.chunks[1], 0, 10),
+                (&d.chunks[0], 10, 20),
+                (&d.chunks[1], 10, 20)
+            ]
+        );
+
+        assert_eq!(
+            d.chunk_slices(Some(&[2, 0]), Some(&[1, 10]))
+                .collect::<Vec<(&Chunk, u64, u64)>>(),
+            [(&d.chunks[0], 20, 30),]
+        );
+
+        assert_eq!(
+            d.chunk_slices(Some(&[2, 5]), Some(&[1, 10]))
+                .collect::<Vec<(&Chunk, u64, u64)>>(),
+            [(&d.chunks[0], 25, 30), (&d.chunks[1], 20, 25),]
+        );
+
+        // column
+        assert_eq!(
+            d.chunk_slices(Some(&[2, 5]), Some(&[4, 1]))
+                .collect::<Vec<(&Chunk, u64, u64)>>(),
+            [
+                (&d.chunks[0], 25, 26),
+                (&d.chunks[0], 35, 36),
+                (&d.chunks[0], 45, 46),
+                (&d.chunks[0], 55, 56),
+            ]
+        );
     }
 }

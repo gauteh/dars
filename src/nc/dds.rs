@@ -7,7 +7,7 @@ use crate::dap2::hyperslab::{count_slab, parse_hyberslab};
 pub struct NcDds {
     f: PathBuf,
     pub vars: HashMap<String, String>,
-    varpos: HashMap<String, usize>,
+    pub varpos: HashMap<String, usize>,
 }
 
 pub trait Dds {
@@ -199,15 +199,13 @@ pub trait Dds {
         (posmap, map)
     }
 
-    fn build_var(&self, nc: &netcdf::File, var: &str, slab: Vec<Vec<usize>>) -> Option<String> {
+    fn build_var(&self, nc: &netcdf::File, var: &str, count: Vec<usize>) -> Option<String> {
         let indent: usize = 4;
-
-        let slab: Vec<usize> = slab.iter().map(|v| count_slab(&v)).collect();
 
         match var.find('.') {
             Some(i) => match nc.variable(&var[..i]) {
                 Some(ivar) => match nc.variable(&var[i + 1..]) {
-                    Some(dvar) => Some(self.format_struct(indent, &nc, &ivar, &dvar, &Some(slab))),
+                    Some(dvar) => Some(self.format_struct(indent, &nc, &ivar, &dvar, &Some(count))),
                     _ => None,
                 },
                 _ => None,
@@ -215,50 +213,36 @@ pub trait Dds {
 
             None => match nc.variable(var) {
                 Some(var) => match var.dimensions().len() {
-                    l if l < 2 => Some(self.format_var(indent, &var, &Some(slab))),
-                    _ => Some(self.format_grid(indent, &nc, &var, &Some(slab))),
+                    l if l < 2 => Some(self.format_var(indent, &var, &Some(count))),
+                    _ => Some(self.format_grid(indent, &nc, &var, &Some(count))),
                 },
                 _ => None,
             },
         }
     }
 
-    fn dds(&self, nc: &netcdf::File, vars: &mut Vec<String>) -> Result<String, anyhow::Error>;
+    fn dds(
+        &self,
+        nc: &netcdf::File,
+        vars: &Vec<(String, Option<Vec<usize>>, Option<Vec<usize>>)>,
+    ) -> Result<String, anyhow::Error>;
     fn default_vars(&self) -> Vec<String>;
 }
 
 impl Dds for NcDds {
-    fn dds(&self, nc: &netcdf::File, vars: &mut Vec<String>) -> Result<String, anyhow::Error> {
-        let dds: String = {
-            vars.sort_by(|a, b| {
-                let a = a.find('[').map_or(&a[..], |i| &a[..i]);
-                let b = b.find('[').map_or(&b[..], |i| &b[..i]);
-
-                let a = self
-                    .varpos
-                    .get(a)
-                    .unwrap_or_else(|| panic!("variable not found: {}", a));
-                let b = self
-                    .varpos
-                    .get(b)
-                    .unwrap_or_else(|| panic!("variable not found: {}", b));
-
-                a.cmp(b)
-            });
-            vars.iter()
-                .map(|v| match v.find('[') {
-                    Some(i) => match parse_hyberslab(&v[i..]) {
-                        Ok(slab) => self.build_var(nc, &v[..i], slab),
-                        _ => None,
-                    },
-                    None => self
-                        .vars
-                        .get(v.split('[').next().unwrap_or(v))
-                        .map(|s| s.to_string()),
-                })
-                .collect::<Option<String>>()
-                .ok_or_else(|| anyhow!("variable not found"))?
-        };
+    /// vars must be sorted
+    fn dds(
+        &self,
+        nc: &netcdf::File,
+        vars: &Vec<(String, Option<Vec<usize>>, Option<Vec<usize>>)>,
+    ) -> Result<String, anyhow::Error> {
+        let dds: String = vars
+            .iter()
+            .map(|v| match v.2 {
+                Some(counts) => self.build_var(nc, v.0, counts),
+                None => v.0,
+            })
+            .collect::<String>();
 
         Ok(format!(
             "Dataset {{\n{}}} {};",

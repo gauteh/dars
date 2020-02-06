@@ -3,6 +3,7 @@ use hyper::{Body, Response, StatusCode};
 use percent_encoding::percent_decode_str;
 use std::sync::Arc;
 
+use super::dap2::requests::parse_query;
 use super::{datasets::FileEvent, Dataset};
 
 pub mod das;
@@ -42,17 +43,43 @@ impl NcDataset {
         })
     }
 
-    /// Parses and decodes list of variables and constraints submitted
-    /// through the URL query part.
-    fn parse_query(&self, query: Option<String>) -> Vec<String> {
-        match query {
-            Some(q) => q
-                .split(',')
-                .map(|s| percent_decode_str(s).decode_utf8_lossy().into_owned())
-                .collect(),
+    fn parse_query(
+        &self,
+        query: Option<&str>,
+    ) -> Result<Vec<(String, Option<Vec<usize>>, Option<Vec<usize>>)>, hyper::http::Error> {
+        query
+            .map_or_else(
+                || {
+                    Ok(self
+                        .dds
+                        .default_vars()
+                        .iter()
+                        .map(|v| (v, None, None))
+                        .collect())
+                },
+                |q| {
+                    parse_query(q).map_err(|_| {
+                        Response::builder()
+                            .status(StatusCode::UNPROCESSABLE_ENTITY)
+                            .body(Body::empty())
+                    })
+                },
+            )
+            .map(|vars| {
+                vars.sort_by(|a, b| {
+                    let a = self
+                        .varpos
+                        .get(a)
+                        .unwrap_or_else(|| panic!("variable not found: {}", a));
+                    let b = self
+                        .varpos
+                        .get(b)
+                        .unwrap_or_else(|| panic!("variable not found: {}", b));
 
-            None => self.dds.default_vars(),
-        }
+                    a.cmp(b)
+                });
+                vars
+            })
     }
 }
 
@@ -70,8 +97,8 @@ impl Dataset for NcDataset {
             .body(Body::from(self.das.to_string()))
     }
 
-    async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
-        let mut query = self.parse_query(query);
+    async fn dds(&self, query: Option<&str>) -> Result<Response<Body>, hyper::http::Error> {
+        let mut query = self.parse_query(query)?;
 
         match self.dds.dds(&self.f, &mut query) {
             Ok(dds) => Response::builder()
@@ -85,9 +112,9 @@ impl Dataset for NcDataset {
         }
     }
 
-    async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
+    async fn dods(&self, query: Option<&str>) -> Result<Response<Body>, hyper::http::Error> {
         use futures::stream::{self, StreamExt};
-        let mut query = self.parse_query(query);
+        let mut query = self.parse_query(query)?;
 
         let dds = if let Ok(r) = self.dds.dds(&self.f.clone(), &mut query) {
             r.into_bytes()
@@ -101,7 +128,7 @@ impl Dataset for NcDataset {
             .chain(stream::once(async {
                 Ok::<_, anyhow::Error>(String::from("\nData:\r\n").into_bytes())
             }))
-            .chain(dods::xdr(self.f.clone(), query))
+            // .chain(dods::xdr(self.f.clone(), query))
             .inspect(|e| {
                 if let Err(e) = e {
                     error!("error while streaming: {:?}", e);

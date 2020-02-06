@@ -12,28 +12,6 @@ use crate::dap2::{
     hyperslab::{count_slab, parse_hyberslab},
 };
 
-trait StreamingDataset {
-    /// Stream variable as chunks of values.
-    fn stream_variable<T>(
-        &self,
-        variable: &str,
-        indices: Option<&usize>,
-        counts: Option<&usize>,
-    ) -> Box<dyn Stream<Item = Result<Vec<T>, anyhow::Error>>>;
-
-    /// Stream variable as chunks of bytes encoded as XDR. Some datasets can return this directly,
-    /// rather than first reading the variable.
-    fn stream_encoded_variable(
-        &self,
-        variable: &str,
-        indices: Option<&usize>,
-        counts: Option<&usize>,
-    ) -> Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>>> {
-        // TODO: call stream_variable and encode
-        unimplemented!()
-    }
-}
-
 /// Stream a variable with a predefined chunk size. Chunk size is not guaranteed to be
 /// kept, and may be at worst half of specified size in order to fill up slabs.
 pub fn stream_variable<T>(

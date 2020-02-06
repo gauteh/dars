@@ -243,8 +243,8 @@ impl Data {
         match self.datasets.get(&ds) {
             Some(ds) => match dst {
                 DsRequestType::Das => ds.das().await,
-                DsRequestType::Dds => ds.dds(req.uri().query().map(|s| s.to_string())).await,
-                DsRequestType::Dods => ds.dods(req.uri().query().map(|s| s.to_string())).await,
+                DsRequestType::Dds => ds.dds(req.uri().query()).await,
+                DsRequestType::Dods => ds.dods(req.uri().query()).await,
                 DsRequestType::Raw => ds.raw().await,
             },
             None => Response::builder()
@@ -263,8 +263,8 @@ pub trait Dataset {
     fn name(&self) -> String;
 
     async fn das(&self) -> Result<Response<Body>, hyper::http::Error>;
-    async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
-    async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error>;
+    async fn dds(&self, query: Option<&str>) -> Result<Response<Body>, hyper::http::Error>;
+    async fn dods(&self, query: Option<&str>) -> Result<Response<Body>, hyper::http::Error>;
     async fn raw(&self) -> Result<Response<Body>, hyper::http::Error>;
     fn changed(&mut self, event: FileEvent) -> Result<(), anyhow::Error>;
 }

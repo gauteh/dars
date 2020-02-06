@@ -2,7 +2,8 @@ use async_stream::stream;
 use byte_slice_cast::IntoByteVec;
 use byteorder::{BigEndian, ByteOrder};
 use futures::pin_mut;
-use futures::stream::{Stream, StreamExt};
+use futures::stream::{self, Stream, StreamExt};
+use std::pin::Pin;
 
 /// The XdrPack trait defines how a type can be serialized to
 /// XDR.
@@ -85,5 +86,49 @@ where
                 Err(e) => yield Err(e)
             };
         }
+    }
+}
+
+trait StreamingDataset {
+    /// Stream variable as chunks of values.
+    fn stream_variable<T>(
+        &self,
+        variable: &str,
+        indices: Option<&[usize]>,
+        counts: Option<&[usize]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<Vec<T>, anyhow::Error>>>>;
+
+    /// Return size of variable (in elements), required by default implementation of
+    /// `stream_encoded_variable`.
+    fn get_var_size(&self, var: &str) -> Result<usize, anyhow::Error>;
+
+    /// Stream variable as chunks of bytes encoded as XDR. Some datasets can return this directly,
+    /// rather than first reading the variable.
+    fn stream_encoded_variable(
+        &self,
+        variable: &str,
+        indices: Option<&[usize]>,
+        counts: Option<&[usize]>,
+    ) -> Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>>> {
+        let sz = counts
+            .map(|c| c.iter().product::<usize>())
+            .unwrap_or_else(|| self.get_var_size(variable).unwrap());
+
+        Box::new(
+            stream::once(async {
+                let mut sz = vec![sz as u32, sz as u32];
+                sz.pack();
+                Ok(sz.into_byte_vec())
+            })
+            .chain(
+                self.stream_variable(variable, indices, counts)
+                    .map(|values| {
+                        values.map(|values| {
+                            values.pack();
+                            values.into_byte_vec()
+                        })
+                    }),
+            ),
+        )
     }
 }

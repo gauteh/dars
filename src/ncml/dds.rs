@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::dap2::hyperslab::parse_hyberslab;
-use crate::nc::dds::Dds;
+use crate::dap2::dds::Dds;
 
 pub struct NcmlDds {
     f: PathBuf,
@@ -14,51 +13,22 @@ pub struct NcmlDds {
 }
 
 impl Dds for NcmlDds {
-    fn dds(&self, nc: &netcdf::File, vars: &mut Vec<String>) -> Result<String, anyhow::Error> {
-        let dds: String = {
-            vars.sort_by(|a, b| {
-                let a = a.find('[').map_or(&a[..], |i| &a[..i]);
-                let b = b.find('[').map_or(&b[..], |i| &b[..i]);
-
-                let a = self
-                    .varpos
-                    .get(a)
-                    .unwrap_or_else(|| panic!("variable not found: {}", a));
-                let b = self
-                    .varpos
-                    .get(b)
-                    .unwrap_or_else(|| panic!("variable not found: {}", b));
-
-                a.cmp(b)
-            });
-            vars.iter()
-                .map(|v| match v.find('[') {
-                    Some(i) => match parse_hyberslab(&v[i..]) {
-                        Ok(slab) => self.build_var(nc, &v[..i], slab),
-                        _ => None,
-                    },
-                    None => self
-                        .vars
-                        .get(v.split('[').next().unwrap_or(v))
-                        .map(|s| s.to_string()),
-                })
-                .collect::<Option<String>>()
-                .ok_or_else(|| anyhow!("variable not found"))?
-        };
-
-        Ok(format!(
-            "Dataset {{\n{}}} {};",
-            dds,
-            self.f.to_string_lossy()
-        ))
-    }
-
     fn default_vars(&self) -> Vec<String> {
         self.vars
             .iter()
             .filter(|(k, _)| !k.contains('.'))
             .map(|(k, _)| k.clone())
             .collect()
+    }
+
+    fn variable_position(&self, variable: &str) -> &usize {
+        self.varpos
+            .get(variable)
+            .unwrap_or_else(|| panic!("variable not found: {}", variable))
+    }
+
+    fn get_file_name(&self) -> String {
+        self.f.to_string_lossy().into_owned()
     }
 
     fn dim_len(&self, dim: &netcdf::Dimension) -> usize {

@@ -1,9 +1,8 @@
 use async_trait::async_trait;
 use hyper::{Body, Response, StatusCode};
-use percent_encoding::percent_decode_str;
 use std::sync::Arc;
 
-use super::dap2::requests::parse_query;
+use super::dap2::dds::Dds;
 use super::{datasets::FileEvent, Dataset};
 
 pub mod das;
@@ -11,7 +10,7 @@ pub mod dds;
 pub mod dods;
 
 use das::NcDas;
-use dds::{Dds, NcDds};
+use dds::NcDds;
 
 /// NetCDF dataset for DAP server.
 ///
@@ -42,45 +41,6 @@ impl NcDataset {
             dds,
         })
     }
-
-    fn parse_query(
-        &self,
-        query: Option<&str>,
-    ) -> Result<Vec<(String, Option<Vec<usize>>, Option<Vec<usize>>)>, hyper::http::Error> {
-        query
-            .map_or_else(
-                || {
-                    Ok(self
-                        .dds
-                        .default_vars()
-                        .iter()
-                        .map(|v| (v, None, None))
-                        .collect())
-                },
-                |q| {
-                    parse_query(q).map_err(|_| {
-                        Response::builder()
-                            .status(StatusCode::UNPROCESSABLE_ENTITY)
-                            .body(Body::empty())
-                    })
-                },
-            )
-            .map(|vars| {
-                vars.sort_by(|a, b| {
-                    let a = self
-                        .varpos
-                        .get(a)
-                        .unwrap_or_else(|| panic!("variable not found: {}", a));
-                    let b = self
-                        .varpos
-                        .get(b)
-                        .unwrap_or_else(|| panic!("variable not found: {}", b));
-
-                    a.cmp(b)
-                });
-                vars
-            })
-    }
 }
 
 #[async_trait]
@@ -98,25 +58,35 @@ impl Dataset for NcDataset {
     }
 
     async fn dds(&self, query: Option<&str>) -> Result<Response<Body>, hyper::http::Error> {
-        let mut query = self.parse_query(query)?;
-
-        match self.dds.dds(&self.f, &mut query) {
-            Ok(dds) => Response::builder()
-                .header("Content-Type", "text/plain")
-                .header("Content-Description", "dods-dds")
-                .header("XDODS-Server", "dars")
-                .body(Body::from(dds)),
-            _ => Response::builder()
-                .status(StatusCode::NOT_FOUND)
+        match self.dds.parse_query(query) {
+            Ok(query) => match self.dds.dds(&self.f, &query) {
+                Ok(dds) => Response::builder()
+                    .header("Content-Type", "text/plain")
+                    .header("Content-Description", "dods-dds")
+                    .header("XDODS-Server", "dars")
+                    .body(Body::from(dds)),
+                _ => Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(Body::empty()),
+            },
+            Err(_) => Response::builder()
+                .status(StatusCode::UNPROCESSABLE_ENTITY)
                 .body(Body::empty()),
         }
     }
 
     async fn dods(&self, query: Option<&str>) -> Result<Response<Body>, hyper::http::Error> {
         use futures::stream::{self, StreamExt};
-        let mut query = self.parse_query(query)?;
 
-        let dds = if let Ok(r) = self.dds.dds(&self.f.clone(), &mut query) {
+        let query = if let Ok(query) = self.dds.parse_query(query) {
+            query
+        } else {
+            return Response::builder()
+                .status(StatusCode::UNPROCESSABLE_ENTITY)
+                .body(Body::empty());
+        };
+
+        let dds = if let Ok(r) = self.dds.dds(&self.f.clone(), &query) {
             r.into_bytes()
         } else {
             return Response::builder()

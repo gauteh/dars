@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use hyper::{Body, Response, StatusCode};
 use notify::{RecommendedWatcher, Watcher};
-use percent_encoding::percent_decode_str;
 use same_file::is_same_file;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
-use super::nc::{self, dds::Dds};
+use super::dap2::dds::Dds;
+use super::nc;
 use super::{datasets::FileEvent, Dataset};
 
 mod dds;
@@ -205,19 +205,6 @@ impl NcmlDataset {
             _watchers: watchers,
         })
     }
-
-    /// Parses and decodes list of variables and constraints submitted
-    /// through the URL query part.
-    fn parse_query(&self, query: Option<String>) -> Vec<String> {
-        match query {
-            Some(q) => q
-                .split(',')
-                .map(|s| percent_decode_str(s).decode_utf8_lossy().into_owned())
-                .collect(),
-
-            None => self.dds.default_vars(),
-        }
-    }
 }
 
 #[async_trait]
@@ -234,26 +221,36 @@ impl Dataset for NcmlDataset {
             .body(Body::from(self.das.to_string()))
     }
 
-    async fn dds(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
-        let mut query = self.parse_query(query);
-
-        match self.dds.dds(&self.members[0].f.clone(), &mut query) {
-            Ok(dds) => Response::builder()
-                .header("Content-Type", "text/plain")
-                .header("Content-Description", "dods-dds")
-                .header("XDODS-Server", "dars")
-                .body(Body::from(dds)),
-            _ => Response::builder()
-                .status(StatusCode::NOT_FOUND)
+    async fn dds(&self, query: Option<&str>) -> Result<Response<Body>, hyper::http::Error> {
+        match self.dds.parse_query(query) {
+            Ok(query) => match self.dds.dds(&self.members[0].f, &query) {
+                Ok(dds) => Response::builder()
+                    .header("Content-Type", "text/plain")
+                    .header("Content-Description", "dods-dds")
+                    .header("XDODS-Server", "dars")
+                    .body(Body::from(dds)),
+                _ => Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(Body::empty()),
+            },
+            Err(_) => Response::builder()
+                .status(StatusCode::UNPROCESSABLE_ENTITY)
                 .body(Body::empty()),
         }
     }
 
-    async fn dods(&self, query: Option<String>) -> Result<Response<Body>, hyper::http::Error> {
+    async fn dods(&self, query: Option<&str>) -> Result<Response<Body>, hyper::http::Error> {
         use futures::stream::{self, StreamExt};
-        let mut query = self.parse_query(query);
 
-        let dds = if let Ok(r) = self.dds.dds(&self.members[0].f.clone(), &mut query) {
+        let query = if let Ok(query) = self.dds.parse_query(query) {
+            query
+        } else {
+            return Response::builder()
+                .status(StatusCode::UNPROCESSABLE_ENTITY)
+                .body(Body::empty());
+        };
+
+        let dds = if let Ok(r) = self.dds.dds(&self.members[0].f.clone(), &query) {
             r.into_bytes()
         } else {
             return Response::builder()
@@ -265,7 +262,7 @@ impl Dataset for NcmlDataset {
             .chain(stream::once(async {
                 Ok::<_, anyhow::Error>(String::from("\nData:\r\n").into_bytes())
             }))
-            .chain(dods::xdr(&self, query))
+            // .chain(dods::xdr(&self, query))
             .inspect(|e| {
                 if let Err(e) = e {
                     error!("error while streaming: {:?}", e);

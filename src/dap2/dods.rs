@@ -114,21 +114,22 @@ trait StreamingDataset {
             .map(|c| c.iter().product::<usize>())
             .unwrap_or_else(|| self.get_var_size(variable).unwrap());
 
-        Box::new(
-            stream::once(async {
-                let mut sz = vec![sz as u32, sz as u32];
-                sz.pack();
-                Ok(sz.into_byte_vec())
-            })
-            .chain(
-                self.stream_variable(variable, indices, counts)
-                    .map(|values| {
-                        values.map(|values| {
-                            values.pack();
-                            values.into_byte_vec()
-                        })
-                    }),
-            ),
-        )
+        // Box::new(
+        //     stream::once(async {
+        //         let mut sz = vec![sz as u32, sz as u32];
+        //         sz.pack();
+        //         Ok(sz.into_byte_vec())
+        //     })
+        //     .chain(
+        //         self.stream_variable(variable, indices, counts)
+        //             .map(|values| {
+        //                 values.map(|values| {
+        //                     values.pack();
+        //                     values.into_byte_vec()
+        //                 })
+        //             }),
+        //     ),
+        // )
+        Box::new(stream::once(async { Ok(vec![0]) }))
     }
 }

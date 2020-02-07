@@ -1,16 +1,10 @@
 use async_stream::stream;
-use byte_slice_cast::IntoByteVec;
-use futures::pin_mut;
-use futures::stream::{self, Stream, StreamExt};
+use futures::stream::{Stream, StreamExt};
 use itertools::izip;
 use std::cmp::min;
 use std::pin::Pin;
-use std::sync::Arc;
 
-use crate::dap2::{
-    dods::{self, StreamingDataset, XdrPack},
-    hyperslab::{count_slab, parse_hyberslab},
-};
+use crate::dap2::dods::StreamingDataset;
 
 use super::NcDataset;
 
@@ -129,120 +123,119 @@ impl StreamingDataset for NcDataset {
     }
 }
 
-/// This only picks the correct generic for variable type.
-pub fn pack_var(
-    f: Arc<netcdf::File>,
-    v: String,
-    len: Option<usize>,
-    slab: (Vec<usize>, Vec<usize>),
-) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
-    stream! {
-        let vv = f.variable(&v).unwrap();
-        let mut s = match vv.vartype() {
-            netcdf_sys::NC_FLOAT => pack_var_impl::<f32>(f, v, len, slab),
-            netcdf_sys::NC_DOUBLE => pack_var_impl::<f64>(f, v, len, slab),
-            netcdf_sys::NC_INT => pack_var_impl::<i32>(f, v, len, slab),
-            netcdf_sys::NC_SHORT => pack_var_impl::<i32>(f, v, len, slab),
-            netcdf_sys::NC_BYTE => pack_var_impl::<u8>(f, v, len, slab),
-            // netcdf_sys::NC_UBYTE => xdr_bytes(vv),
-            // netcdf_sys::NC_CHAR => xdr_bytes(vv),
-            _ => unimplemented!()
-        };
+// /// This only picks the correct generic for variable type.
+// pub fn pack_var(
+//     f: Arc<netcdf::File>,
+//     v: String,
+//     len: Option<usize>,
+//     slab: (Vec<usize>, Vec<usize>),
+// ) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
+//     stream! {
+//         let vv = f.variable(&v).unwrap();
+//         let mut s = match vv.vartype() {
+//             netcdf_sys::NC_FLOAT => pack_var_impl::<f32>(f, v, len, slab),
+//             netcdf_sys::NC_DOUBLE => pack_var_impl::<f64>(f, v, len, slab),
+//             netcdf_sys::NC_INT => pack_var_impl::<i32>(f, v, len, slab),
+//             netcdf_sys::NC_SHORT => pack_var_impl::<i32>(f, v, len, slab),
+//             netcdf_sys::NC_BYTE => pack_var_impl::<u8>(f, v, len, slab),
+//             // netcdf_sys::NC_UBYTE => xdr_bytes(vv),
+//             // netcdf_sys::NC_CHAR => xdr_bytes(vv),
+//             _ => unimplemented!()
+//         };
 
-        while let Some(i) = s.next().await {
-            yield i
-        }
-    }
-}
+//         while let Some(i) = s.next().await {
+//             yield i
+//         }
+//     }
+// }
 
-pub fn pack_var_impl<T>(
-    f: Arc<netcdf::File>,
-    v: String,
-    len: Option<usize>,
-    slab: (Vec<usize>, Vec<usize>),
-) -> Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>>
-where
-    T: netcdf::variable::Numeric
-        + Unpin
-        + Sync
-        + Send
-        + 'static
-        + std::default::Default
-        + std::clone::Clone
-        + std::fmt::Debug,
-    [T]: XdrPack,
-    Vec<T>: IntoByteVec,
-{
-    let vv = f.variable(&v).unwrap();
-    let (indices, counts) = slab;
+// pub fn pack_var_impl<T>(
+//     f: Arc<netcdf::File>,
+//     v: String,
+//     len: Option<usize>,
+//     slab: (Vec<usize>, Vec<usize>),
+// ) -> Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>>
+// where
+//     T: netcdf::variable::Numeric
+//         + Unpin
+//         + Sync
+//         + Send
+//         + 'static
+//         + std::default::Default
+//         + std::clone::Clone
+//         + std::fmt::Debug,
+//     [T]: XdrPack,
+//     Vec<T>: IntoByteVec,
+// {
+//     let vv = f.variable(&v).unwrap();
+//     let (indices, counts) = slab;
 
-    if !vv.dimensions().is_empty() {
-        let v = stream_variable::<T>(f, v, indices, counts);
+//     if !vv.dimensions().is_empty() {
+//         let v = stream_variable::<T>(f, v, indices, counts);
 
-        Box::pin(dods::encode_array(v, len))
-    } else {
-        let mut vbuf: Vec<T> = vec![T::default(); 1];
-        match vv.values_to(&mut vbuf, None, None) {
-            Ok(_) => Box::pin(stream::once(async move { dods::encode_value(vbuf) })),
-            Err(e) => Box::pin(stream::once(async move { Err(e.into()) })),
-        }
-    }
-}
+//         Box::pin(dods::encode_array(v, len))
+//     } else {
+//         let mut vbuf: Vec<T> = vec![T::default(); 1];
+//         match vv.values_to(&mut vbuf, None, None) {
+//             Ok(_) => Box::pin(stream::once(async move { dods::encode_value(vbuf) })),
+//             Err(e) => Box::pin(stream::once(async move { Err(e.into()) })),
+//         }
+//     }
+// }
 
-pub fn xdr(
-    nc: Arc<netcdf::File>,
-    vs: Vec<String>,
-) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
-    stream! {
-        for v in vs {
-            // TODO: Structures not supported, only single variables.
+// pub fn xdr(
+//     nc: Arc<netcdf::File>,
+//     vs: Vec<String>,
+// ) -> impl Stream<Item = Result<Vec<u8>, anyhow::Error>> {
+//     stream! {
+//         for v in vs {
+//             // TODO: Structures not supported, only single variables.
 
-            let mut mv = match v.find(".") {
-                Some(i) => &v[i+1..],
-                None => &v
-            };
+//             let mut mv = match v.find(".") {
+//                 Some(i) => &v[i+1..],
+//                 None => &v
+//             };
 
+//             let nc = nc.clone();
+//             let (vv, indices, counts) = match mv.find("[") {
+//                 Some(i) => {
+//                     let slab = parse_hyberslab(&mv[i..])?;
+//                     mv = &mv[..i];
 
-            let nc = nc.clone();
-            let (vv, indices, counts) = match mv.find("[") {
-                Some(i) => {
-                    let slab = parse_hyberslab(&mv[i..])?;
-                    mv = &mv[..i];
+//                     let counts = slab.iter().map(|v| count_slab(&v)).collect::<Vec<usize>>();
+//                     let indices = slab.iter().map(|slab| slab[0]).collect::<Vec<usize>>();
 
-                    let counts = slab.iter().map(|v| count_slab(&v)).collect::<Vec<usize>>();
-                    let indices = slab.iter().map(|slab| slab[0]).collect::<Vec<usize>>();
+//                     if slab.iter().any(|s| s.len() > 2) {
+//                         yield Err(anyhow!("Strides not implemented yet"));
+//                     }
 
-                    if slab.iter().any(|s| s.len() > 2) {
-                        yield Err(anyhow!("Strides not implemented yet"));
-                    }
+//                     let vv = nc.variable(&mv).ok_or(anyhow!("variable not found"))?;
+//                     (vv, indices, counts)
+//                 },
 
-                    let vv = nc.variable(&mv).ok_or(anyhow!("variable not found"))?;
-                    (vv, indices, counts)
-                },
+//                 None => {
+//                     let vv = nc.variable(&mv).ok_or(anyhow!("variable not found"))?;
+//                     let n = vv.dimensions().len();
+//                     let counts = vv.dimensions().iter().map(|d| d.len()).collect::<Vec<usize>>();
+//                     (vv, vec![0usize; n], counts)
+//                 }
+//             };
 
-                None => {
-                    let vv = nc.variable(&mv).ok_or(anyhow!("variable not found"))?;
-                    let n = vv.dimensions().len();
-                    let counts = vv.dimensions().iter().map(|d| d.len()).collect::<Vec<usize>>();
-                    (vv, vec![0usize; n], counts)
-                }
-            };
+//             let slab = (indices, counts);
 
-            let slab = (indices, counts);
+//             let pack = pack_var(nc,
+//                 String::from(mv),
+//                 Some(slab.1.iter().product::<usize>()),
+//                 slab);
 
-            let pack = pack_var(nc,
-                String::from(mv),
-                Some(slab.1.iter().product::<usize>()),
-                slab);
+//             pin_mut!(pack);
 
-            pin_mut!(pack);
-
-            while let Some(p) = pack.next().await {
-                yield p;
-            }
-        }
-    }
-}
+//             while let Some(p) = pack.next().await {
+//                 yield p;
+//             }
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

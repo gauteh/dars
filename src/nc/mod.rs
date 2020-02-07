@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use hyper::{Body, Response, StatusCode};
 use std::sync::Arc;
 
-use super::dap2::dds::Dds;
+use super::dap2::{dds::Dds, dods::StreamingDataset};
 use super::{datasets::FileEvent, Dataset};
 
 pub mod das;
@@ -76,7 +76,8 @@ impl Dataset for NcDataset {
     }
 
     async fn dods(&self, query: Option<&str>) -> Result<Response<Body>, hyper::http::Error> {
-        use futures::stream::{self, StreamExt};
+        use futures::stream::{self, Stream, StreamExt};
+        use std::pin::Pin;
 
         let query = if let Ok(query) = self.dds.parse_query(query) {
             query
@@ -94,11 +95,24 @@ impl Dataset for NcDataset {
                 .body(Body::empty());
         };
 
+        let dods: Vec<
+            Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>>,
+        > = query
+            .iter()
+            .map(|(v, i, c)| {
+                self.stream_encoded_variable(
+                    &v,
+                    i.as_ref().map(|i| i.as_slice()),
+                    c.as_ref().map(|c| c.as_slice()),
+                )
+            })
+            .collect();
+
         let s = stream::once(async move { Ok::<_, anyhow::Error>(dds) })
             .chain(stream::once(async {
                 Ok::<_, anyhow::Error>(String::from("\nData:\r\n").into_bytes())
             }))
-            // .chain(dods::xdr(self.f.clone(), query))
+            .chain(stream::iter(dods).flatten())
             .inspect(|e| {
                 if let Err(e) = e {
                     error!("error while streaming: {:?}", e);

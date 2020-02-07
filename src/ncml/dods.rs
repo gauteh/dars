@@ -1,6 +1,6 @@
 use futures::stream::{self, Stream, StreamExt};
 use itertools::izip;
-use std::cmp::min;
+use std::cmp::{max, min};
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -89,7 +89,7 @@ impl StreamingDataset for NcmlDataset {
 
         let indices: Vec<usize> = indices
             .map(|i| i.to_vec())
-            .unwrap_or_else(|| vec![0usize; std::cmp::min(vv.dimensions().len(), 1)]);
+            .unwrap_or_else(|| vec![0usize; max(vv.dimensions().len(), 1)]);
 
         let counts: Vec<usize> = counts.map(|c| c.to_vec()).unwrap_or_else(|| {
             vv.dimensions()
@@ -206,14 +206,12 @@ impl StreamingDataset for NcmlDataset {
 mod tests {
     use super::*;
     use futures::executor::block_on_stream;
-    use futures_util::pin_mut;
     use std::io::Cursor;
 
     #[test]
     fn ncml_xdr_time_dim() {
         let nm = NcmlDataset::open("data/ncml/aggExisting.ncml", false).unwrap();
-        let t = xdr(&nm, vec!["time".to_string()]);
-        pin_mut!(t);
+        let t = nm.stream_encoded_variable("time", None, None);
         let bs: Vec<u8> = block_on_stream(t)
             .collect::<Result<Vec<_>, _>>()
             .unwrap()
@@ -259,8 +257,7 @@ mod tests {
     #[test]
     fn ncml_xdr_temp() {
         let nm = NcmlDataset::open("data/ncml/aggExisting.ncml", false).unwrap();
-        let t = xdr(&nm, vec!["T".to_string()]);
-        pin_mut!(t);
+        let t = nm.stream_encoded_variable("T", None, None);
         let bs: Vec<u8> = block_on_stream(t)
             .collect::<Result<Vec<_>, _>>()
             .unwrap()
@@ -307,8 +304,7 @@ mod tests {
         crate::testcommon::init();
         let nm = NcmlDataset::open("data/ncml/scan.ncml", false).unwrap();
 
-        let t = xdr(&nm, vec!["T.T[0:50][0][0]".to_string()]);
-        pin_mut!(t);
+        let t = nm.stream_encoded_variable("T", Some(&[0, 0, 0]), Some(&[51, 1, 1]));
         let bs: Vec<u8> = block_on_stream(t)
             .collect::<Result<Vec<_>, _>>()
             .unwrap()
@@ -319,8 +315,7 @@ mod tests {
             .collect();
         assert!(bs.len() == 4 + 51 * 8);
 
-        let t = xdr(&nm, vec!["T.T[20:50][0][0]".to_string()]);
-        pin_mut!(t);
+        let t = nm.stream_encoded_variable("T", Some(&[20, 0, 0]), Some(&[31, 1, 1]));
         let bs: Vec<u8> = block_on_stream(t)
             .collect::<Result<Vec<_>, _>>()
             .unwrap()
@@ -332,8 +327,7 @@ mod tests {
         assert!(bs.len() == 4 + 31 * 8);
 
         // files are spliced at 31:32
-        let t = xdr(&nm, vec!["T.T[31:32][0][0]".to_string()]);
-        pin_mut!(t);
+        let t = nm.stream_encoded_variable("T", Some(&[31, 0, 0]), Some(&[2, 1, 1]));
         let bs: Vec<u8> = block_on_stream(t)
             .collect::<Result<Vec<_>, _>>()
             .unwrap()

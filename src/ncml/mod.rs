@@ -5,7 +5,7 @@ use same_file::is_same_file;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
-use super::dap2::dds::Dds;
+use super::dap2::{dds::Dds, dods::StreamingDataset};
 use super::nc;
 use super::{datasets::FileEvent, Dataset};
 
@@ -240,7 +240,8 @@ impl Dataset for NcmlDataset {
     }
 
     async fn dods(&self, query: Option<&str>) -> Result<Response<Body>, hyper::http::Error> {
-        use futures::stream::{self, StreamExt};
+        use futures::stream::{self, Stream, StreamExt};
+        use std::pin::Pin;
 
         let query = if let Ok(query) = self.dds.parse_query(query) {
             query
@@ -258,11 +259,24 @@ impl Dataset for NcmlDataset {
                 .body(Body::empty());
         };
 
+        let dods: Vec<
+            Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>>,
+        > = query
+            .iter()
+            .map(|(v, i, c)| {
+                self.stream_encoded_variable(
+                    &v,
+                    i.as_ref().map(|i| i.as_slice()),
+                    c.as_ref().map(|c| c.as_slice()),
+                )
+            })
+            .collect();
+
         let s = stream::once(async move { Ok::<_, anyhow::Error>(dds) })
             .chain(stream::once(async {
                 Ok::<_, anyhow::Error>(String::from("\nData:\r\n").into_bytes())
             }))
-            // .chain(dods::xdr(&self, query))
+            .chain(stream::iter(dods).flatten())
             .inspect(|e| {
                 if let Err(e) = e {
                     error!("error while streaming: {:?}", e);

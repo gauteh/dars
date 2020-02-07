@@ -100,7 +100,7 @@ impl Dataset for NcDataset {
         > = query
             .iter()
             .map(|(v, i, c)| {
-                self.stream_encoded_variable(
+                self.f.stream_encoded_variable(
                     &v,
                     i.as_ref().map(|i| i.as_slice()),
                     c.as_ref().map(|c| c.as_slice()),

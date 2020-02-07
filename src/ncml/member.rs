@@ -7,6 +7,7 @@ use std::sync::Arc;
 pub struct NcmlMember {
     pub filename: PathBuf,
     pub f: Arc<netcdf::File>,
+    /// length along coordinate axis.
     pub n: usize,
     pub rank: f64,
 }

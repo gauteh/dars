@@ -1,24 +1,21 @@
 use async_stream::stream;
-use futures::stream::{Stream, StreamExt};
+use futures::stream::Stream;
 use itertools::izip;
 use std::cmp::min;
 use std::pin::Pin;
+use std::sync::Arc;
 
 use crate::dap2::dods::StreamingDataset;
 
-use super::NcDataset;
-
-impl StreamingDataset for NcDataset {
+impl StreamingDataset for Arc<netcdf::File> {
     fn get_var_size(&self, var: &str) -> Result<usize, anyhow::Error> {
-        self.f
-            .variable(var)
+        self.variable(var)
             .map(|v| v.dimensions().iter().map(|d| d.len()).product::<usize>())
             .ok_or_else(|| anyhow!("could not find variable"))
     }
 
     fn get_var_single_value(&self, var: &str) -> Result<bool, anyhow::Error> {
-        self.f
-            .variable(var)
+        self.variable(var)
             .map(|v| v.dimensions().is_empty())
             .ok_or_else(|| anyhow!("could not find variable"))
     }
@@ -36,7 +33,7 @@ impl StreamingDataset for NcDataset {
     {
         const CHUNK_SZ: usize = 10 * 1024 * 1024;
 
-        let f = self.f.clone();
+        let f = self.clone();
         let v = f.variable(&vn).unwrap();
         let counts: Vec<usize> = counts
             .map(|c| c.to_vec())
@@ -44,8 +41,10 @@ impl StreamingDataset for NcDataset {
         let indices: Vec<usize> = indices
             .map(|i| i.to_vec())
             .unwrap_or_else(|| vec![0usize; std::cmp::min(v.dimensions().len(), 1)]);
+        let vn = String::from(vn);
 
         Box::pin(stream! {
+            let v = f.variable(&vn).unwrap();
             let mut jump: Vec<usize> = counts.iter().rev().scan(1, |n, &c| {
                 if *n >= CHUNK_SZ {
                     Some(1)
@@ -111,7 +110,7 @@ impl StreamingDataset for NcDataset {
         indices: Option<&[usize]>,
         counts: Option<&[usize]>,
     ) -> Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>> {
-        let vv = self.f.variable(&v).unwrap();
+        let vv = self.variable(&v).unwrap();
         match vv.vartype() {
             netcdf_sys::NC_FLOAT => self.stream_encoded_variable_impl::<f32>(v, indices, counts),
             netcdf_sys::NC_DOUBLE => self.stream_encoded_variable_impl::<f64>(v, indices, counts),

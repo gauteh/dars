@@ -89,14 +89,16 @@ where
     }
 }
 
-trait StreamingDataset {
+pub trait StreamingDataset {
     /// Stream variable as chunks of values.
     fn stream_variable<T>(
         &self,
         variable: &str,
         indices: Option<&[usize]>,
         counts: Option<&[usize]>,
-    ) -> Pin<Box<dyn Stream<Item = Result<Vec<T>, anyhow::Error>>>>;
+    ) -> Pin<Box<dyn Stream<Item = Result<Vec<T>, anyhow::Error>> + Send + Sync + 'static>>
+    where
+        T: netcdf::Numeric + Unpin + Clone + std::default::Default + Send + Sync + 'static;
 
     /// Return size of variable (in elements), required by default implementation of
     /// `stream_encoded_variable`.
@@ -104,7 +106,7 @@ trait StreamingDataset {
 
     /// Return true if the variable does not have any dimensions and should be streamed
     /// without length.
-    fn get_var_single_value(&self, var: &str) -> bool;
+    fn get_var_single_value(&self, var: &str) -> Result<bool, anyhow::Error>;
 
     /// This encodes a variable of the given type `T`. Call this from `stream_encoded_variable`
     /// after resolving the type.
@@ -113,14 +115,14 @@ trait StreamingDataset {
         variable: &str,
         indices: Option<&[usize]>,
         counts: Option<&[usize]>,
-    ) -> Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>>>>
+    ) -> Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>>
     where
-        T: 'static,
+        T: netcdf::Numeric + Unpin + Clone + std::default::Default + Send + Sync + 'static,
         [T]: XdrPack,
         Vec<T>: IntoByteVec,
     {
         // TODO: if possible to return reference, use as_byte_slice() to avoid copy
-        if self.get_var_single_value(variable) {
+        if self.get_var_single_value(variable).unwrap() {
             Box::pin(
                 self.stream_variable::<T>(variable, indices, counts)
                     .map(|value| {
@@ -164,5 +166,5 @@ trait StreamingDataset {
         variable: &str,
         indices: Option<&[usize]>,
         counts: Option<&[usize]>,
-    ) -> Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>>>;
+    ) -> Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>>;
 }

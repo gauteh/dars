@@ -8,81 +8,123 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use crate::dap2::{
-    dods::{self, XdrPack},
+    dods::{self, StreamingDataset, XdrPack},
     hyperslab::{count_slab, parse_hyberslab},
 };
 
-/// Stream a variable with a predefined chunk size. Chunk size is not guaranteed to be
-/// kept, and may be at worst half of specified size in order to fill up slabs.
-pub fn stream_variable<T>(
-    f: Arc<netcdf::File>,
-    vn: String,
-    indices: Vec<usize>,
-    counts: Vec<usize>,
-) -> impl Stream<Item = Result<Vec<T>, anyhow::Error>>
-where
-    T: netcdf::Numeric + Unpin + Clone + std::default::Default,
-{
-    const CHUNK_SZ: usize = 10 * 1024 * 1024;
+use super::NcDataset;
 
-    stream! {
-        let v = f.variable(&vn).ok_or(anyhow!("Could not find variable"))?;
+impl StreamingDataset for NcDataset {
+    fn get_var_size(&self, var: &str) -> Result<usize, anyhow::Error> {
+        self.f
+            .variable(var)
+            .map(|v| v.dimensions().iter().map(|d| d.len()).product::<usize>())
+            .ok_or_else(|| anyhow!("could not find variable"))
+    }
 
-        let mut jump: Vec<usize> = counts.iter().rev().scan(1, |n, &c| {
-            if *n >= CHUNK_SZ {
-                Some(1)
-            } else {
-                let p = min(CHUNK_SZ / *n, c);
-                *n *= p;
+    fn get_var_single_value(&self, var: &str) -> Result<bool, anyhow::Error> {
+        self.f
+            .variable(var)
+            .map(|v| v.dimensions().is_empty())
+            .ok_or_else(|| anyhow!("could not find variable"))
+    }
 
-                Some(p)
+    /// Stream a variable with a predefined chunk size. Chunk size is not guaranteed to be
+    /// kept, and may be at worst half of specified size in order to fill up slabs.
+    fn stream_variable<T>(
+        &self,
+        vn: &str,
+        indices: Option<&[usize]>,
+        counts: Option<&[usize]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<Vec<T>, anyhow::Error>> + Send + Sync + 'static>>
+    where
+        T: netcdf::Numeric + Unpin + Clone + std::default::Default + Send + Sync + 'static,
+    {
+        const CHUNK_SZ: usize = 10 * 1024 * 1024;
+
+        let f = self.f.clone();
+        let v = f.variable(&vn).unwrap();
+        let counts: Vec<usize> = counts
+            .map(|c| c.to_vec())
+            .unwrap_or_else(|| v.dimensions().iter().map(|d| d.len()).collect());
+        let indices: Vec<usize> = indices
+            .map(|i| i.to_vec())
+            .unwrap_or_else(|| vec![0usize; std::cmp::min(v.dimensions().len(), 1)]);
+
+        Box::pin(stream! {
+            let mut jump: Vec<usize> = counts.iter().rev().scan(1, |n, &c| {
+                if *n >= CHUNK_SZ {
+                    Some(1)
+                } else {
+                    let p = min(CHUNK_SZ / *n, c);
+                    *n *= p;
+
+                    Some(p)
+                }
+            }).collect::<Vec<usize>>();
+            jump.reverse();
+
+            // size of count dimensions
+            let mut dim_sz: Vec<usize> = counts.iter().rev().scan(1, |p, &c| {
+                let sz = *p;
+                *p *= c;
+                Some(sz)
+            }).collect();
+            dim_sz.reverse();
+
+            let mut offset = vec![0usize; counts.len()];
+
+            loop {
+                let mjump: Vec<usize> = izip!(&offset, &jump, &counts)
+                    .map(|(o, j, c)| if o + j > *c { *c - *o } else { *j }).collect();
+                let jump_sz: usize = mjump.iter().product();
+
+                let mind: Vec<usize> = indices.iter().zip(&offset).map(|(a,b)| a + b).collect();
+
+                let mut buf: Vec<T> = vec![T::default(); jump_sz];
+                v.values_to(&mut buf, Some(&mind), Some(&mjump))?;
+
+                yield Ok(buf);
+
+                // let f = f.clone();
+                // let mvn = vn.clone();
+                // let cache = tokio::task::block_in_place(|| {
+                //     let mut cache: Vec<T> = vec![T::default(); jump_sz];
+                //     let v = f.variable(&mvn).ok_or(anyhow!("Could not find variable"))?;
+
+                //     v.values_to(&mut cache, Some(&mind), Some(&mjump))?;
+                //     Ok::<_,anyhow::Error>(cache)
+                // })?;
+
+                // yield Ok(cache);
+
+                let mut carry = offset.iter().zip(&dim_sz).map(|(a,b)| a * b).sum::<usize>() + jump_sz;
+                for (o, c) in izip!(offset.iter_mut().rev(), counts.iter().rev()) {
+                    *o = carry % *c;
+                    carry /= c;
+                }
+
+                if carry > 0 {
+                    break;
+                }
             }
-        }).collect::<Vec<usize>>();
-        jump.reverse();
+        })
+    }
 
-        // size of count dimensions
-        let mut dim_sz: Vec<usize> = counts.iter().rev().scan(1, |p, &c| {
-            let sz = *p;
-            *p *= c;
-            Some(sz)
-        }).collect();
-        dim_sz.reverse();
-
-        let mut offset = vec![0usize; counts.len()];
-
-        loop {
-            let mjump: Vec<usize> = izip!(&offset, &jump, &counts)
-                .map(|(o, j, c)| if o + j > *c { *c - *o } else { *j }).collect();
-            let jump_sz: usize = mjump.iter().product();
-
-            let mind: Vec<usize> = indices.iter().zip(&offset).map(|(a,b)| a + b).collect();
-
-            let mut buf: Vec<T> = vec![T::default(); jump_sz];
-            v.values_to(&mut buf, Some(&mind), Some(&mjump))?;
-
-            yield Ok(buf);
-
-            // let f = f.clone();
-            // let mvn = vn.clone();
-            // let cache = tokio::task::block_in_place(|| {
-            //     let mut cache: Vec<T> = vec![T::default(); jump_sz];
-            //     let v = f.variable(&mvn).ok_or(anyhow!("Could not find variable"))?;
-
-            //     v.values_to(&mut cache, Some(&mind), Some(&mjump))?;
-            //     Ok::<_,anyhow::Error>(cache)
-            // })?;
-
-            // yield Ok(cache);
-
-            let mut carry = offset.iter().zip(&dim_sz).map(|(a,b)| a * b).sum::<usize>() + jump_sz;
-            for (o, c) in izip!(offset.iter_mut().rev(), counts.iter().rev()) {
-                *o = carry % *c;
-                carry /= c;
-            }
-
-            if carry > 0 {
-                break;
-            }
+    fn stream_encoded_variable(
+        &self,
+        v: &str,
+        indices: Option<&[usize]>,
+        counts: Option<&[usize]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>> {
+        let vv = self.f.variable(&v).unwrap();
+        match vv.vartype() {
+            netcdf_sys::NC_FLOAT => self.stream_encoded_variable_impl::<f32>(v, indices, counts),
+            netcdf_sys::NC_DOUBLE => self.stream_encoded_variable_impl::<f64>(v, indices, counts),
+            netcdf_sys::NC_INT => self.stream_encoded_variable_impl::<i32>(v, indices, counts),
+            netcdf_sys::NC_SHORT => self.stream_encoded_variable_impl::<i32>(v, indices, counts),
+            netcdf_sys::NC_BYTE => self.stream_encoded_variable_impl::<u8>(v, indices, counts),
+            _ => unimplemented!(),
         }
     }
 }

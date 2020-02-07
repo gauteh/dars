@@ -18,12 +18,7 @@ pub trait Dds {
         }
     }
 
-    fn format_var(
-        &self,
-        indent: usize,
-        var: &netcdf::Variable,
-        slab: Option<&[usize]>,
-    ) -> String {
+    fn format_var(&self, indent: usize, var: &netcdf::Variable, slab: Option<&[usize]>) -> String {
         if !var.dimensions().is_empty() {
             format!(
                 "{}{} {}[{} = {}];",

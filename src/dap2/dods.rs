@@ -102,34 +102,67 @@ trait StreamingDataset {
     /// `stream_encoded_variable`.
     fn get_var_size(&self, var: &str) -> Result<usize, anyhow::Error>;
 
+    /// Return true if the variable does not have any dimensions and should be streamed
+    /// without length.
+    fn get_var_single_value(&self, var: &str) -> bool;
+
+    /// This encodes a variable of the given type `T`. Call this from `stream_encoded_variable`
+    /// after resolving the type.
+    fn stream_encoded_variable_impl<T>(
+        &self,
+        variable: &str,
+        indices: Option<&[usize]>,
+        counts: Option<&[usize]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>>>>
+    where
+        T: 'static,
+        [T]: XdrPack,
+        Vec<T>: IntoByteVec,
+    {
+        // TODO: if possible to return reference, use as_byte_slice() to avoid copy
+        if self.get_var_single_value(variable) {
+            Box::pin(
+                self.stream_variable::<T>(variable, indices, counts)
+                    .map(|value| {
+                        value.map(|mut value| {
+                            ensure!(value.len() == 1, "value with more than one element");
+                            value.pack();
+                            Ok(value.into_byte_vec())
+                        })?
+                    }),
+            )
+        } else {
+            let sz = counts
+                .map(|c| c.iter().product::<usize>())
+                .unwrap_or_else(|| self.get_var_size(variable).unwrap());
+
+            Box::pin(
+                stream::once(async move {
+                    let mut sz = vec![sz as u32, sz as u32];
+                    sz.pack();
+                    Ok(sz.into_byte_vec())
+                })
+                .chain(self.stream_variable::<T>(variable, indices, counts).map(
+                    |values| {
+                        values.map(|mut values| {
+                            values.pack();
+                            values.into_byte_vec()
+                        })
+                    },
+                )),
+            )
+        }
+    }
+
     /// Stream variable as chunks of bytes encoded as XDR. Some datasets can return this directly,
     /// rather than first reading the variable.
+    ///
+    /// Use `stream_encoded_variable_impl` to implement this once the type of the variable
+    /// is resolved.
     fn stream_encoded_variable(
         &self,
         variable: &str,
         indices: Option<&[usize]>,
         counts: Option<&[usize]>,
-    ) -> Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>>> {
-        let sz = counts
-            .map(|c| c.iter().product::<usize>())
-            .unwrap_or_else(|| self.get_var_size(variable).unwrap());
-
-        // Box::new(
-        //     stream::once(async {
-        //         let mut sz = vec![sz as u32, sz as u32];
-        //         sz.pack();
-        //         Ok(sz.into_byte_vec())
-        //     })
-        //     .chain(
-        //         self.stream_variable(variable, indices, counts)
-        //             .map(|values| {
-        //                 values.map(|values| {
-        //                     values.pack();
-        //                     values.into_byte_vec()
-        //                 })
-        //             }),
-        //     ),
-        // )
-        Box::new(stream::once(async { Ok(vec![0]) }))
-    }
+    ) -> Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>>>;
 }

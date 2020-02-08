@@ -207,7 +207,11 @@ pub trait Dds {
         }
     }
 
+    /// Filename of dataset.
     fn get_file_name(&self) -> String;
+
+    /// Look up variable in cache.
+    fn get_var(&self, var: &str) -> Option<String>;
 
     /// Get DDS for file and variables.
     fn dds(
@@ -219,7 +223,7 @@ pub trait Dds {
             .iter()
             .map(|v| match &v.2 {
                 Some(counts) => self.build_var(nc, &v.0, &counts),
-                None => Some(v.0.clone()),
+                None => self.get_var(&v.0),
             })
             .collect::<Option<String>>()
             .ok_or(anyhow!("could not find variable"))?;

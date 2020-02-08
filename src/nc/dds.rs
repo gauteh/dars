@@ -29,6 +29,10 @@ impl Dds for NcDds {
         self.f.to_string_lossy().into_owned()
     }
 
+    fn get_var(&self, var: &str) -> Option<String> {
+        self.vars.get(var).map(|s| s.clone())
+    }
+
     fn dim_len(&self, dim: &netcdf::Dimension) -> usize {
         dim.len()
     }
@@ -50,5 +54,25 @@ impl NcDds {
         dds.vars = map;
         dds.varpos = posmap;
         Ok(dds)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn time_dds() {
+        let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
+
+        let dds = NcDds::build("data/coads_climatology.nc", &f).unwrap();
+
+        assert_eq!(
+            dds.dds(&f, &dds.parse_query(Some("TIME")).unwrap())
+                .unwrap(),
+            r#"Dataset {
+    Float64 TIME[TIME = 12];
+} data/coads_climatology.nc;"#
+        );
     }
 }

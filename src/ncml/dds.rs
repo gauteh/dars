@@ -31,6 +31,10 @@ impl Dds for NcmlDds {
         self.f.to_string_lossy().into_owned()
     }
 
+    fn get_var(&self, var: &str) -> Option<String> {
+        self.vars.get(var).map(|s| s.clone())
+    }
+
     fn dim_len(&self, dim: &netcdf::Dimension) -> usize {
         match dim.name() {
             n if n == self.dim => self.dim_n,

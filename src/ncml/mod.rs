@@ -97,7 +97,8 @@ impl NcmlDataset {
                     };
 
                     if let Some(sf) = e.attribute("suffix") {
-                        debug!("Scanning {:?}, suffix: {}", l, sf);
+                        let pf = e.attribute("prefix");
+                        debug!("Scanning {:?}, prefix: {:?}, suffix: {}", l, pf, sf);
 
                         if watch {
                             let mf = filename.clone();
@@ -149,7 +150,10 @@ impl NcmlDataset {
                                                 .path()
                                                 .to_str()
                                                 .map(|s| s.ends_with(sf))
-                                                .unwrap_or(false) =>
+                                                .unwrap_or(false)
+                                            && pf.map(|pf| entry.path().to_str().map(|s| s.starts_with(pf)).unwrap_or(false))
+                                                 .unwrap_or(true)
+                                                =>
                                     {
                                         v.push(std::fs::canonicalize(entry.into_path()).ok())
                                     }

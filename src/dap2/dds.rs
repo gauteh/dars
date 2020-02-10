@@ -219,6 +219,7 @@ pub trait Dds {
         nc: &netcdf::File,
         vars: &Vec<(String, Option<Vec<usize>>, Option<Vec<usize>>)>,
     ) -> Result<String, anyhow::Error> {
+        trace!("dds: vars: {:?}", vars);
         let dds: String = vars
             .iter()
             .map(|v| match &v.2 {

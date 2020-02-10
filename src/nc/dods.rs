@@ -17,7 +17,7 @@ impl StreamingDataset for Arc<netcdf::File> {
     fn get_var_single_value(&self, var: &str) -> Result<bool, anyhow::Error> {
         self.variable(var)
             .map(|v| v.dimensions().is_empty())
-            .ok_or_else(|| anyhow!("could not find variable"))
+            .ok_or_else(|| anyhow!("could not find variable: {}", var))
     }
 
     /// Stream a variable with a predefined chunk size. Chunk size is not guaranteed to be
@@ -31,20 +31,29 @@ impl StreamingDataset for Arc<netcdf::File> {
     where
         T: netcdf::Numeric + Unpin + Clone + std::default::Default + Send + Sync + 'static,
     {
+        trace!("streaming variable: {} ({:?}) ({:?})", vn, indices, counts);
+
+        let vn = if let Some(i) = vn.find(".") {
+            String::from(&vn[i + 1..])
+        } else {
+            String::from(vn)
+        };
+
         const CHUNK_SZ: usize = 10 * 1024 * 1024;
 
         let f = self.clone();
-        let v = f.variable(&vn).unwrap();
+        let v = f
+            .variable(&vn)
+            .expect(&format!("could not find variable: {}", vn));
         let counts: Vec<usize> = counts
             .map(|c| c.to_vec())
             .unwrap_or_else(|| v.dimensions().iter().map(|d| d.len()).collect());
         let indices: Vec<usize> = indices
             .map(|i| i.to_vec())
             .unwrap_or_else(|| vec![0usize; max(v.dimensions().len(), 1)]);
-        let vn = String::from(vn);
 
         Box::pin(stream! {
-            let v = f.variable(&vn).unwrap();
+            let v = f.variable(&vn).expect(&format!("could not find variable: {}", vn));
             let mut jump: Vec<usize> = counts.iter().rev().scan(1, |n, &c| {
                 if *n >= CHUNK_SZ {
                     Some(1)
@@ -110,13 +119,20 @@ impl StreamingDataset for Arc<netcdf::File> {
         indices: Option<&[usize]>,
         counts: Option<&[usize]>,
     ) -> Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>> {
-        let vv = self.variable(&v).unwrap();
+        let vn = if let Some(i) = v.find(".") {
+            String::from(&v[i + 1..])
+        } else {
+            String::from(v)
+        };
+        let vv = self
+            .variable(&vn)
+            .expect(&format!("could not find variable: {}", vn));
         match vv.vartype() {
-            netcdf_sys::NC_FLOAT => self.stream_encoded_variable_impl::<f32>(v, indices, counts),
-            netcdf_sys::NC_DOUBLE => self.stream_encoded_variable_impl::<f64>(v, indices, counts),
-            netcdf_sys::NC_INT => self.stream_encoded_variable_impl::<i32>(v, indices, counts),
-            netcdf_sys::NC_SHORT => self.stream_encoded_variable_impl::<i32>(v, indices, counts),
-            netcdf_sys::NC_BYTE => self.stream_encoded_variable_impl::<u8>(v, indices, counts),
+            netcdf_sys::NC_FLOAT => self.stream_encoded_variable_impl::<f32>(&vn, indices, counts),
+            netcdf_sys::NC_DOUBLE => self.stream_encoded_variable_impl::<f64>(&vn, indices, counts),
+            netcdf_sys::NC_INT => self.stream_encoded_variable_impl::<i32>(&vn, indices, counts),
+            netcdf_sys::NC_SHORT => self.stream_encoded_variable_impl::<i32>(&vn, indices, counts),
+            netcdf_sys::NC_BYTE => self.stream_encoded_variable_impl::<u8>(&vn, indices, counts),
             _ => unimplemented!(),
         }
     }
@@ -149,7 +165,7 @@ mod tests {
     }
 
     #[bench]
-    fn read_var_preopen(b: &mut Bencher) {
+    fn read_variable_preopen(b: &mut Bencher) {
         let f = netcdf::open("data/coads_climatology.nc").unwrap();
         b.iter(|| {
             let v = f.variable("SST").unwrap();
@@ -163,7 +179,7 @@ mod tests {
     }
 
     #[bench]
-    fn read_var(b: &mut Bencher) {
+    fn read_variable(b: &mut Bencher) {
         b.iter(|| {
             let f = netcdf::open("data/coads_climatology.nc").unwrap();
             let v = f.variable("SST").unwrap();
@@ -176,7 +192,7 @@ mod tests {
     }
 
     #[bench]
-    fn encoded_xdr_stream(b: &mut Bencher) {
+    fn encoded_streaming_variable(b: &mut Bencher) {
         use futures::executor::block_on_stream;
 
         let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
@@ -184,6 +200,19 @@ mod tests {
         b.iter(|| {
             let f = f.clone();
             let v = f.stream_encoded_variable("SST", None, None);
+            block_on_stream(v).collect::<Vec<_>>()
+        });
+    }
+
+    #[bench]
+    fn streaming_variable(b: &mut Bencher) {
+        use futures::executor::block_on_stream;
+
+        let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
+
+        b.iter(|| {
+            let f = f.clone();
+            let v = f.stream_variable::<f32>("SST", None, None);
             block_on_stream(v).collect::<Vec<_>>()
         });
     }
@@ -239,6 +268,42 @@ mod tests {
             .flatten()
             .collect();
         assert_eq!(dir, s);
+    }
+
+    #[test]
+    fn stream_variable_group_member() {
+        let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
+
+        let counts = vec![10usize, 30, 80];
+
+        let dir = {
+            let v = f.variable("SST").unwrap();
+
+            let mut vbuf: Vec<f32> = vec![0.0; counts.iter().product()];
+            v.values_to(&mut vbuf, Some(&[0, 0, 0]), Some(&counts))
+                .expect("could not read values");
+
+            vbuf
+        };
+
+        let v = f.stream_variable::<f32>("SST.SST", Some(&[0, 0, 0]), Some(&counts));
+
+        let s: Vec<f32> = futures::executor::block_on_stream(v)
+            .flatten()
+            .flatten()
+            .collect();
+        assert_eq!(dir, s);
+    }
+
+    #[test]
+    fn stream_encoded_variable_group_member() {
+        let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
+
+        let counts = vec![10usize, 30, 80];
+
+        let v = f.stream_encoded_variable("SST.SST", Some(&[0, 0, 0]), Some(&counts));
+
+        futures::executor::block_on_stream(v).for_each(drop);
     }
 
     #[test]

@@ -41,13 +41,18 @@ impl StreamingDataset for NcmlDataset {
         indices: Option<&[usize]>,
         counts: Option<&[usize]>,
     ) -> Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>> {
+        let v = if let Some(i) = v.find(".") {
+            String::from(&v[i + 1..])
+        } else {
+            String::from(v)
+        };
         let vv = self.members[0].f.variable(&v).unwrap();
         match vv.vartype() {
-            netcdf_sys::NC_FLOAT => self.stream_encoded_variable_impl::<f32>(v, indices, counts),
-            netcdf_sys::NC_DOUBLE => self.stream_encoded_variable_impl::<f64>(v, indices, counts),
-            netcdf_sys::NC_INT => self.stream_encoded_variable_impl::<i32>(v, indices, counts),
-            netcdf_sys::NC_SHORT => self.stream_encoded_variable_impl::<i32>(v, indices, counts),
-            netcdf_sys::NC_BYTE => self.stream_encoded_variable_impl::<u8>(v, indices, counts),
+            netcdf_sys::NC_FLOAT => self.stream_encoded_variable_impl::<f32>(&v, indices, counts),
+            netcdf_sys::NC_DOUBLE => self.stream_encoded_variable_impl::<f64>(&v, indices, counts),
+            netcdf_sys::NC_INT => self.stream_encoded_variable_impl::<i32>(&v, indices, counts),
+            netcdf_sys::NC_SHORT => self.stream_encoded_variable_impl::<i32>(&v, indices, counts),
+            netcdf_sys::NC_BYTE => self.stream_encoded_variable_impl::<u8>(&v, indices, counts),
             _ => unimplemented!(),
         }
     }
@@ -63,6 +68,18 @@ impl StreamingDataset for NcmlDataset {
     where
         T: netcdf::Numeric + Unpin + Clone + std::default::Default + Send + Sync + 'static,
     {
+        trace!(
+            "streaming variable: {}, ({:?}), ({:?})",
+            vn,
+            indices,
+            counts
+        );
+        let vn = if let Some(i) = vn.find(".") {
+            String::from(&vn[i + 1..])
+        } else {
+            String::from(vn)
+        };
+
         let fnc = self.members[0].f.clone();
 
         // lengths of coordinate axis
@@ -85,7 +102,7 @@ impl StreamingDataset for NcmlDataset {
             .map(|m| m.f.clone())
             .collect::<Vec<Arc<netcdf::File>>>();
 
-        let vv = fnc.variable(vn).unwrap();
+        let vv = fnc.variable(&vn).unwrap();
 
         let indices: Vec<usize> = indices
             .map(|i| i.to_vec())
@@ -197,7 +214,7 @@ impl StreamingDataset for NcmlDataset {
                 indices,
                 counts
             );
-            fnc.stream_variable(vn, Some(&indices), Some(&counts))
+            fnc.stream_variable(&vn, Some(&indices), Some(&counts))
         }
     }
 }
@@ -337,5 +354,19 @@ mod tests {
             .map(|b| b.clone())
             .collect();
         assert!(bs.len() == 4 + 2 * 8);
+    }
+
+    #[test]
+    fn stream_encoded_variable_group_member() {
+        let nm = NcmlDataset::open("data/ncml/scan.ncml", false).unwrap();
+        let t = nm.stream_encoded_variable("T.T", None, None);
+        block_on_stream(t).flatten().for_each(drop);
+    }
+
+    #[test]
+    fn stream_variable_group_member() {
+        let nm = NcmlDataset::open("data/ncml/scan.ncml", false).unwrap();
+        let t = nm.stream_variable::<f32>("T.T", None, None);
+        block_on_stream(t).flatten().for_each(drop);
     }
 }

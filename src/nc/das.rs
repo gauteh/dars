@@ -26,6 +26,15 @@ impl NcDas {
                 s.escape_default()
             ),
             Ok(Float(f)) => format!("{}Float32 {} {:+E};\n", " ".repeat(indent), a.name(), f),
+            Ok(Floats(f)) => format!(
+                "{}Float32 {} {};\n",
+                " ".repeat(indent),
+                a.name(),
+                f.iter()
+                    .map(|f| format!("{:+E}", f))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
             Ok(Double(f)) => format!("{}Float64 {} {:+E};\n", " ".repeat(indent), a.name(), f),
             Ok(Doubles(f)) => format!(
                 "{}Float64 {} {};\n",
@@ -38,6 +47,15 @@ impl NcDas {
             ),
             Ok(Short(f)) => format!("{}Int16 {} {};\n", " ".repeat(indent), a.name(), f),
             Ok(Int(f)) => format!("{}Int32 {} {};\n", " ".repeat(indent), a.name(), f),
+            Ok(Ints(f)) => format!(
+                "{}Int32 {} {};\n",
+                " ".repeat(indent),
+                a.name(),
+                f.iter()
+                    .map(|f| format!("{}", f))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
             Ok(Uchar(n)) => format!("{}Byte {} {};\n", " ".repeat(indent), a.name(), n),
             Ok(v) => format!(
                 "{}Unimplemented {} {:?};\n",

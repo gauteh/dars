@@ -1,10 +1,6 @@
 # DARS
 
-This is a _DAP2_ server written in Rust aimed at being fast and lightweight. It supports a subset of the [OPeNDAP protocol](https://opendap.github.io/documentation/UserGuideComprehensive.html). It is developed for use through the [NetCDF library](https://www.unidata.ucar.edu/software/netcdf/) (e.g. ncdump) or the [python NetCDF-bindings](https://unidata.github.io/netcdf4-python/netCDF4/index.html).
-
-# Features
-* Asynchronous
-* Fast
+This is an *asynchronous* _DAP/2_ server written in Rust aimed at being *fast* and *lightweight*. It supports a subset of the [OPeNDAP protocol](https://opendap.github.io/documentation/UserGuideComprehensive.html). It is intended to only serve the DAP protocol, and not implement other common services like a catalog or a WMS.
 
 # Running
 
@@ -31,13 +27,8 @@ _dars_ currently supports hyperslabs (except strides) and variable selection [co
 
 File formats:
 
-* NetCDF and [NcML](https://www.unidata.ucar.edu/software/netcdf-java/current/ncml/Aggregation.html) (only aggregation along existing dimension). Groups are not supported, only variables and gridded variables on root are supported.
+* NetCDF
+* [NcML](https://www.unidata.ucar.edu/software/netcdf-java/current/ncml/Aggregation.html) (only aggregation along existing dimension).
 
-Some parts of OPenDAP or services commonly available with other implementation are not indented to be supporetd:
-
-* Constraints except hyperslabs.
-* catalog.xml.
-* HTML interface.
-
-For some of those _dars_ can be plugged in as a DAP-interface, while the rest is served using another implementation (like [Thredds](https://www.unidata.ucar.edu/software/tds/current/)).
+> Dataset groups are not supported, only variables and gridded variables on root.
 

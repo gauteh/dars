@@ -67,13 +67,15 @@ impl Data {
             if let Ok(entry) = entry {
                 match entry.metadata() {
                     Ok(m) if m.is_file() => match entry.path().extension() {
-                        Some(ext) if ext == "nc" => match NcDataset::open(entry.path()) {
-                            Ok(ds) => {
-                                self.datasets
-                                    .insert(self.make_key(entry.path()), Box::new(ds));
+                        Some(ext) if ext == "nc" || ext == "nc4" => {
+                            match NcDataset::open(entry.path()) {
+                                Ok(ds) => {
+                                    self.datasets
+                                        .insert(self.make_key(entry.path()), Box::new(ds));
+                                }
+                                Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e),
                             }
-                            Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e),
-                        },
+                        }
                         Some(ext) if ext == "ncml" => {
                             match NcmlDataset::open(entry.path(), watch) {
                                 Ok(ds) => {
@@ -83,9 +85,9 @@ impl Data {
                                 Err(e) => warn!("Could not open: {:?} ({:?})", entry.path(), e),
                             }
                         }
-                        _ => (),
+                        _ => trace!("Unknown format: {:?}", entry.path()),
                     },
-                    _ => (),
+                    _ => trace!("Not a file: {:?}", entry.path()),
                 }
             }
         }

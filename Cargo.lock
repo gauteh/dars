@@ -195,12 +195,13 @@ dependencies = [
  "futures-core 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-util 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "getopts 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hidefix 0.1.0",
  "hyper 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "netcdf 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "netcdf-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "netcdf 0.4.0 (git+https://github.com/magnusuMET/rust-netcdf?branch=vendor)",
+ "netcdf-sys 0.2.1 (git+https://github.com/magnusuMET/rust-netcdf?branch=vendor)",
  "notify 5.0.0-pre.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "percent-encoding 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "roxmltree 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -461,11 +462,16 @@ name = "hidefix"
 version = "0.1.0"
 dependencies = [
  "anyhow 1.0.26 (registry+https://github.com/rust-lang/crates.io-index)",
+ "async-stream 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byte-slice-cast 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-core 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-util 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hdf5 0.5.2 (git+https://github.com/gauteh/hdf5-rust?branch=hidefix)",
  "hdf5-sys 0.5.3 (git+https://github.com/gauteh/hdf5-rust?branch=hidefix)",
  "rio 0.9.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -771,17 +777,22 @@ dependencies = [
 [[package]]
 name = "netcdf"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/magnusuMET/rust-netcdf?branch=vendor#5fbb1febea6b4e05e98c0f92b34ebd27ad766fdf"
 dependencies = [
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ndarray 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "netcdf-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "netcdf-sys 0.2.1 (git+https://github.com/magnusuMET/rust-netcdf?branch=vendor)",
 ]
 
 [[package]]
 name = "netcdf-sys"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/magnusuMET/rust-netcdf?branch=vendor#5fbb1febea6b4e05e98c0f92b34ebd27ad766fdf"
+dependencies = [
+ "cmake 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hdf5-sys 0.5.3 (git+https://github.com/gauteh/hdf5-rust?branch=hidefix)",
+ "libz-sys 1.0.25 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "notify"
@@ -1530,8 +1541,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum ndarray 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7cf380a8af901ad627594013a3bbac903ae0a6f94e176e47e46b5bbc1877b928"
 "checksum ndarray 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)" = "25b001fc2f5df269365fb77bd8396ce6b1f61c9848f7f088c25e57494bacc57b"
 "checksum net2 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)" = "42550d9fb7b6684a6d404d9fa7250c2eb2646df731d1c06afc06dcee9e1bcf88"
-"checksum netcdf 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7a2d0f8e1f403e391d8b35cf2141cb89491528533490bc690300616878b1a933"
-"checksum netcdf-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0136debf038071235b2e9156be56bb4d5b9efaf6f474a6b51fd45fb07fd8664f"
+"checksum netcdf 0.4.0 (git+https://github.com/magnusuMET/rust-netcdf?branch=vendor)" = "<none>"
+"checksum netcdf-sys 0.2.1 (git+https://github.com/magnusuMET/rust-netcdf?branch=vendor)" = "<none>"
 "checksum notify 5.0.0-pre.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7b00c0b65188bffb5598c302e19b062feb94adef02c31f15622a163c95d673c3"
 "checksum num-complex 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "b6b19411a9719e753aff12e5187b74d60d3dc449ec3f4dc21e3989c3f554bc95"
 "checksum num-integer 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)" = "3f6ea62e9d81a77cd3ee9a2a5b9b609447857f3d358704331e4ef39eb247fcba"

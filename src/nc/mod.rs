@@ -5,6 +5,8 @@ use std::sync::Arc;
 use super::dap2::{dds::Dds, dods::StreamingDataset};
 use super::{datasets::FileEvent, Dataset};
 
+use hidefix::idx::Index;
+
 pub mod das;
 pub mod dds;
 pub mod dods;
@@ -20,6 +22,7 @@ pub struct NcDataset {
     f: Arc<netcdf::File>,
     das: NcDas,
     dds: NcDds,
+    idx: Option<Index>,
 }
 
 impl NcDataset {
@@ -30,15 +33,26 @@ impl NcDataset {
         let filename = filename.into();
         info!("Loading {:?}..", filename);
 
+        let idx = Index::index(filename.clone())
+            .map_err(|e| debug!("could not index dataset: {:?}", e))
+            .ok();
+
         let f = Arc::new(netcdf::open(filename.clone())?);
         let das = NcDas::build(&f)?;
         let dds = NcDds::build(filename.clone(), &f)?;
+
+        if idx.is_some() {
+            debug!("created HDF5 index for: {:?}", filename);
+        } else {
+            debug!("could not create HDF5 index for: {:?}", filename);
+        }
 
         Ok(NcDataset {
             filename,
             f,
             das,
             dds,
+            idx,
         })
     }
 }
@@ -166,6 +180,15 @@ mod test {
     fn open_dataset() {
         init();
 
-        NcDataset::open("data/coads_climatology.nc").unwrap();
+        let d = NcDataset::open("data/coads_climatology.nc").unwrap();
+        assert!(d.idx.is_none());
+    }
+
+    #[test]
+    fn indexable_dataset() {
+        init();
+
+        let d = NcDataset::open("data/coads_climatology.nc4").unwrap();
+        assert!(d.idx.is_some());
     }
 }

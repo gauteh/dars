@@ -5,7 +5,7 @@ edition = "2018"
 license = "MIT"
 name = "dars"
 repository = "https://github.com/gauteh/dars"
-version = "0.1.0"
+version = "0.1.0" # V!
 
 [workspace]
 members = [ "hidefix" ]
@@ -25,13 +25,26 @@ getopts = "0.2.21"
 itertools = "0.8"
 lazy_static = "1.4"
 log = "0.4"
-netcdf = "0.4"
-netcdf-sys = "0.2"
 notify = "5.0.0-pre.2"
 percent-encoding = "2.1"
 roxmltree = "0.7"
 same-file = "1"
 walkdir = "2.2"
+hidefix = { version = "0.1.0", path = "./hidefix" } # V!
+
+[dependencies.netcdf]
+branch = "vendor"
+git = "https://github.com/magnusuMET/rust-netcdf"
+features = [ "static" ]
+
+[dependencies.netcdf-sys]
+branch = "vendor"
+git = "https://github.com/magnusuMET/rust-netcdf"
+features = [ "static" ]
+
+[patch.'https://github.com/magnusuMET/hdf5-rust.git']
+hdf5 = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
+hdf5-sys = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
 
 [dependencies.hyper]
 features = ["stream"]

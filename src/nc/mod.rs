@@ -10,6 +10,7 @@ use hidefix::idx::Index;
 pub mod das;
 pub mod dds;
 pub mod dods;
+pub mod dods_idx;
 
 use das::NcDas;
 use dds::NcDds;

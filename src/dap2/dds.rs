@@ -107,7 +107,6 @@ pub trait Dds {
     fn format_struct(
         &self,
         indent: usize,
-        _nc: &netcdf::File,
         var: &netcdf::Variable,
         dim: &netcdf::Variable,
         slab: Option<&[usize]>,
@@ -163,7 +162,7 @@ pub trait Dds {
 
                 map.insert(
                     format!("{}.{}", var.name(), var.name()),
-                    self.format_struct(indent, &nc, &var, &var, None),
+                    self.format_struct(indent, &var, &var, None),
                 );
                 posmap.insert(format!("{}.{}", var.name(), var.name()), z);
 
@@ -173,7 +172,7 @@ pub trait Dds {
                             posmap.insert(format!("{}.{}", var.name(), d.name()), z);
                             map.insert(
                                 format!("{}.{}", var.name(), d.name()),
-                                self.format_struct(indent, &nc, &var, &dvar, None),
+                                self.format_struct(indent, &var, &dvar, None),
                             )
                         }
                         _ => None,
@@ -191,7 +190,7 @@ pub trait Dds {
         match var.find('.') {
             Some(i) => match nc.variable(&var[..i]) {
                 Some(ivar) => match nc.variable(&var[i + 1..]) {
-                    Some(dvar) => Some(self.format_struct(indent, &nc, &ivar, &dvar, Some(count))),
+                    Some(dvar) => Some(self.format_struct(indent, &ivar, &dvar, Some(count))),
                     _ => None,
                 },
                 _ => None,
@@ -223,7 +222,10 @@ pub trait Dds {
         let dds: String = vars
             .iter()
             .map(|v| match &v.2 {
-                Some(counts) => self.build_var(nc, &v.0, &counts),
+                Some(counts) => self.build_var(nc, &v.0, &counts).map(|mut s| {
+                    s.push('\n');
+                    s
+                }),
                 None => self.get_var(&v.0),
             })
             .collect::<Option<String>>()

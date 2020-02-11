@@ -75,4 +75,19 @@ mod tests {
 } data/coads_climatology.nc;"#
         );
     }
+
+    #[test]
+    fn time_hyperslab() {
+        let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
+
+        let dds = NcDds::build("data/coads_climatology.nc", &f).unwrap();
+
+        assert_eq!(
+            dds.dds(&f, &dds.parse_query(Some("TIME[0:2]")).unwrap())
+                .unwrap(),
+            r#"Dataset {
+    Float64 TIME[TIME = 3];
+} data/coads_climatology.nc;"#
+        );
+    }
 }

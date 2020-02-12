@@ -141,6 +141,7 @@ impl StreamingDataset for Arc<netcdf::File> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::executor::block_on_stream;
     use test::Bencher;
 
     #[bench]
@@ -193,21 +194,17 @@ mod tests {
 
     #[bench]
     fn encoded_streaming_variable(b: &mut Bencher) {
-        use futures::executor::block_on_stream;
-
         let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
 
         b.iter(|| {
             let f = f.clone();
             let v = f.stream_encoded_variable("SST", None, None);
-            block_on_stream(v).collect::<Vec<_>>()
+            block_on_stream(v).for_each(drop)
         });
     }
 
     #[bench]
     fn streaming_variable(b: &mut Bencher) {
-        use futures::executor::block_on_stream;
-
         let f = Arc::new(netcdf::open("data/coads_climatology.nc").unwrap());
 
         b.iter(|| {
@@ -237,10 +234,7 @@ mod tests {
 
         let v = f.stream_variable::<f32>("SST", Some(&[1, 10, 10]), Some(&counts));
 
-        let s: Vec<f32> = futures::executor::block_on_stream(v)
-            .flatten()
-            .flatten()
-            .collect();
+        let s: Vec<f32> = block_on_stream(v).flatten().flatten().collect();
 
         assert_eq!(dir, s);
     }
@@ -263,10 +257,7 @@ mod tests {
 
         let v = f.stream_variable::<f32>("SST", Some(&[0, 0, 0]), Some(&counts));
 
-        let s: Vec<f32> = futures::executor::block_on_stream(v)
-            .flatten()
-            .flatten()
-            .collect();
+        let s: Vec<f32> = block_on_stream(v).flatten().flatten().collect();
         assert_eq!(dir, s);
     }
 
@@ -288,10 +279,7 @@ mod tests {
 
         let v = f.stream_variable::<f32>("SST.SST", Some(&[0, 0, 0]), Some(&counts));
 
-        let s: Vec<f32> = futures::executor::block_on_stream(v)
-            .flatten()
-            .flatten()
-            .collect();
+        let s: Vec<f32> = block_on_stream(v).flatten().flatten().collect();
         assert_eq!(dir, s);
     }
 
@@ -303,7 +291,7 @@ mod tests {
 
         let v = f.stream_encoded_variable("SST.SST", Some(&[0, 0, 0]), Some(&counts));
 
-        futures::executor::block_on_stream(v).for_each(drop);
+        block_on_stream(v).for_each(drop);
     }
 
     #[test]
@@ -330,10 +318,7 @@ mod tests {
 
         let v = f.stream_variable("SST", Some(&[0, 0, 0]), Some(&counts));
 
-        let s: Vec<f32> = futures::executor::block_on_stream(v)
-            .flatten()
-            .flatten()
-            .collect();
+        let s: Vec<f32> = block_on_stream(v).flatten().flatten().collect();
 
         assert_eq!(dir, s);
     }

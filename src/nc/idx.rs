@@ -2,7 +2,7 @@ use futures::stream::Stream;
 use std::pin::Pin;
 
 use hidefix::idx::Index;
-use hidefix::reader::DatasetReader;
+use hidefix::reader::simple::DatasetReader;
 
 use crate::dap2::dods::StreamingDataset;
 
@@ -77,7 +77,7 @@ mod tests {
 
         b.iter(|| {
             let v = idx.stream_encoded_variable("SST", None, None);
-            block_on_stream(v).collect::<Vec<_>>()
+            block_on_stream(v).for_each(drop)
         });
     }
 

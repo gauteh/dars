@@ -114,17 +114,17 @@ impl Dataset for NcDataset {
             Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>>,
         > = query
             .iter()
-            .map(|(v, i, c)| {
-                match &self.idx {
-                    Some(idx) => idx.stream_encoded_variable(
-                        &v,
-                        i.as_ref().map(|i| i.as_slice()),
-                        c.as_ref().map(|c| c.as_slice())),
-                    None => self.f.stream_encoded_variable(
-                        &v,
-                        i.as_ref().map(|i| i.as_slice()),
-                        c.as_ref().map(|c| c.as_slice()))
-                }
+            .map(|(v, i, c)| match &self.idx {
+                Some(idx) => idx.stream_encoded_variable(
+                    &v,
+                    i.as_ref().map(|i| i.as_slice()),
+                    c.as_ref().map(|c| c.as_slice()),
+                ),
+                None => self.f.stream_encoded_variable(
+                    &v,
+                    i.as_ref().map(|i| i.as_slice()),
+                    c.as_ref().map(|c| c.as_slice()),
+                ),
             })
             .collect();
 

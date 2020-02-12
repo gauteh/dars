@@ -2,7 +2,7 @@ use futures::stream::Stream;
 use std::pin::Pin;
 
 use hidefix::idx::Index;
-use hidefix::reader::simple::DatasetReader;
+use hidefix::reader::stream::DatasetReader;
 
 use crate::dap2::dods::StreamingDataset;
 
@@ -48,19 +48,15 @@ impl StreamingDataset for Index {
             .dataset(&vn)
             .expect(&format!("could not find variable: {}", vn));
 
-        let mut r = DatasetReader::with_dataset(ds, self.path()).unwrap();
+        let indices: Vec<u64> = indices
+            .map(|i| i.iter().map(|c| *c as u64).collect())
+            .unwrap_or(vec![0; ds.shape.len()]);
+        let counts: Vec<u64> = counts
+            .map(|i| i.iter().map(|c| *c as u64).collect())
+            .unwrap_or(ds.shape.to_vec());
 
-        let indices = indices.map(|v| v.into_iter().map(|c| *c as u64).collect::<Vec<u64>>());
-        let counts = counts.map(|v| v.into_iter().map(|c| *c as u64).collect::<Vec<u64>>());
-        let b = if let Some(i) = indices {
-            let c = counts.unwrap();
-            r.read(Some(&i), Some(&c))
-        } else {
-            r.read(None, None)
-        };
-
-        use futures::stream;
-        Box::pin(stream::once(async { b }))
+        let r = DatasetReader::with_dataset(ds, self.path()).unwrap();
+        Box::pin(r.stream(Some(&indices), Some(&counts)))
     }
 }
 

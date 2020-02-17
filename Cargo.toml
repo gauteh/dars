@@ -10,6 +10,9 @@ version = "0.1.0" # V!
 [workspace]
 members = [ "hidefix" ]
 
+[profile.release]
+debug = true
+
 [dependencies]
 anyhow = "1"
 async-stream = "0.2"

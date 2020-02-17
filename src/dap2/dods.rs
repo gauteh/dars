@@ -5,6 +5,8 @@ use std::pin::Pin;
 
 /// The XdrPack trait defines how a type can be serialized to
 /// XDR.
+///
+/// TODO: This probably does not work on a BE platform. Use impl in hidefix.
 pub trait XdrPack {
     fn pack(&mut self);
 }

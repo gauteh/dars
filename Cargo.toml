@@ -43,9 +43,10 @@ features = [ "static" ]
 [dependencies.netcdf-sys]
 branch = "vendor"
 git = "https://github.com/magnusuMET/rust-netcdf"
-features = [ "static" ]
+features = [ "static"  ]
 
-[patch.'https://github.com/magnusuMET/hdf5-rust.git']
+[patch]
+[patch.crates-io]
 hdf5 = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
 hdf5-sys = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
 

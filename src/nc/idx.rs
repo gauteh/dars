@@ -1,10 +1,11 @@
-use futures::stream::Stream;
 use std::pin::Pin;
+use futures::stream::{self, Stream, StreamExt};
+use byte_slice_cast::IntoByteVec;
 
 use hidefix::idx::Index;
 use hidefix::reader::stream::DatasetReader;
 
-use crate::dap2::dods::StreamingDataset;
+use crate::dap2::dods::{StreamingDataset, XdrPack};
 
 impl StreamingDataset for Index {
     fn get_var_size(&self, var: &str) -> Result<usize, anyhow::Error> {
@@ -15,7 +16,7 @@ impl StreamingDataset for Index {
 
     fn get_var_single_value(&self, var: &str) -> Result<bool, anyhow::Error> {
         self.dataset(var)
-            .map(|d| d.shape.len() > 1)
+            .map(|d| d.shape.len() < 1)
             .ok_or_else(|| anyhow!("could not find variable: {}", var))
     }
 
@@ -39,6 +40,7 @@ impl StreamingDataset for Index {
         indices: Option<&[usize]>,
         counts: Option<&[usize]>,
     ) -> Pin<Box<dyn Stream<Item = Result<Vec<u8>, anyhow::Error>> + Send + Sync + 'static>> {
+        trace!("streaming: {}", v);
         let vn = if let Some(i) = v.find(".") {
             String::from(&v[i + 1..])
         } else {
@@ -56,7 +58,23 @@ impl StreamingDataset for Index {
             .unwrap_or(ds.shape.to_vec());
 
         let r = DatasetReader::with_dataset(ds, self.path()).unwrap();
-        Box::pin(r.stream(Some(&indices), Some(&counts)))
+        if self.get_var_single_value(&vn).unwrap() {
+            // Box::pin(r.stream(Some(&indices), Some(&counts)))
+            trace!("single value");
+            Box::pin(stream::once(async { Ok(vec![0_u8; 8]) })) // TODO!!
+        } else {
+            let sz = counts.iter().product::<u64>() as usize;
+
+            Box::pin(
+                stream::once(async move {
+                    let mut sz = vec![sz as u32, sz as u32];
+                    sz.pack();
+                    Ok(sz.into_byte_vec())
+                }).chain(
+                    r.stream(Some(&indices), Some(&counts))
+                )
+            )
+        }
     }
 }
 

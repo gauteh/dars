@@ -110,6 +110,11 @@ If no DATA is specified, "data/" is used."#
                 async move {
                     let m = req.method().clone();
                     let u = req.uri().clone();
+                    trace!(
+                        "[{}] {} {}",
+                        remote.ip().to_string().yellow(),
+                        m.to_string().blue(),
+                        u);
 
                     let r = match (req.method(), req.uri().path()) {
                         (&Method::GET, "/") => Response::builder()

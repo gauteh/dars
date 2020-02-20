@@ -114,7 +114,8 @@ If no DATA is specified, "data/" is used."#
                         "[{}] {} {}",
                         remote.ip().to_string().yellow(),
                         m.to_string().blue(),
-                        u);
+                        u
+                    );
 
                     let r = match (req.method(), req.uri().path()) {
                         (&Method::GET, "/") => Response::builder()

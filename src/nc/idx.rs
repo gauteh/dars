@@ -1,6 +1,6 @@
-use std::pin::Pin;
-use futures::stream::{self, Stream, StreamExt};
 use byte_slice_cast::IntoByteVec;
+use futures::stream::{self, Stream, StreamExt};
+use std::pin::Pin;
 
 use hidefix::idx::Index;
 use hidefix::reader::stream::DatasetReader;
@@ -70,9 +70,8 @@ impl StreamingDataset for Index {
                     let mut sz = vec![sz as u32, sz as u32];
                     sz.pack();
                     Ok(sz.into_byte_vec())
-                }).chain(
-                    r.stream(Some(&indices), Some(&counts))
-                )
+                })
+                .chain(r.stream(Some(&indices), Some(&counts))),
             )
         }
     }

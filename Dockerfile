@@ -1,7 +1,7 @@
 FROM rustlang/rust:nightly
 
 RUN apt-get -y update
-RUN apt-get -y install libnetcdf-dev
+RUN apt-get -y install libnetcdf-dev cmake
 
 ADD data /data
 

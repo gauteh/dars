@@ -81,10 +81,10 @@ impl StreamingDataset for Index {
 mod tests {
     use super::*;
     use test::Bencher;
+    use futures::executor::block_on_stream;
 
     #[bench]
     fn encoded_streaming_variable(b: &mut Bencher) {
-        use futures::executor::block_on_stream;
 
         let idx = Index::index("data/coads_climatology.nc4").unwrap();
 
@@ -102,6 +102,6 @@ mod tests {
 
         let v = idx.stream_encoded_variable("SST.SST", Some(&[0, 0, 0]), Some(&counts));
 
-        futures::executor::block_on_stream(v).for_each(drop);
+        block_on_stream(v).for_each(drop);
     }
 }

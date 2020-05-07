@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 use tide::{Result};
-use itertools::Itertools;
-use crate::Request;
 
 #[derive(Default)]
 pub struct Datasets {

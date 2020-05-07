@@ -1,48 +1,14 @@
 [package]
 authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
-description = "A fast and light OPeNDAP-subset server"
 edition = "2018"
-license = "MIT"
 name = "dars"
-repository = "https://github.com/gauteh/dars"
 version = "0.1.0"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-anyhow = "1"
-async-stream = "0.2"
-async-trait = "0.1"
-byte-slice-cast = "*"
-byteorder = "*"
-colored = "1.9"
-env_logger = "0.7"
-futures = "0.3"
-futures-core = "0.3"
-futures-util = "0.3"
-getopts = "*"
-itertools = "0.8"
-lazy_static = "1.4"
-log = "0.4"
-netcdf = "0.4"
-netcdf-sys = "0.2"
-notify = "5.0.0-pre.2"
-percent-encoding = "2.1"
-roxmltree = "0.7"
-same-file = "1"
-walkdir = "2.2"
-
-[dependencies.hyper]
-features = ["stream"]
-version = "0.13"
-
-[dependencies.tokio]
-features = ["full"]
-version = "0.2"
-
-[dependencies.tokio-util]
-features = ["codec"]
-version = "0.2"
-
-[dev-dependencies]
-xdr-codec = "0.4"
+anyhow = "*"
+colored = "*"
+env_logger = "*"
+futures = "*"
+log = "*"
+num_cpus = "*"
+smol = "*"
+tide = "*"

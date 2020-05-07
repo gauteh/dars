@@ -1,5 +1,0 @@
-pytest
-pytest-benchmark
-numpy
-netCDF4
-

@@ -8,7 +8,12 @@ anyhow = "*"
 colored = "*"
 env_logger = "*"
 futures = "*"
+itertools = "*"
 log = "*"
 num_cpus = "*"
 smol = "*"
 tide = "*"
+
+[dependencies.async-std]
+features = ["attributes"]
+version = "*"

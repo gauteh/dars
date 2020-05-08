@@ -6,7 +6,7 @@ use crate::dataset::Dataset;
 
 pub struct Hdf5Dataset {
     path: PathBuf,
-    idx: idx::Index
+    idx: idx::Index,
 }
 
 impl Hdf5Dataset {
@@ -16,14 +16,12 @@ impl Hdf5Dataset {
 
         Ok(Hdf5Dataset {
             path: path.into(),
-            idx
+            idx,
         })
     }
 }
 
-impl Dataset for Hdf5Dataset {
-
-}
+impl Dataset for Hdf5Dataset {}
 
 #[cfg(test)]
 mod tests {
@@ -32,11 +30,12 @@ mod tests {
     #[test]
     fn open_read_coads() {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
-        assert!(matches!(hd.idx.dataset("SST").unwrap().dtype, idx::Datatype::Float(4)));
+        assert!(matches!(
+            hd.idx.dataset("SST").unwrap().dtype,
+            idx::Datatype::Float(4)
+        ));
         let mut r = hd.idx.reader("SST").unwrap();
         let v = r.values::<f32>(None, None).unwrap();
-        assert_eq!(180*90*12, v.len());
+        assert_eq!(180 * 90 * 12, v.len());
     }
 }
-
-

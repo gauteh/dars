@@ -1,5 +1,5 @@
-pub mod dds;
 pub mod das;
+pub mod dds;
 
 #[cfg(test)]
 mod tests {

@@ -4,6 +4,7 @@ edition = "2018"
 name = "dars"
 version = "0.1.0"
 [dependencies]
+"hidefix" = { version = "*", path = "../../hidefix" }
 anyhow = "*"
 colored = "*"
 env_logger = "*"

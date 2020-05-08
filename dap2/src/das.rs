@@ -1,8 +1,14 @@
-/// DAS (Data Attribute Structure)
-pub struct Das {  { }
+use super::dds::ToDds;
 
-impl From<ToDas> for Das { }
-impl From<ToDds> for Das { } // maybe enough?
+/// DAS (Data Attribute Structure)
+pub struct Das { }
+
+pub trait ToDas { }
+
+impl<T> From<T> for Das where T: ToDas {
+    fn from(_: T) -> Self { todo!() }
+}
+// impl<T> From<T> for Das where T: ToDds { } // maybe enough?
 
 impl Das {
 }

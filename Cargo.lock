@@ -358,7 +358,7 @@ dependencies = [
  "colored 1.9.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "hidefix 0.0.0",
+ "hidefix 0.0.0 (git+https://github.com/gauteh/hidefix)",
  "itertools 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -625,6 +625,7 @@ dependencies = [
 [[package]]
 name = "hidefix"
 version = "0.0.0"
+source = "git+https://github.com/gauteh/hidefix#23637fc3f613032eca0fc45f3007df6870a4b0c5"
 dependencies = [
  "anyhow 1.0.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-stream 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1518,6 +1519,7 @@ dependencies = [
 "checksum hdf5-sys 0.6.1 (git+https://github.com/gauteh/hdf5-rust?branch=hidefix)" = "<none>"
 "checksum hdf5-types 0.6.1 (git+https://github.com/gauteh/hdf5-rust?branch=hidefix)" = "<none>"
 "checksum hermit-abi 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "61565ff7aaace3525556587bd2dc31d4a07071957be715e63ce7b1eccf51a8f4"
+"checksum hidefix 0.0.0 (git+https://github.com/gauteh/hidefix)" = "<none>"
 "checksum http-service 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "2c574f90a9567a12b72e9071ab541704ce8d2bea45a950c33991556a1880cd32"
 "checksum http-service-h1 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b10c11288f86378ecdab7d468e5313304f8dfcffee3107f151f946e3b00271df"
 "checksum http-types 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "05af75a78dfeb163d472b1d27bebb6a8845917a069accdf53a9bed47aaff9bfc"

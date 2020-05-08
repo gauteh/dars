@@ -5,8 +5,9 @@ pub trait ToDds {
     // define some generics that can be used to build a dds
 }
 
-impl From<ToDds> for Dds {
+impl<T> From<T> for Dds where T: ToDds {
     // make a dds struct for anything that impls ToDds
+    fn from(_: T) -> Self { todo!() }
 }
 
 impl Dds {

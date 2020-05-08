@@ -25,7 +25,7 @@ fn main() -> anyhow::Result<()> {
     use env_logger::Env;
     env_logger::from_env(Env::default().default_filter_or("dars=debug")).init();
 
-    info!("𓆣 𓃢  (DARS DAP v{})", VERSION);
+    info!("DARS 𓆣 𓃢  v{}", VERSION);
 
     let server = Server {
         data: dataset::Datasets::default(),
@@ -46,9 +46,7 @@ fn main() -> anyhow::Result<()> {
 
     // Listen
     info!("Listening on {}", "127.0.0.1:8001".yellow());
-    Ok(smol::block_on(async {
-        dap.listen("127.0.0.1:8001").await
-    })?)
+    Ok(smol::block_on(dap.listen("127.0.0.1:8001"))?)
 
     // Ok(dap.listen("127.0.0.1:8001").await?)
 }

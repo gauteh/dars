@@ -5,6 +5,7 @@ name = "dars"
 version = "0.1.0"
 [dependencies]
 anyhow = "*"
+async-trait = "*"
 colored = "*"
 env_logger = "*"
 futures = "*"
@@ -20,7 +21,10 @@ zerocopy = "*"
 features = ["attributes"]
 version = "*"
 
+[dependencies.dap2]
+path = "../dap2"
+version = "*"
 
 [dependencies.hidefix]
-version = "*"
 git = "https://github.com/gauteh/hidefix"
+version = "*"

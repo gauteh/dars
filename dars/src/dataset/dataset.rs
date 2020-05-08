@@ -1,2 +1,33 @@
-/// A dataset provides endpoints for the DAP2 or DAP4 protocol.
-pub trait Dataset {}
+use async_trait::async_trait;
+use tide::{prelude::*, Result};
+
+use futures::AsyncBufRead;
+
+use dap2::das::Das;
+use dap2::dds::Dds;
+use dap2::dmr::Dmr;
+
+/// A dataset provides endpoints for the metadata or data requests over the DAP2 or DAP4 protocol.
+///
+/// Provide stream of data and access to metadata.
+#[async_trait]
+pub trait Dataset {
+    async fn das(&self) -> &Das {
+        todo!();
+    }
+
+    async fn dds(&self) -> &Dds {
+        todo!();
+    }
+
+    // TODO: Any way we can get rid of the Box here? Maybe a wrapper that can take any
+    // AsyncBufRead? difficult to do without make Dataset -> Dataset<T>. Then we need
+    // to type out T when impl'ing, which is maybe doable.
+    async fn dods(&self, variable: &str /* constraints */) -> Box<dyn AsyncBufRead> {
+        todo!();
+    }
+
+    async fn dmr(&self) -> &Dmr {
+        todo!();
+    }
+}

@@ -1,10 +1,6 @@
 pub mod das;
 pub mod dds;
+pub mod dods;
+pub mod dmr;
+pub mod dap;
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}

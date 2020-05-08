@@ -3,6 +3,10 @@ use tide::{prelude::*, Result};
 
 use crate::Request;
 
+///! This module holds the collection of datasets which are available. It utilizes the `dap2`
+///! module to parse queries and dispatch metadata or data requests to the `Dataset` implementation
+///! on each dataset-source.
+
 #[derive(Default)]
 pub struct Datasets {
     pub datasets: HashMap<String, DatasetType>,
@@ -26,6 +30,9 @@ impl Datasets {
     }
 
     pub async fn dataset(&self, req: &Request) -> Result {
+        let ds: String = req.param("dataset")?;
+        let query = req.uri().query().unwrap();
+        info!("dataset: {}, {}", ds, query);
         Ok("".into())
     }
 }

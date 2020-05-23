@@ -13,7 +13,6 @@ itertools = "*"
 log = "*"
 num_cpus = "*"
 sled = "*"
-smol = "*"
 tide = "*"
 zerocopy = "*"
 

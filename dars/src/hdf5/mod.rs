@@ -1,27 +1,56 @@
 use std::path::{Path, PathBuf};
+use std::convert::TryInto;
+use std::iter;
 
 use hidefix::idx;
+use dap2::das::{Attribute, ToDas};
 
 use crate::dataset::Dataset;
 
 pub struct Hdf5Dataset {
     path: PathBuf,
     idx: idx::Index,
+    das: dap2::Das,
+    // dds: dap2::Dds,
 }
+
+struct HDF5File(hdf5::File);
 
 impl Hdf5Dataset {
     pub fn open<P: AsRef<Path>>(path: P) -> anyhow::Result<Hdf5Dataset> {
         let path = path.as_ref();
-        let idx = idx::Index::index(path)?;
+        let hf = HDF5File(hdf5::File::open(path)?);
+        let idx = (&hf.0).try_into()?;
+        let das = (&hf).into();
 
         Ok(Hdf5Dataset {
             path: path.into(),
             idx,
+            das
         })
     }
 }
 
 impl Dataset for Hdf5Dataset {}
+
+
+impl ToDas for &HDF5File {
+    fn has_global_attributes(&self) -> bool {
+        false
+    }
+
+    fn global_attributes(&self) -> Box<dyn Iterator<Item = Attribute>> {
+        Box::new(iter::empty())
+    }
+
+    fn variables(&self) -> Box<dyn Iterator<Item = &str>> {
+        Box::new(iter::empty())
+    }
+
+    fn variable_attributes(&self, variable: &str) -> Box<dyn Iterator<Item = Attribute>> {
+        Box::new(iter::empty())
+    }
+}
 
 #[cfg(test)]
 mod tests {

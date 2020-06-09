@@ -1,5 +1,4 @@
 use std::fmt;
-use super::dds::ToDds;
 
 /// DAS (Data Attribute Structure)
 pub struct Das(String);
@@ -21,12 +20,20 @@ pub enum AttrValue {
     Int(i32),
     Ints(Vec<i32>),
     Uchar(u8),
+    Unimplemented(String),
 }
 
 pub trait ToDas {
+    /// Whether dataset has global attributes.
     fn has_global_attributes(&self) -> bool;
+
+    /// Global attributes in dataset.
     fn global_attributes(&self) -> Box<dyn Iterator<Item = Attribute>>;
+
+    /// Variables in dataset.
     fn variables(&self) -> Box<dyn Iterator<Item = &str>>;
+
+    /// Attributes for variable in dataset.
     fn variable_attributes(&self, variable: &str) -> Box<dyn Iterator<Item = Attribute>>;
 }
 
@@ -123,3 +130,4 @@ impl Das {
         }
     }
 }
+

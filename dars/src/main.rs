@@ -1,6 +1,4 @@
-use futures::prelude::*;
 use std::env;
-use std::thread;
 
 #[macro_use]
 extern crate log;

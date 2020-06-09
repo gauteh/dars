@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use tide::{prelude::*, Result};
 
 use futures::AsyncBufRead;
 

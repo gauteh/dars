@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use tide::{prelude::*, Result};
+use tide::Result;
 
 use crate::Request;
 
@@ -31,7 +31,7 @@ impl Datasets {
 
     pub async fn dataset(&self, req: &Request) -> Result {
         let ds: String = req.param("dataset")?;
-        let query = req.uri().query().unwrap();
+        let query = req.url().query().unwrap();
         info!("dataset: {}, {}", ds, query);
         Ok("".into())
     }

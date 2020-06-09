@@ -3,6 +3,7 @@ pub struct Dds {}
 
 pub trait ToDds {
     // define some generics that can be used to build a dds
+
 }
 
 impl<T> From<T> for Dds

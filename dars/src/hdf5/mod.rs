@@ -4,6 +4,7 @@ use crate::dataset::Dataset;
 use hidefix::idx;
 
 mod das;
+mod dds;
 
 /// HDF5 dataset source.
 ///
@@ -12,7 +13,7 @@ pub struct Hdf5Dataset {
     path: PathBuf,
     idx: idx::Index,
     das: dap2::Das,
-    // dds: dap2::Dds,
+    dds: dap2::Dds,
 }
 
 struct HDF5File(hdf5::File);
@@ -23,11 +24,13 @@ impl Hdf5Dataset {
         let hf = HDF5File(hdf5::File::open(path)?);
         let idx = idx::Index::index_file(&hf.0, Some(path))?;
         let das = (&hf).into();
+        let dds = (&hf).into();
 
         Ok(Hdf5Dataset {
             path: path.into(),
             idx,
             das,
+            dds
         })
     }
 }
@@ -54,5 +57,11 @@ mod tests {
     fn coads_das() {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
         println!("DAS:\n{}", hd.das);
+    }
+
+    #[test]
+    fn coads_dds() {
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+        println!("DDS:\n{}", hd.dds.all());
     }
 }

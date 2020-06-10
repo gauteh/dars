@@ -1,6 +1,7 @@
 [package]
-name = "dap2"
-version = "0.1.0"
 authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
 edition = "2018"
-
+name = "dap2"
+version = "0.1.0"
+[dependencies]
+itertools = "*"

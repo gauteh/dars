@@ -1,6 +1,8 @@
 use std::fmt;
 
 /// DAS (Data Attribute Structure)
+///
+/// TODO: Serializable.
 pub struct Das(String);
 
 #[derive(Debug)]
@@ -43,7 +45,7 @@ where
     T: ToDas,
 {
     fn from(dataset: T) -> Self {
-        let indent = 4;
+        const indent: usize = 4;
         let mut das: String = "Attributes {\n".to_string();
 
         if dataset.has_global_attributes() {

@@ -24,10 +24,6 @@ version = "*"
 path = "../dap2"
 version = "*"
 
-[dependencies.hidefix]
-git = "https://github.com/gauteh/hidefix"
-version = "*"
-
 [dependencies.hdf5]
 branch = "hidefix"
 git = "https://github.com/gauteh/hdf5-rust"
@@ -36,4 +32,8 @@ git = "https://github.com/gauteh/hdf5-rust"
 branch = "hidefix"
 features = ["static", "zlib"]
 git = "https://github.com/gauteh/hdf5-rust"
+
+[dependencies.hidefix]
+git = "https://github.com/gauteh/hidefix"
+version = "*"
 

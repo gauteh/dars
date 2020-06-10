@@ -5,8 +5,8 @@ pub struct Das(String);
 
 #[derive(Debug)]
 pub struct Attribute {
-    name: String,
-    value: AttrValue
+    pub name: String,
+    pub value: AttrValue,
 }
 
 #[derive(Debug)]
@@ -17,6 +17,7 @@ pub enum AttrValue {
     Double(f64),
     Doubles(Vec<f64>),
     Short(i16),
+    Shorts(Vec<i16>),
     Int(i32),
     Ints(Vec<i32>),
     Uchar(u8),
@@ -31,7 +32,7 @@ pub trait ToDas {
     fn global_attributes(&self) -> Box<dyn Iterator<Item = Attribute>>;
 
     /// Variables in dataset.
-    fn variables(&self) -> Box<dyn Iterator<Item = &str>>;
+    fn variables(&self) -> Box<dyn Iterator<Item = String>>;
 
     /// Attributes for variable in dataset.
     fn variable_attributes(&self, variable: &str) -> Box<dyn Iterator<Item = Attribute>>;
@@ -46,26 +47,27 @@ where
         let mut das: String = "Attributes {\n".to_string();
 
         if dataset.has_global_attributes() {
-            das.push_str(&format!("{}NC_GLOBAL {{\n",
-                    " ".repeat(indent)));
+            das.push_str(&format!("{}NC_GLOBAL {{\n", " ".repeat(indent)));
             das.push_str(
-                &dataset.global_attributes()
+                &dataset
+                    .global_attributes()
                     .map(|a| Das::format_attr(2 * indent, a))
-                    .collect::<String>());
-            das.push_str(
-                &format!("{}}}\n", " ".repeat(indent)));
+                    .collect::<String>(),
+            );
+            das.push_str(&format!("{}}}\n", " ".repeat(indent)));
         }
-
 
         for var in dataset.variables() {
             das.push_str(&format!("    {} {{\n", var));
             das.push_str(
-                &dataset.variable_attributes(var)
+                &dataset
+                    .variable_attributes(&var)
                     .map(|a| Das::format_attr(2 * indent, a))
                     .collect::<String>(),
             );
             das.push_str("    }\n");
         }
+        das.push_str("}");
 
         Das(das)
     }
@@ -121,13 +123,7 @@ impl Das {
             ),
             Uchar(n) => format!("{}Byte {} {};\n", " ".repeat(indent), a.name, n),
 
-            v => format!(
-                "{}Unimplemented {} {:?};\n",
-                " ".repeat(indent),
-                a.name,
-                v
-            )
+            v => format!("{}Unimplemented {} {:?};\n", " ".repeat(indent), a.name, v),
         }
     }
 }
-

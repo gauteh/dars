@@ -2,8 +2,8 @@ use std::env;
 
 #[macro_use]
 extern crate log;
-// #[macro_use]
-// extern crate anyhow;
+#[macro_use]
+extern crate anyhow;
 
 use colored::Colorize;
 use env_logger::Env;

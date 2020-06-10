@@ -1,12 +1,13 @@
 use std::path::{Path, PathBuf};
-use std::convert::TryInto;
-use std::iter;
-
-use hidefix::idx;
-use dap2::das::{Attribute, ToDas};
 
 use crate::dataset::Dataset;
+use hidefix::idx;
 
+mod das;
+
+/// HDF5 dataset source.
+///
+/// This should be serializable and not keep any files open
 pub struct Hdf5Dataset {
     path: PathBuf,
     idx: idx::Index,
@@ -20,37 +21,18 @@ impl Hdf5Dataset {
     pub fn open<P: AsRef<Path>>(path: P) -> anyhow::Result<Hdf5Dataset> {
         let path = path.as_ref();
         let hf = HDF5File(hdf5::File::open(path)?);
-        let idx = (&hf.0).try_into()?;
+        let idx = idx::Index::index_file(&hf.0, Some(path))?;
         let das = (&hf).into();
 
         Ok(Hdf5Dataset {
             path: path.into(),
             idx,
-            das
+            das,
         })
     }
 }
 
 impl Dataset for Hdf5Dataset {}
-
-
-impl ToDas for &HDF5File {
-    fn has_global_attributes(&self) -> bool {
-        false
-    }
-
-    fn global_attributes(&self) -> Box<dyn Iterator<Item = Attribute>> {
-        Box::new(iter::empty())
-    }
-
-    fn variables(&self) -> Box<dyn Iterator<Item = &str>> {
-        Box::new(iter::empty())
-    }
-
-    fn variable_attributes(&self, variable: &str) -> Box<dyn Iterator<Item = Attribute>> {
-        Box::new(iter::empty())
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -66,5 +48,11 @@ mod tests {
         let mut r = hd.idx.reader("SST").unwrap();
         let v = r.values::<f32>(None, None).unwrap();
         assert_eq!(180 * 90 * 12, v.len());
+    }
+
+    #[test]
+    fn coads_das() {
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+        println!("DAS:\n{}", hd.das);
     }
 }

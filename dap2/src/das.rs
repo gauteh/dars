@@ -40,23 +40,24 @@ pub trait ToDas {
     fn variable_attributes(&self, variable: &str) -> Box<dyn Iterator<Item = Attribute>>;
 }
 
+const INDENT: usize = 4;
+
 impl<T> From<T> for Das
 where
     T: ToDas,
 {
     fn from(dataset: T) -> Self {
-        const indent: usize = 4;
         let mut das: String = "Attributes {\n".to_string();
 
         if dataset.has_global_attributes() {
-            das.push_str(&format!("{}NC_GLOBAL {{\n", " ".repeat(indent)));
+            das.push_str(&format!("{}NC_GLOBAL {{\n", " ".repeat(INDENT)));
             das.push_str(
                 &dataset
                     .global_attributes()
-                    .map(|a| Das::format_attr(2 * indent, a))
+                    .map(|a| format!("{}{}", " ".repeat(INDENT), Das::format_attr(a)))
                     .collect::<String>(),
             );
-            das.push_str(&format!("{}}}\n", " ".repeat(indent)));
+            das.push_str(&format!("{}}}\n", " ".repeat(INDENT)));
         }
 
         for var in dataset.variables() {
@@ -64,7 +65,7 @@ where
             das.push_str(
                 &dataset
                     .variable_attributes(&var)
-                    .map(|a| Das::format_attr(2 * indent, a))
+                    .map(|a| format!("{}{}", " ".repeat(INDENT), Das::format_attr(a)))
                     .collect::<String>(),
             );
             das.push_str("    }\n");
@@ -82,50 +83,50 @@ impl fmt::Display for Das {
 }
 
 impl Das {
-    fn format_attr(indent: usize, a: Attribute) -> String {
+    fn format_attr(a: Attribute) -> String {
         use AttrValue::*;
 
         match a.value {
             Str(s) => format!(
                 "{}String {} \"{}\";\n",
-                " ".repeat(indent),
+                " ".repeat(INDENT),
                 a.name,
                 s.escape_default()
             ),
-            Float(f) => format!("{}Float32 {} {:+E};\n", " ".repeat(indent), a.name, f),
+            Float(f) => format!("{}Float32 {} {:+E};\n", " ".repeat(INDENT), a.name, f),
             Floats(f) => format!(
                 "{}Float32 {} {};\n",
-                " ".repeat(indent),
+                " ".repeat(INDENT),
                 a.name,
                 f.iter()
                     .map(|f| format!("{:+E}", f))
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            Double(f) => format!("{}Float64 {} {:+E};\n", " ".repeat(indent), a.name, f),
+            Double(f) => format!("{}Float64 {} {:+E};\n", " ".repeat(INDENT), a.name, f),
             Doubles(f) => format!(
                 "{}Float64 {} {};\n",
-                " ".repeat(indent),
+                " ".repeat(INDENT),
                 a.name,
                 f.iter()
                     .map(|f| format!("{:+E}", f))
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            Short(f) => format!("{}Int16 {} {};\n", " ".repeat(indent), a.name, f),
-            Int(f) => format!("{}Int32 {} {};\n", " ".repeat(indent), a.name, f),
+            Short(f) => format!("{}Int16 {} {};\n", " ".repeat(INDENT), a.name, f),
+            Int(f) => format!("{}Int32 {} {};\n", " ".repeat(INDENT), a.name, f),
             Ints(f) => format!(
                 "{}Int32 {} {};\n",
-                " ".repeat(indent),
+                " ".repeat(INDENT),
                 a.name,
                 f.iter()
                     .map(|f| format!("{}", f))
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            Uchar(n) => format!("{}Byte {} {};\n", " ".repeat(indent), a.name, n),
+            Uchar(n) => format!("{}Byte {} {};\n", " ".repeat(INDENT), a.name, n),
 
-            v => format!("{}Unimplemented {} {:?};\n", " ".repeat(indent), a.name, v),
+            v => format!("{}Unimplemented {} {:?};\n", " ".repeat(INDENT), a.name, v),
         }
     }
 }

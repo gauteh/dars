@@ -98,9 +98,7 @@ impl VarLenRef {
     }
 }
 
-fn hdf5_dimensions(dataset: &hdf5::Dataset) -> Vec<String> {
-    let id = dataset.id();
-
+fn hdf5_dimensions(m: &str, dataset: &hdf5::Dataset) -> Vec<String> {
     if let Ok(dim_list) = dataset.attribute("DIMENSION_LIST") {
         let id = dim_list.id();
 
@@ -113,45 +111,49 @@ fn hdf5_dimensions(dataset: &hdf5::Dataset) -> Vec<String> {
         let space = dim_list.space().unwrap();
         let ndims = dim_list.ndim();
 
-        let refs = unsafe {
-            let memtype = hs::h5t::H5Tvlen_create(*hs::h5t::H5T_STD_REF_OBJ);
-            let rdata = libc::malloc(std::mem::size_of::<hs::h5t::hvl_t>() * dim_list.size());
-            hs::h5a::H5Aread(id, memtype, rdata);
-            VarLenRef {
-                ptr: rdata as *mut _,
-                len: dim_list.size(),
-                space: space.id(),
-            }
-        };
-
-        refs.as_slice()
-            .iter()
-            .map(|r| {
-                unsafe {
-                    let obj = hs::h5r::H5Rdereference2(
-                        id,
-                        hs::h5p::H5P_DEFAULT,
-                        hs::h5r::H5R_OBJECT,
-                        r.p,
-                    );
-                    let sz = 1 + hs::h5i::H5Iget_name(obj, std::ptr::null_mut(), 0);
-                    let sz: usize = sz.try_into().unwrap();
-                    let name = libc::malloc(sz + 1);
-                    hs::h5i::H5Iget_name(obj, name as *mut _, sz);
-
-                    let name_s = slice::from_raw_parts(name as *const u8, sz);
-                    let name_s = String::from_utf8((&name_s[..name_s.len() - 1]).to_vec());
-
-                    hs::h5o::H5Oclose(obj);
-                    libc::free(name);
-
-                    name_s
+        hdf5::sync::sync(|| {
+            let refs = unsafe {
+                let memtype = hs::h5t::H5Tvlen_create(*hs::h5t::H5T_STD_REF_OBJ);
+                let rdata = libc::malloc(std::mem::size_of::<hs::h5t::hvl_t>() * dim_list.size());
+                hs::h5a::H5Aread(id, memtype, rdata);
+                VarLenRef {
+                    ptr: rdata as *mut _,
+                    len: dim_list.size(),
+                    space: space.id(),
                 }
-                .unwrap()
-            })
-            .collect()
+            };
+
+            refs.as_slice()
+                .iter()
+                .map(|r| {
+                    let name = unsafe {
+                        let obj = hs::h5r::H5Rdereference2(
+                            id,
+                            hs::h5p::H5P_DEFAULT,
+                            hs::h5r::H5R_OBJECT,
+                            r.p,
+                        );
+                        let sz = 1 + hs::h5i::H5Iget_name(obj, std::ptr::null_mut(), 0);
+                        let sz: usize = sz.try_into().unwrap();
+                        let name = libc::malloc(sz + 1);
+                        hs::h5i::H5Iget_name(obj, name as *mut _, sz);
+
+                        let name_s = slice::from_raw_parts(name as *const u8, sz);
+                        let name_s = String::from_utf8((&name_s[..name_s.len() - 1]).to_vec());
+
+                        hs::h5o::H5Oclose(obj);
+                        libc::free(name);
+
+                        name_s
+                    }
+                    .unwrap();
+
+                    (&name[1..]).to_string() // remove leading '/'
+                })
+                .collect()
+        })
     } else {
-        Vec::new()
+        vec![m.to_string()]
     }
 }
 
@@ -169,7 +171,7 @@ impl dds::ToDds for &HDF5File {
             .map(|(m, d)| Variable {
                 name: m.clone(),
                 vartype: hdf5_vartype(&d.dtype().unwrap()),
-                dimensions: hdf5_dimensions(&d),
+                dimensions: hdf5_dimensions(m, &d),
             })
             .collect()
     }

@@ -4,7 +4,6 @@ use futures::AsyncBufRead;
 
 use dap2::das::Das;
 use dap2::dds::Dds;
-use dap2::dmr::Dmr;
 
 /// A dataset provides endpoints for the metadata or data requests over the DAP2 or DAP4 protocol.
 ///
@@ -23,10 +22,6 @@ pub trait Dataset {
     // AsyncBufRead? difficult to do without make Dataset -> Dataset<T>. Then we need
     // to type out T when impl'ing, which is maybe doable.
     async fn dods(&self, variable: &str /* constraints */) -> Box<dyn AsyncBufRead> {
-        todo!();
-    }
-
-    async fn dmr(&self) -> &Dmr {
         todo!();
     }
 }

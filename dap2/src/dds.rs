@@ -1,8 +1,8 @@
 use std::fmt;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use itertools::Itertools;
 
-const indent: usize = 4;
+const INDENT: usize = 4;
 
 /// Data Description Structure
 ///
@@ -12,7 +12,7 @@ pub struct Dds {
     // Probably need to use BTreeMap to get correctly ordered variables.
 
     /// Map of variable -> (size, type, [dimensions])
-    variables: HashMap<String, Variable>,
+    variables: BTreeMap<String, Variable>,
 
     /// Map of dimensions -> size
     dimensions: HashMap<String, usize>,
@@ -110,7 +110,7 @@ impl Dds {
             if !var.dimensions.is_empty() {
                 format!(
                     "{}{} {}[{} = {}];",
-                    " ".repeat(indent),
+                    " ".repeat(INDENT),
                     var.vartype,
                     var.name,
                     var.dimensions[0],
@@ -119,7 +119,7 @@ impl Dds {
             } else {
                 format!(
                     "{}{} {};",
-                    " ".repeat(indent),
+                    " ".repeat(INDENT),
                     var.vartype,
                     var.name
                 )
@@ -138,11 +138,11 @@ impl Dds {
         let var = self.variables.get(var).unwrap();
         let dim = self.variables.get(dim).unwrap();
 
-        grid.push(format!("{}Structure {{", " ".repeat(indent)));
+        grid.push(format!("{}Structure {{", " ".repeat(INDENT)));
 
         grid.push(format!(
             "{}{} {}{};",
-            " ".repeat(2 * indent),
+            " ".repeat(2 * INDENT),
             dim.vartype,
             dim.name,
             dim.dimensions
@@ -156,7 +156,7 @@ impl Dds {
                 .collect::<String>()
         ));
 
-        grid.push(format!("{}}} {};\n", " ".repeat(indent), var.name));
+        grid.push(format!("{}}} {};\n", " ".repeat(INDENT), var.name));
 
         grid.join("\n")
     }
@@ -176,7 +176,7 @@ impl Dds {
         {
             return format!(
                 "{}{} {}{};\n",
-                " ".repeat(indent),
+                " ".repeat(INDENT),
                 var.vartype,
                 var.name,
                 var.dimensions
@@ -193,11 +193,11 @@ impl Dds {
 
         let mut grid: Vec<String> = Vec::new();
 
-        grid.push(format!("{}Grid {{", " ".repeat(indent)));
-        grid.push(format!("{} ARRAY:", " ".repeat(indent)));
+        grid.push(format!("{}Grid {{", " ".repeat(INDENT)));
+        grid.push(format!("{} ARRAY:", " ".repeat(INDENT)));
         grid.push(format!(
             "{}{} {}{};",
-            " ".repeat(2 * indent),
+            " ".repeat(2 * INDENT),
             var.vartype,
             var.name,
             var.dimensions
@@ -210,22 +210,27 @@ impl Dds {
                 ))
                 .collect::<String>()
         ));
-        grid.push(format!("{} MAPS:", " ".repeat(indent)));
+        grid.push(format!("{} MAPS:", " ".repeat(INDENT)));
         for d in &var.dimensions {
-            grid.push(self.format_var(&d, slab).unwrap());
+            grid.push(format!( "{}{}",
+                " ".repeat(INDENT),
+                self.format_var(&d, slab).unwrap()));
         }
 
-        grid.push(format!("{}}} {};\n", " ".repeat(indent), var.name));
+        grid.push(format!("{}}} {};", " ".repeat(INDENT), var.name));
         grid.join("\n")
     }
 
     pub fn all(&self) -> String {
-        self.variables.iter().map(|(name, var)| {
-            if var.dimensions.len() > 1 {
-                self.format_grid(name, None)
-            } else {
-                self.format_var(name, None).unwrap()
-            }
-        }).collect()
+        std::iter::once("Dataset {".to_string()).chain(
+            self.variables.iter().map(|(name, var)| {
+                if var.dimensions.len() > 1 {
+                    self.format_grid(name, None)
+                } else {
+                    self.format_var(name, None).unwrap()
+                }
+            })).chain(
+                std::iter::once(format!("}} {};", self.file_name)))
+            .join("\n")
     }
 }

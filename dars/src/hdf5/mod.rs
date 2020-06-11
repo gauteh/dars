@@ -63,15 +63,83 @@ mod tests {
     fn coads_dds() {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
         println!("DDS:\n{}", hd.dds.all());
+
+        // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds
+        //
+        // filename updated
+        // keys sorted by name
+
+        let tds = r#"Dataset {
+    Grid {
+     ARRAY:
+        Float32 AIRT[TIME = 12][COADSY = 90][COADSX = 180];
+     MAPS:
+        Float64 TIME[TIME = 12];
+        Float64 COADSY[COADSY = 90];
+        Float64 COADSX[COADSX = 180];
+    } AIRT;
+    Float64 COADSX[COADSX = 180];
+    Float64 COADSY[COADSY = 90];
+    Grid {
+     ARRAY:
+        Float32 SST[TIME = 12][COADSY = 90][COADSX = 180];
+     MAPS:
+        Float64 TIME[TIME = 12];
+        Float64 COADSY[COADSY = 90];
+        Float64 COADSX[COADSX = 180];
+    } SST;
+    Float64 TIME[TIME = 12];
+    Grid {
+     ARRAY:
+        Float32 UWND[TIME = 12][COADSY = 90][COADSX = 180];
+     MAPS:
+        Float64 TIME[TIME = 12];
+        Float64 COADSY[COADSY = 90];
+        Float64 COADSX[COADSX = 180];
+    } UWND;
+    Grid {
+     ARRAY:
+        Float32 VWND[TIME = 12][COADSY = 90][COADSX = 180];
+     MAPS:
+        Float64 TIME[TIME = 12];
+        Float64 COADSY[COADSY = 90];
+        Float64 COADSX[COADSX = 180];
+    } VWND;
+} ../data/coads_climatology.nc4;"#;
+
+        assert_eq!(hd.dds.all(), tds);
     }
 
     #[test]
     fn dimensions_1d() {
         let hd = Hdf5Dataset::open("tests/h5/dims_1d.h5").unwrap();
+        println!("DDS:\n{}", hd.dds.all());
+
+        let res =r#"Dataset {
+    Float32 data[x1 = 2];
+    Int64 x1[x1 = 2];
+} tests/h5/dims_1d.h5;"#;
+
+        assert_eq!(hd.dds.all(), res);
     }
 
     #[test]
     fn dimensions_2d() {
         let hd = Hdf5Dataset::open("tests/h5/dims_2d.h5").unwrap();
+        println!("DDS:\n{}", hd.dds.all());
+
+        let res = r#"Dataset {
+    Grid {
+     ARRAY:
+        Float32 data[x1 = 2][y1 = 3];
+     MAPS:
+        Int64 x1[x1 = 2];
+        Int64 y1[y1 = 3];
+    } data;
+    Int64 x1[x1 = 2];
+    Int64 y1[y1 = 3];
+} tests/h5/dims_2d.h5;"#;
+
+        assert_eq!(hd.dds.all(), res);
     }
 }

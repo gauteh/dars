@@ -29,8 +29,12 @@ pub struct Variable {
 pub enum VarType {
     Float32,
     Float64,
+    UInt16,
+    UInt32,
+    UInt64,
     Int16,
     Int32,
+    Int64,
     Byte,
     String
 }
@@ -41,8 +45,12 @@ impl fmt::Display for VarType {
             match self {
                 VarType::Float32 => "Float32",
                 VarType::Float64 => "Float64",
+                VarType::UInt16  => "UInt16",
+                VarType::UInt32  => "UInt32",
+                VarType::UInt64  => "UInt64",
                 VarType::Int16   => "Int16",
                 VarType::Int32   => "Int32",
+                VarType::Int64   => "Int64",
                 VarType::Byte    => "Byte",
                 VarType::String  => "String"
             }

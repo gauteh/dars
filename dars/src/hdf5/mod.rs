@@ -16,12 +16,12 @@ pub struct Hdf5Dataset {
     dds: dap2::Dds,
 }
 
-struct HDF5File(hdf5::File);
+struct HDF5File(hdf5::File, PathBuf);
 
 impl Hdf5Dataset {
     pub fn open<P: AsRef<Path>>(path: P) -> anyhow::Result<Hdf5Dataset> {
         let path = path.as_ref();
-        let hf = HDF5File(hdf5::File::open(path)?);
+        let hf = HDF5File(hdf5::File::open(path)?, path.to_path_buf());
         let idx = idx::Index::index_file(&hf.0, Some(path))?;
         let das = (&hf).into();
         let dds = (&hf).into();
@@ -30,7 +30,7 @@ impl Hdf5Dataset {
             path: path.into(),
             idx,
             das,
-            dds
+            dds,
         })
     }
 }
@@ -63,5 +63,15 @@ mod tests {
     fn coads_dds() {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
         println!("DDS:\n{}", hd.dds.all());
+    }
+
+    #[test]
+    fn dimensions_1d() {
+        let hd = Hdf5Dataset::open("tests/h5/dims_1d.h5").unwrap();
+    }
+
+    #[test]
+    fn dimensions_2d() {
+        let hd = Hdf5Dataset::open("tests/h5/dims_2d.h5").unwrap();
     }
 }

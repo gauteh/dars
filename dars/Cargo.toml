@@ -10,6 +10,7 @@ colored = "*"
 env_logger = "*"
 futures = "*"
 itertools = "*"
+libc = "*"
 log = "*"
 num_cpus = "*"
 sled = "*"
@@ -36,4 +37,3 @@ git = "https://github.com/gauteh/hdf5-rust"
 [dependencies.hidefix]
 git = "https://github.com/gauteh/hidefix"
 version = "*"
-

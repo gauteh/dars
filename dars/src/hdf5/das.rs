@@ -125,4 +125,3 @@ fn fixedascii_attr_value<T: hdf5::types::Array<Item = u8>>(
         .as_str()
         .to_owned())
 }
-

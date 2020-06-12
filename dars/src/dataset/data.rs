@@ -4,15 +4,19 @@
 
 use std::collections::HashMap;
 
+use tide::{Error, StatusCode};
+
 use crate::Request;
 use crate::hdf5;
 use dap2::Constraint;
+use super::Dataset;
 
 #[derive(Default)]
 pub struct Datasets {
     pub datasets: HashMap<String, DatasetType>,
 }
 
+#[derive(Debug)]
 pub enum DatasetType {
     HDF5(hdf5::Hdf5Dataset),
 }
@@ -32,12 +36,30 @@ impl Datasets {
 
     pub async fn dataset(&self, req: &Request) -> tide::Result {
         let dset = req.param::<String>("dataset")?;
-        let (dset, daprequest) = Datasets::request(&dset);
+        let (dset, dap_request) = Datasets::request(&dset);
 
-        let query = req.url().query();
-        let constraint = Constraint::parse(req.url().query());
-        info!("dataset: {} [{:?}] ({:?})", dset, daprequest, query);
-        Ok("".into())
+        if let Some(dset) = self.datasets.get(dset) {
+            let constraint = Constraint::parse(req.url().query())
+                .or_else(|_| Err(Error::from_str(StatusCode::BadRequest, "Invalid constraints in query.")))?;
+
+            debug!("dataset: {:?} [{:?}] ({:?})", dset, dap_request, constraint);
+
+            match dset {
+                DatasetType::HDF5(dset) => self.dataset_dap_request(dset, dap_request).await
+            }
+        } else {
+            Err(Error::from_str(StatusCode::NotFound, "Dataset not found."))
+        }
+    }
+
+    async fn dataset_dap_request<T: Dataset>(&self, dset: &T, dap_request: DapRequest) -> tide::Result {
+        use DapRequest::*;
+
+        match dap_request {
+            Das => Ok(dset.das().await.0.as_str().into()),
+            Raw => dset.raw().await,
+            _ => unimplemented!()
+        }
     }
 
     fn request(dataset: &str) -> (&str, DapRequest) {

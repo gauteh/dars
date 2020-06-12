@@ -12,6 +12,7 @@ use dap2::dds::Dds;
 pub trait Dataset {
     async fn das(&self) -> &Das;
     async fn dds(&self) -> &Dds;
+    async fn raw(&self) -> tide::Result;
 
     // TODO: Any way we can get rid of the Box here? Maybe a wrapper that can take any
     // AsyncBufRead? difficult to do without make Dataset -> Dataset<T>. Then we need

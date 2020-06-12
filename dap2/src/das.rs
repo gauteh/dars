@@ -3,7 +3,7 @@ use std::fmt;
 /// DAS (Data Attribute Structure)
 ///
 /// TODO: Serializable.
-pub struct Das(String);
+pub struct Das(pub String);
 
 #[derive(Debug)]
 pub struct Attribute {

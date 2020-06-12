@@ -21,7 +21,7 @@ pub type Request = tide::Request<Server>;
 
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
-    env_logger::from_env(Env::default().default_filter_or("dars=debug")).init();
+    env_logger::from_env(Env::default().default_filter_or("dars=info")).init();
 
     info!("𓃢   Welcome to DARS v{}", VERSION);
 

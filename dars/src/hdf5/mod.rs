@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::fmt;
 
 use async_trait::async_trait;
 use crate::dataset::Dataset;
@@ -15,6 +16,12 @@ pub struct Hdf5Dataset {
     idx: idx::Index,
     das: dap2::Das,
     dds: dap2::Dds,
+}
+
+impl fmt::Debug for Hdf5Dataset {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Hdf5Dataset <{:?}>", self.path)
+    }
 }
 
 struct HDF5File(hdf5::File, PathBuf);
@@ -44,6 +51,10 @@ impl Dataset for Hdf5Dataset {
 
     async fn dds(&self) -> &dap2::Dds {
         &self.dds
+    }
+
+    async fn raw(&self) -> tide::Result {
+        Ok(tide::Body::from_file(self.path.clone()).await?.into())
     }
 }
 

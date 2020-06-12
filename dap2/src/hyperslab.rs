@@ -33,9 +33,9 @@ fn parse_slice(s: &str) -> anyhow::Result<Vec<usize>> {
     }
 }
 
-pub fn parse_hyberslab(s: &str) -> anyhow::Result<Vec<Vec<usize>>> {
+pub fn parse_hyperslab(s: &str) -> anyhow::Result<Vec<Vec<usize>>> {
     if s.len() < 3 || !s.starts_with('[') || !s.ends_with(']') {
-        return Err(anyhow!("Hyberslab missing brackets"));
+        return Err(anyhow!("Hyperslab missing brackets"));
     }
 
     s.split(']')
@@ -56,33 +56,33 @@ mod tests {
 
     #[test]
     fn test_hyperslab() {
-        assert_eq!(parse_hyberslab("[0:30]").unwrap(), [[0, 30]]);
+        assert_eq!(parse_hyperslab("[0:30]").unwrap(), [[0, 30]]);
     }
 
     #[test]
     fn test_stride() {
-        assert_eq!(parse_hyberslab("[0:2:30]").unwrap(), [[0, 2, 30]]);
+        assert_eq!(parse_hyperslab("[0:2:30]").unwrap(), [[0, 2, 30]]);
     }
 
     #[test]
     fn too_many_values() {
-        assert!(parse_hyberslab("[0:3:4:40]").is_err());
+        assert!(parse_hyperslab("[0:3:4:40]").is_err());
     }
 
     #[test]
     fn too_wrong_indx() {
-        assert!(parse_hyberslab("[0:a:40]").is_err());
+        assert!(parse_hyperslab("[0:a:40]").is_err());
     }
 
     #[test]
     fn test_multidim() {
-        assert_eq!(parse_hyberslab("[0][1]").unwrap(), [[0], [1]]);
+        assert_eq!(parse_hyperslab("[0][1]").unwrap(), [[0], [1]]);
     }
 
     #[test]
     fn test_multidim_slice() {
         assert_eq!(
-            parse_hyberslab("[0:30][1][0:1200]").unwrap(),
+            parse_hyperslab("[0:30][1][0:1200]").unwrap(),
             vec!(vec![0, 30], vec![1], vec![0, 1200])
         );
     }

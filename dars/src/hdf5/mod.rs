@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use async_trait::async_trait;
 use crate::dataset::Dataset;
 use hidefix::idx;
 
@@ -35,14 +36,23 @@ impl Hdf5Dataset {
     }
 }
 
-impl Dataset for Hdf5Dataset {}
+#[async_trait]
+impl Dataset for Hdf5Dataset {
+    async fn das(&self) -> &dap2::Das {
+        &self.das
+    }
+
+    async fn dds(&self) -> &dap2::Dds {
+        &self.dds
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn open_read_coads() {
+    fn coads_read() {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
         assert!(matches!(
             hd.idx.dataset("SST").unwrap().dtype,

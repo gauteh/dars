@@ -109,7 +109,6 @@ fn hdf5_dimensions(m: &str, dataset: &hdf5::Dataset) -> Vec<String> {
         // - https://bitbucket.hdfgroup.org/projects/HDFFV/repos/hdf5-examples/browse/1_10/C/H5T/h5ex_t_vlenatt.c
         // - https://bitbucket.hdfgroup.org/projects/HDFFV/repos/hdf5-examples/browse/1_10/C/H5T/h5ex_t_objrefatt.c
         let space = dim_list.space().unwrap();
-        let ndims = dim_list.ndim();
 
         hdf5::sync::sync(|| {
             let refs = unsafe {

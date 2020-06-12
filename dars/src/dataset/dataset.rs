@@ -10,13 +10,8 @@ use dap2::dds::Dds;
 /// Provide stream of data and access to metadata.
 #[async_trait]
 pub trait Dataset {
-    async fn das(&self) -> &Das {
-        todo!();
-    }
-
-    async fn dds(&self) -> &Dds {
-        todo!();
-    }
+    async fn das(&self) -> &Das;
+    async fn dds(&self) -> &Dds;
 
     // TODO: Any way we can get rid of the Box here? Maybe a wrapper that can take any
     // AsyncBufRead? difficult to do without make Dataset -> Dataset<T>. Then we need

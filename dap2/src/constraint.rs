@@ -1,13 +1,12 @@
+use crate::hyperslab;
 ///! DAP constraints consist of variable list and slices (hyperslabs) of those variables.
 ///! We currently only support constraints that slices variables, none based on the content
 ///! of the variable.
-
 use std::ops::Deref;
-use crate::hyperslab;
 
 #[derive(Debug)]
 pub struct Constraint {
-    variables: Vec<ConstraintVariable>
+    variables: Vec<ConstraintVariable>,
 }
 
 impl Deref for Constraint {
@@ -21,40 +20,51 @@ impl Deref for Constraint {
 #[derive(Debug)]
 pub enum ConstraintVariable {
     Variable((String, Option<Vec<Vec<usize>>>)),
-    Structure((String, String, Option<Vec<Vec<usize>>>))
+    Structure((String, String, Option<Vec<Vec<usize>>>)),
 }
 
 impl Constraint {
-    pub fn parse(query: Option<&str>) -> anyhow::Result<Constraint>
-    {
+    pub fn parse(query: Option<&str>) -> anyhow::Result<Constraint> {
         if let Some(query) = query {
-            query.split(",").map(|var| {
-                if let Some(s) = var.find(".") {
-                    let v1 = &var[..s];
-                    let v2 = &var[s+1..];
+            query
+                .split(",")
+                .map(|var| {
+                    if let Some(s) = var.find(".") {
+                        let v1 = &var[..s];
+                        let v2 = &var[s + 1..];
 
-                    match v2.find("[") {
-                        Some(i) => hyperslab::parse_hyperslab(&v2[i..])
-                            .and_then(|slab| Ok((&v2[..i], Some(slab)))),
-                        None => Ok((v2, None))
-                    }.and_then(|(v2, slab)|
-                        Ok(ConstraintVariable::Structure((v1.to_string(), v2.to_string(), slab))))
-                } else {
-                    match var.find("[") {
-                        Some(i) => hyperslab::parse_hyperslab(&var[i..])
-                            .and_then(|slab| Ok((&var[..i], Some(slab)))),
-                        None => Ok((var, None))
-                    }.and_then(|(var, slab)| Ok(ConstraintVariable::Variable((var.to_string(), slab))))
-                }
-            })
-            .collect::<anyhow::Result<_>>()
-            .and_then(|variables| Ok(Constraint { variables }))
+                        match v2.find("[") {
+                            Some(i) => hyperslab::parse_hyperslab(&v2[i..])
+                                .and_then(|slab| Ok((&v2[..i], Some(slab)))),
+                            None => Ok((v2, None)),
+                        }
+                        .and_then(|(v2, slab)| {
+                            Ok(ConstraintVariable::Structure((
+                                v1.to_string(),
+                                v2.to_string(),
+                                slab,
+                            )))
+                        })
+                    } else {
+                        match var.find("[") {
+                            Some(i) => hyperslab::parse_hyperslab(&var[i..])
+                                .and_then(|slab| Ok((&var[..i], Some(slab)))),
+                            None => Ok((var, None)),
+                        }
+                        .and_then(|(var, slab)| {
+                            Ok(ConstraintVariable::Variable((var.to_string(), slab)))
+                        })
+                    }
+                })
+                .collect::<anyhow::Result<_>>()
+                .and_then(|variables| Ok(Constraint { variables }))
         } else {
-            Ok(Constraint { variables: Vec::new() })
+            Ok(Constraint {
+                variables: Vec::new(),
+            })
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -156,4 +166,3 @@ mod tests {
         // assert!(Constraint::parse(Some("SST.SST[1],a]")).is_err());
     }
 }
-

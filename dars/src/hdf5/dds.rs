@@ -73,11 +73,13 @@ impl VarLenRef {
         self.len
     }
 
+    #[allow(dead_code)]
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    #[allow(dead_code)]
     #[inline]
     pub fn as_ptr(&self) -> *const u8 {
         self.ptr
@@ -181,5 +183,186 @@ impl dds::ToDds for &HDF5File {
 
     fn file_name(&self) -> String {
         self.1.to_string_lossy().to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::Hdf5Dataset;
+    use dap2::constraint::Constraint;
+
+    #[test]
+    fn coads() {
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+        println!("DDS:\n{}", hd.dds.all());
+
+        // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds
+        //
+        // filename updated
+        // keys sorted by name
+
+        let tds = r#"Dataset {
+    Grid {
+     ARRAY:
+        Float32 AIRT[TIME = 12][COADSY = 90][COADSX = 180];
+     MAPS:
+        Float64 TIME[TIME = 12];
+        Float64 COADSY[COADSY = 90];
+        Float64 COADSX[COADSX = 180];
+    } AIRT;
+    Float64 COADSX[COADSX = 180];
+    Float64 COADSY[COADSY = 90];
+    Grid {
+     ARRAY:
+        Float32 SST[TIME = 12][COADSY = 90][COADSX = 180];
+     MAPS:
+        Float64 TIME[TIME = 12];
+        Float64 COADSY[COADSY = 90];
+        Float64 COADSX[COADSX = 180];
+    } SST;
+    Float64 TIME[TIME = 12];
+    Grid {
+     ARRAY:
+        Float32 UWND[TIME = 12][COADSY = 90][COADSX = 180];
+     MAPS:
+        Float64 TIME[TIME = 12];
+        Float64 COADSY[COADSY = 90];
+        Float64 COADSX[COADSX = 180];
+    } UWND;
+    Grid {
+     ARRAY:
+        Float32 VWND[TIME = 12][COADSY = 90][COADSX = 180];
+     MAPS:
+        Float64 TIME[TIME = 12];
+        Float64 COADSY[COADSY = 90];
+        Float64 COADSX[COADSX = 180];
+    } VWND;
+} ../data/coads_climatology.nc4;"#;
+
+        assert_eq!(hd.dds.all(), tds);
+    }
+
+    #[test]
+    fn coads_time() {
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+
+        let c = Constraint::parse(Some("TIME".into())).unwrap();
+        let dds = hd.dds.dds(&c).unwrap();
+        println!("{}", dds);
+
+        // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds?TIME
+        let tds = r#"Dataset {
+    Float64 TIME[TIME = 12];
+} ../data/coads_climatology.nc4;"#;
+
+        assert_eq!(dds, tds);
+    }
+
+    #[test]
+    fn coads_time_slab() {
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+
+        let c = Constraint::parse(Some("TIME[0:5]".into())).unwrap();
+        let dds = hd.dds.dds(&c).unwrap();
+        println!("{}", dds);
+
+        // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds?TIME[0:5]
+        let tds = r#"Dataset {
+    Float64 TIME[TIME = 6];
+} ../data/coads_climatology.nc4;"#;
+
+        assert_eq!(dds, tds);
+    }
+
+    #[test]
+    fn coads_sst_grid() {
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+
+        let c = Constraint::parse(Some("SST".into())).unwrap();
+        let dds = hd.dds.dds(&c).unwrap();
+        println!("{}", dds);
+
+        // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds?SST
+        let tds = r#"Dataset {
+    Grid {
+     ARRAY:
+        Float32 SST[TIME = 12][COADSY = 90][COADSX = 180];
+     MAPS:
+        Float64 TIME[TIME = 12];
+        Float64 COADSY[COADSY = 90];
+        Float64 COADSX[COADSX = 180];
+    } SST;
+} ../data/coads_climatology.nc4;"#;
+
+        assert_eq!(dds, tds);
+    }
+
+    #[test]
+    fn coads_sst_struct() {
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+
+        let c = Constraint::parse(Some("SST.SST".into())).unwrap();
+        let dds = hd.dds.dds(&c).unwrap();
+        println!("{}", dds);
+
+        // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds?SST.SST
+        let tds = r#"Dataset {
+    Structure {
+        Float32 SST[TIME = 12][COADSY = 90][COADSX = 180];
+    } SST;
+} ../data/coads_climatology.nc4;"#;
+
+        assert_eq!(dds, tds);
+    }
+
+    #[test]
+    fn coads_sst_struct_span() {
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+
+        let c = Constraint::parse(Some("SST.SST[0:5][0:10][10:20]".into())).unwrap();
+        let dds = hd.dds.dds(&c).unwrap();
+        println!("{}", dds);
+
+        // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds?SST.SST[0:5][0:10][10:20]
+        let tds = r#"Dataset {
+    Structure {
+        Float32 SST[TIME = 6][COADSY = 11][COADSX = 11];
+    } SST;
+} ../data/coads_climatology.nc4;"#;
+
+        assert_eq!(dds, tds);
+    }
+
+    #[test]
+    fn dimensions_1d() {
+        let hd = Hdf5Dataset::open("tests/h5/dims_1d.h5").unwrap();
+        println!("DDS:\n{}", hd.dds.all());
+
+        let res = r#"Dataset {
+    Float32 data[x1 = 2];
+    Int64 x1[x1 = 2];
+} tests/h5/dims_1d.h5;"#;
+
+        assert_eq!(hd.dds.all(), res);
+    }
+
+    #[test]
+    fn dimensions_2d() {
+        let hd = Hdf5Dataset::open("tests/h5/dims_2d.h5").unwrap();
+        println!("DDS:\n{}", hd.dds.all());
+
+        let res = r#"Dataset {
+    Grid {
+     ARRAY:
+        Float32 data[x1 = 2][y1 = 3];
+     MAPS:
+        Int64 x1[x1 = 2];
+        Int64 y1[y1 = 3];
+    } data;
+    Int64 x1[x1 = 2];
+    Int64 y1[y1 = 3];
+} tests/h5/dims_2d.h5;"#;
+
+        assert_eq!(hd.dds.all(), res);
     }
 }

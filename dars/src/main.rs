@@ -26,10 +26,10 @@ async fn main() -> anyhow::Result<()> {
     info!("𓃢   Welcome to DARS v{}", VERSION);
 
     let mut data = dataset::Datasets::default();
-    data.datasets.insert("coads_climatology.nc4".to_string(),
-        dataset::DatasetType::HDF5(
-            hdf5::Hdf5Dataset::open(
-                "../data/coads_climatology.nc4")?));
+    data.datasets.insert(
+        "coads_climatology.nc4".to_string(),
+        dataset::DatasetType::HDF5(hdf5::Hdf5Dataset::open("../data/coads_climatology.nc4")?),
+    );
 
     let server = Server { data };
 

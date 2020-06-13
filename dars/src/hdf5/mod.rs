@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
 use std::fmt;
+use std::path::{Path, PathBuf};
 
-use async_trait::async_trait;
 use crate::dataset::Dataset;
+use async_trait::async_trait;
 use hidefix::idx;
 
 mod das;
@@ -72,95 +72,5 @@ mod tests {
         let mut r = hd.idx.reader("SST").unwrap();
         let v = r.values::<f32>(None, None).unwrap();
         assert_eq!(180 * 90 * 12, v.len());
-    }
-
-    #[test]
-    fn coads_das() {
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
-        println!("DAS:\n{}", hd.das);
-    }
-
-    #[test]
-    fn coads_dds() {
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
-        println!("DDS:\n{}", hd.dds.all());
-
-        // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds
-        //
-        // filename updated
-        // keys sorted by name
-
-        let tds = r#"Dataset {
-    Grid {
-     ARRAY:
-        Float32 AIRT[TIME = 12][COADSY = 90][COADSX = 180];
-     MAPS:
-        Float64 TIME[TIME = 12];
-        Float64 COADSY[COADSY = 90];
-        Float64 COADSX[COADSX = 180];
-    } AIRT;
-    Float64 COADSX[COADSX = 180];
-    Float64 COADSY[COADSY = 90];
-    Grid {
-     ARRAY:
-        Float32 SST[TIME = 12][COADSY = 90][COADSX = 180];
-     MAPS:
-        Float64 TIME[TIME = 12];
-        Float64 COADSY[COADSY = 90];
-        Float64 COADSX[COADSX = 180];
-    } SST;
-    Float64 TIME[TIME = 12];
-    Grid {
-     ARRAY:
-        Float32 UWND[TIME = 12][COADSY = 90][COADSX = 180];
-     MAPS:
-        Float64 TIME[TIME = 12];
-        Float64 COADSY[COADSY = 90];
-        Float64 COADSX[COADSX = 180];
-    } UWND;
-    Grid {
-     ARRAY:
-        Float32 VWND[TIME = 12][COADSY = 90][COADSX = 180];
-     MAPS:
-        Float64 TIME[TIME = 12];
-        Float64 COADSY[COADSY = 90];
-        Float64 COADSX[COADSX = 180];
-    } VWND;
-} ../data/coads_climatology.nc4;"#;
-
-        assert_eq!(hd.dds.all(), tds);
-    }
-
-    #[test]
-    fn dimensions_1d() {
-        let hd = Hdf5Dataset::open("tests/h5/dims_1d.h5").unwrap();
-        println!("DDS:\n{}", hd.dds.all());
-
-        let res =r#"Dataset {
-    Float32 data[x1 = 2];
-    Int64 x1[x1 = 2];
-} tests/h5/dims_1d.h5;"#;
-
-        assert_eq!(hd.dds.all(), res);
-    }
-
-    #[test]
-    fn dimensions_2d() {
-        let hd = Hdf5Dataset::open("tests/h5/dims_2d.h5").unwrap();
-        println!("DDS:\n{}", hd.dds.all());
-
-        let res = r#"Dataset {
-    Grid {
-     ARRAY:
-        Float32 data[x1 = 2][y1 = 3];
-     MAPS:
-        Int64 x1[x1 = 2];
-        Int64 y1[y1 = 3];
-    } data;
-    Int64 x1[x1 = 2];
-    Int64 y1[y1 = 3];
-} tests/h5/dims_2d.h5;"#;
-
-        assert_eq!(hd.dds.all(), res);
     }
 }

@@ -125,3 +125,14 @@ fn fixedascii_attr_value<T: hdf5::types::Array<Item = u8>>(
         .as_str()
         .to_owned())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::Hdf5Dataset;
+
+    #[test]
+    fn coads() {
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+        println!("DAS:\n{}", hd.das);
+    }
+}

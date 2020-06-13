@@ -16,7 +16,7 @@ pub trait Dataset {
 
     // TODO: Any way we can get rid of the Box here? Maybe a wrapper that can take any
     // AsyncBufRead? difficult to do without make Dataset -> Dataset<T>. Then we need
-    // to type out T when impl'ing, which is maybe doable.
+    // to type out T when impl'ing, which is maybe doable with a little help from the compiler.
     async fn dods(&self, variable: &str /* constraints */) -> Box<dyn AsyncBufRead> {
         todo!();
     }

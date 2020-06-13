@@ -48,7 +48,7 @@ impl Datasets {
             debug!("dataset: {:?} [{:?}] ({:?})", dset, dap_request, constraint);
 
             match dset {
-                DatasetType::HDF5(dset) => self.dataset_dap_request(dset, dap_request).await,
+                DatasetType::HDF5(dset) => self.dataset_dap_request(dset, dap_request, constraint).await,
             }
         } else {
             Err(Error::from_str(StatusCode::NotFound, "Dataset not found."))
@@ -59,11 +59,15 @@ impl Datasets {
         &self,
         dset: &T,
         dap_request: DapRequest,
+        constraint: Constraint
     ) -> tide::Result {
         use DapRequest::*;
 
         match dap_request {
             Das => Ok(dset.das().await.0.as_str().into()),
+            Dds => dset.dds().await.dds(&constraint)
+                .map(|dds| Ok(dds.into()))
+                .or_else(|e| Err(Error::from_str(StatusCode::BadRequest, format!("Invalid DDS request: {}", e.to_string()))))?,
             Raw => dset.raw().await,
             _ => unimplemented!(),
         }

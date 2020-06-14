@@ -1,12 +1,15 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use crate::dataset::Dataset;
 use async_trait::async_trait;
+use futures::AsyncBufRead;
 use hidefix::idx;
+
+use crate::dataset::Dataset;
 
 mod das;
 mod dds;
+mod dods;
 
 /// HDF5 dataset source.
 ///
@@ -53,8 +56,22 @@ impl Dataset for Hdf5Dataset {
         &self.dds
     }
 
-    async fn raw(&self) -> tide::Result {
-        Ok(tide::Body::from_file(self.path.clone()).await?.into())
+    async fn raw(
+        &self,
+    ) -> Result<
+        (
+            Box<dyn Send + Sync + Unpin + AsyncBufRead + 'static>,
+            Option<usize>,
+        ),
+        anyhow::Error,
+    > {
+        let file = async_std::fs::File::open(self.path.clone()).await?;
+        let len = file.metadata().await?.len();
+
+        Ok((
+            Box::new(async_std::io::BufReader::new(file)),
+            Some(len as usize),
+        ))
     }
 }
 

@@ -24,7 +24,7 @@ pub struct Dds {
 pub struct Variable {
     pub name: String,
     pub vartype: VarType,
-    pub dimensions: Vec<String>, // TODO: use ids
+    pub dimensions: Vec<String>,
 }
 
 pub enum VarType {
@@ -92,8 +92,7 @@ where
 }
 
 impl Dds {
-    fn slab_dim_sz(&self, dim: &str, i: usize, slab: Option<impl AsRef<[usize]>>) -> usize
-    {
+    fn slab_dim_sz(&self, dim: &str, i: usize, slab: Option<impl AsRef<[usize]>>) -> usize {
         self.dimensions
             .get(dim)
             .map(|dimsz| {
@@ -223,7 +222,11 @@ impl Dds {
 
     /// Counts the number of elements a hyperslab slice results in.
     fn counts(slab: &Option<Vec<Vec<usize>>>) -> Option<Vec<usize>> {
-        slab.as_ref().map(|slab| slab.iter().map(|v| hyperslab::count_slab(&v)).collect::<Vec<usize>>())
+        slab.as_ref().map(|slab| {
+            slab.iter()
+                .map(|v| hyperslab::count_slab(&v))
+                .collect::<Vec<usize>>()
+        })
     }
 
     /// DDS string given the constraint.

@@ -5,4 +5,8 @@ name = "dap2"
 version = "0.1.0"
 [dependencies]
 anyhow = "*"
+async-trait = "*"
+byte-slice-cast = "*"
+byteorder = "*"
+futures = "*"
 itertools = "*"

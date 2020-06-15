@@ -1,8 +1,9 @@
-use crate::hyperslab;
 ///! DAP constraints consist of variable list and slices (hyperslabs) of those variables.
 ///! We currently only support constraints that slices variables, none based on the content
 ///! of the variable.
+
 use std::ops::Deref;
+use crate::hyperslab;
 
 #[derive(Debug)]
 pub struct Constraint {
@@ -20,6 +21,8 @@ impl Deref for Constraint {
 #[derive(Debug)]
 pub enum ConstraintVariable {
     Variable((String, Option<Vec<Vec<usize>>>)),
+
+    // TODO: This is more like StructureMember
     Structure((String, String, Option<Vec<Vec<usize>>>)),
 }
 
@@ -81,8 +84,10 @@ mod tests {
 
         assert_eq!(c.len(), 1);
 
-        let var = String::from("SST");
-        assert!(matches!(&c[0], ConstraintVariable::Variable((var, None))));
+        if let ConstraintVariable::Variable((var, slab)) = &c[0] {
+            assert_eq!(var, "SST");
+            assert!(slab.is_none());
+        }
     }
 
     #[test]

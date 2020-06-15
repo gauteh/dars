@@ -6,17 +6,18 @@
 /// Arrays are preceeded by the XDR-encoded length as an u32 _repeated twice_, while single values
 /// are sent without header.
 use async_trait::async_trait;
-use futures::stream::TryStreamExt;
+use futures::stream::{self, TryStreamExt};
 use futures::{AsyncBufRead, AsyncReadExt};
+use std::pin::Pin;
 
 use byte_slice_cast::IntoByteVec;
-use byteorder::{BigEndian, ByteOrder};
+use super::xdr::*;
 
 pub trait Reader = Send + Sync + Unpin + AsyncBufRead + 'static;
 
 pub enum DodsVariable {
-    Value(Box<dyn Reader>),
-    Array(usize, Box<dyn Reader>),
+    Value(Pin<Box<dyn Reader>>),
+    Array(usize, Pin<Box<dyn Reader>>),
 }
 
 #[async_trait]
@@ -27,7 +28,7 @@ pub trait Dods {
 
 impl DodsVariable {
     /// Consumes variable and returns a reader with the XDR header and the XDR data.
-    pub fn reader(self) -> Box<dyn Reader> {
+    pub fn as_reader(self) -> Pin<Box<dyn Reader>> {
         match self {
             DodsVariable::Value(reader) => reader,
             DodsVariable::Array(len, reader) => {
@@ -36,46 +37,40 @@ impl DodsVariable {
                 let length = length.into_byte_vec();
 
                 // All this stuff to store the length value in the async task.
-                Box::new(
-                    Box::pin(futures::stream::once(async move { Ok(length) }))
+                Box::pin(
+                    Box::pin(stream::once(async move { Ok(length) }))
                         .into_async_read()
-                        .chain(reader),
+                        .chain(reader)
                 )
             }
         }
     }
 }
 
-/// The XdrPack trait defines how a type can be serialized to
-/// XDR.
-pub trait XdrPack {
-    fn pack(&mut self);
-}
 
-impl XdrPack for [u8] {
-    fn pack(&mut self) {}
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::io::{Cursor, AsyncReadExt};
+    use futures::executor::block_on;
 
-impl XdrPack for [i32] {
-    fn pack(&mut self) {
-        BigEndian::from_slice_i32(self);
+    #[test]
+    fn read_array() {
+        block_on(async {
+            let reader = DodsVariable::Array(8, Box::pin(Cursor::new(vec![1u8, 2, 3, 4, 5, 6, 7, 8])));
+            let mut output = Vec::new();
+            reader.as_reader().read_to_end(&mut output).await.unwrap();
+            assert_eq!(output, vec![0, 0, 0, 8, 0, 0, 0, 8, 1, 2, 3, 4, 5, 6, 7, 8]);
+        });
     }
-}
 
-impl XdrPack for [f32] {
-    fn pack(&mut self) {
-        BigEndian::from_slice_f32(self);
-    }
-}
-
-impl XdrPack for [f64] {
-    fn pack(&mut self) {
-        BigEndian::from_slice_f64(self);
-    }
-}
-
-impl XdrPack for [u32] {
-    fn pack(&mut self) {
-        BigEndian::from_slice_u32(self);
+    #[test]
+    fn read_value() {
+        block_on(async {
+            let reader = DodsVariable::Value(Box::pin(Cursor::new(vec![1u8, 2, 3, 4, 5, 6, 7, 8])));
+            let mut output = Vec::new();
+            reader.as_reader().read_to_end(&mut output).await.unwrap();
+            assert_eq!(output, vec![1, 2, 3, 4, 5, 6, 7, 8]);
+        });
     }
 }

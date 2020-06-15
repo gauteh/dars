@@ -263,4 +263,7 @@ impl Dds {
                 .map(|v| v.join("\n"))
         }
     }
+
+    // TODO: Return a DdsResponse with Variables, Grids, Structures with indices and counts and
+    // sizes (with datatype size). All verified against size.
 }

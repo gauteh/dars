@@ -21,6 +21,7 @@ pub struct Dds {
     file_name: String,
 }
 
+// TODO: Use Rc for String's?
 pub struct Variable {
     pub name: String,
     pub vartype: VarType,
@@ -371,6 +372,18 @@ pub enum ConstrainedVariable {
     }
 }
 
+impl ConstrainedVariable {
+    /// Total size of variable in bytes.
+    pub fn size(&self) -> usize {
+        use ConstrainedVariable::*;
+
+        match self {
+            Variable(v) | Structure { variable: _, member: v } => v.size * v.vartype.size(),
+            Grid { variable, dimensions } => variable.size * variable.vartype.size() + dimensions.iter().map(|d| d.size * d.vartype.size()).sum::<usize>()
+        }
+    }
+}
+
 impl fmt::Display for DdsVariableDetails {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} {}", self.vartype, self.name)?;
@@ -431,6 +444,13 @@ impl fmt::Display for ConstrainedVariable {
 pub struct DdsResponse {
     variables: Vec<ConstrainedVariable>,
     file_name: String,
+}
+
+impl DdsResponse {
+    /// Total size of variables in bytes.
+    pub fn size(&self) -> usize {
+        self.variables.iter().map(|v| v.size()).sum()
+    }
 }
 
 impl fmt::Display for DdsResponse {

@@ -145,8 +145,6 @@ impl Datasets {
                         format!("Invalid DDS request: {}", e.to_string()),
                     ))
                 })?,
-
-            _ => unimplemented!(),
         }
     }
 

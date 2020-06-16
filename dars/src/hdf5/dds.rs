@@ -314,6 +314,7 @@ mod tests {
 } ../data/coads_climatology.nc4;"#;
 
         assert_eq!(dds.to_string(), tds);
+        assert_eq!(dds.size(), 4 * 12 * 90 * 180);
     }
 
     #[test]
@@ -332,6 +333,7 @@ mod tests {
 } ../data/coads_climatology.nc4;"#;
 
         assert_eq!(dds.to_string(), tds);
+        assert_eq!(dds.size(), 4 * 6 * 11 * 11);
     }
 
     #[test]
@@ -350,6 +352,7 @@ mod tests {
 } ../data/coads_climatology.nc4;"#;
 
         assert_eq!(dds.to_string(), tds);
+        assert_eq!(dds.size(), 8 * 6);
     }
 
     #[test]

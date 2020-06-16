@@ -146,7 +146,7 @@ impl Dds {
     fn extend_indices(&self, var: &Variable, slab: &Option<Vec<Vec<usize>>>) -> Vec<usize> {
         Dds::indices(slab)
             .map(|mut indices| {
-                indices.extend((0..(indices.len() - var.shape.len())).map(|_| 0));
+                indices.extend((0..(var.shape.len() - indices.len())).map(|_| 0));
                 indices
             })
             .unwrap_or_else(|| vec![0; var.shape.len()])
@@ -271,6 +271,9 @@ impl Dds {
                                                     indices: indices.clone(),
                                                     counts: counts.clone(),
                                                 },
+
+                                                // XXX: More deeply nested dimensions are not
+                                                // supported.
                                                 dimensions: izip!(&var.dimensions, &indices, &counts)
                                                     .map(|(dim, i, c)| {
                                                         self.variables
@@ -360,6 +363,22 @@ pub struct DdsVariableDetails {
     counts: Vec<usize>,
 }
 
+impl DdsVariableDetails {
+    pub fn is_scalar(&self) -> bool {
+        self.dimensions.is_empty()
+    }
+
+    /// Size of variable in bytes.
+    pub fn size(&self) -> usize {
+        self.size * self.vartype.size()
+    }
+
+    /// Size of variable with XDR header in bytes.
+    pub fn dods_size(&self) -> usize {
+        self.size() + if self.is_scalar() { 0 } else { 8 }
+    }
+}
+
 pub enum ConstrainedVariable {
     Variable(DdsVariableDetails),
     Grid {
@@ -378,8 +397,18 @@ impl ConstrainedVariable {
         use ConstrainedVariable::*;
 
         match self {
-            Variable(v) | Structure { variable: _, member: v } => v.size * v.vartype.size(),
-            Grid { variable, dimensions } => variable.size * variable.vartype.size() + dimensions.iter().map(|d| d.size * d.vartype.size()).sum::<usize>()
+            Variable(v) | Structure { variable: _, member: v } => v.size(),
+            Grid { variable, dimensions } => variable.size() + dimensions.iter().map(|d| d.size()).sum::<usize>()
+        }
+    }
+
+    /// Total size of variable in bytes serialized as XDR.
+    pub fn dods_size(&self) -> usize {
+        use ConstrainedVariable::*;
+
+        match self {
+            Variable(v) | Structure { variable: _, member: v } => v.dods_size(),
+            Grid { variable, dimensions } => variable.dods_size() + dimensions.iter().map(|d| d.dods_size()).sum::<usize>()
         }
     }
 }
@@ -442,14 +471,19 @@ impl fmt::Display for ConstrainedVariable {
 }
 
 pub struct DdsResponse {
-    variables: Vec<ConstrainedVariable>,
-    file_name: String,
+    pub variables: Vec<ConstrainedVariable>,
+    pub file_name: String,
 }
 
 impl DdsResponse {
     /// Total size of variables in bytes.
     pub fn size(&self) -> usize {
         self.variables.iter().map(|v| v.size()).sum()
+    }
+
+    /// Total XDR size of variables in bytes.
+    pub fn dods_size(&self) -> usize {
+        self.variables.iter().map(|v| v.dods_size()).sum()
     }
 }
 

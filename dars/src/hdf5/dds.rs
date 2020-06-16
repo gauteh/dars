@@ -315,6 +315,7 @@ mod tests {
 
         assert_eq!(dds.to_string(), tds);
         assert_eq!(dds.size(), 4 * 12 * 90 * 180);
+        assert_eq!(dds.dods_size(), 8 + 4 * 12 * 90 * 180);
     }
 
     #[test]
@@ -334,6 +335,7 @@ mod tests {
 
         assert_eq!(dds.to_string(), tds);
         assert_eq!(dds.size(), 4 * 6 * 11 * 11);
+        assert_eq!(dds.dods_size(), 8 + 4 * 6 * 11 * 11);
     }
 
     #[test]

@@ -10,8 +10,8 @@ use futures::stream::{self, TryStreamExt};
 use futures::{AsyncBufRead, AsyncReadExt};
 use std::pin::Pin;
 
-use byte_slice_cast::IntoByteVec;
 use super::xdr::*;
+use byte_slice_cast::IntoByteVec;
 
 pub trait Reader = Send + Sync + Unpin + AsyncBufRead + 'static;
 
@@ -40,24 +40,24 @@ impl DodsVariable {
                 Box::pin(
                     Box::pin(stream::once(async move { Ok(length) }))
                         .into_async_read()
-                        .chain(reader)
+                        .chain(reader),
                 )
             }
         }
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::io::{Cursor, AsyncReadExt};
     use futures::executor::block_on;
+    use futures::io::{AsyncReadExt, Cursor};
 
     #[test]
     fn read_array() {
         block_on(async {
-            let reader = DodsVariable::Array(8, Box::pin(Cursor::new(vec![1u8, 2, 3, 4, 5, 6, 7, 8])));
+            let reader =
+                DodsVariable::Array(8, Box::pin(Cursor::new(vec![1u8, 2, 3, 4, 5, 6, 7, 8])));
             let mut output = Vec::new();
             reader.as_reader().read_to_end(&mut output).await.unwrap();
             assert_eq!(output, vec![0, 0, 0, 8, 0, 0, 0, 8, 1, 2, 3, 4, 5, 6, 7, 8]);

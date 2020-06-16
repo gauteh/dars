@@ -77,7 +77,7 @@ impl Datasets {
                 .dds()
                 .await
                 .dds(&constraint)
-                .map(|dds| Ok(dds.into()))
+                .map(|dds| Ok(dds.to_string().into()))
                 .or_else(|e| {
                     Err(Error::from_str(
                         StatusCode::BadRequest,
@@ -114,7 +114,7 @@ impl Datasets {
                 Ok(
                     tide::Body::from_reader(
                         Box::pin(
-                            stream::once(async move { Ok(dds.as_bytes().to_vec()) }))
+                            stream::once(async move { Ok(dds.to_string().as_bytes().to_vec()) }))
                             .into_async_read()
                             // .chain(reader)
                             // .chain(

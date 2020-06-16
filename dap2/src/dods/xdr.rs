@@ -33,5 +33,3 @@ impl XdrPack for [u32] {
         BigEndian::from_slice_u32(self);
     }
 }
-
-

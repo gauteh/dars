@@ -1,9 +1,8 @@
+use crate::hyperslab;
 ///! DAP constraints consist of variable list and slices (hyperslabs) of those variables.
 ///! We currently only support constraints that slices variables, none based on the content
 ///! of the variable.
-
 use std::ops::Deref;
-use crate::hyperslab;
 
 #[derive(Debug)]
 pub struct Constraint {

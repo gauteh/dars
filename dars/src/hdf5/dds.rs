@@ -173,6 +173,7 @@ impl dds::ToDds for &HDF5File {
                 name: m.clone(),
                 vartype: hdf5_vartype(&d.dtype().unwrap()),
                 dimensions: hdf5_dimensions(m, &d),
+                shape: d.shape().clone()
             })
             .collect()
     }
@@ -194,7 +195,7 @@ mod tests {
     #[test]
     fn coads() {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
-        println!("DDS:\n{}", hd.dds.all());
+        println!("dds: {}", hd.dds.all());
 
         // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds
         //
@@ -239,7 +240,7 @@ mod tests {
     } VWND;
 } ../data/coads_climatology.nc4;"#;
 
-        assert_eq!(hd.dds.all(), tds);
+        assert_eq!(hd.dds.all().to_string(), tds);
     }
 
     #[test]
@@ -255,7 +256,7 @@ mod tests {
     Float64 TIME[TIME = 12];
 } ../data/coads_climatology.nc4;"#;
 
-        assert_eq!(dds, tds);
+        assert_eq!(dds.to_string(), tds);
     }
 
     #[test]
@@ -271,7 +272,7 @@ mod tests {
     Float64 TIME[TIME = 6];
 } ../data/coads_climatology.nc4;"#;
 
-        assert_eq!(dds, tds);
+        assert_eq!(dds.to_string(), tds);
     }
 
     #[test]
@@ -294,7 +295,7 @@ mod tests {
     } SST;
 } ../data/coads_climatology.nc4;"#;
 
-        assert_eq!(dds, tds);
+        assert_eq!(dds.to_string(), tds);
     }
 
     #[test]
@@ -312,7 +313,7 @@ mod tests {
     } SST;
 } ../data/coads_climatology.nc4;"#;
 
-        assert_eq!(dds, tds);
+        assert_eq!(dds.to_string(), tds);
     }
 
     #[test]
@@ -330,7 +331,25 @@ mod tests {
     } SST;
 } ../data/coads_climatology.nc4;"#;
 
-        assert_eq!(dds, tds);
+        assert_eq!(dds.to_string(), tds);
+    }
+
+    #[test]
+    fn coads_sst_time_struct_span() {
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+
+        let c = Constraint::parse(Some("SST.TIME[0:5]".into())).unwrap();
+        let dds = hd.dds.dds(&c).unwrap();
+        println!("{}", dds);
+
+        // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds?SST.TIME[0:5]
+        let tds = r#"Dataset {
+    Structure {
+        Float64 TIME[TIME = 6];
+    } SST;
+} ../data/coads_climatology.nc4;"#;
+
+        assert_eq!(dds.to_string(), tds);
     }
 
     #[test]
@@ -343,7 +362,7 @@ mod tests {
     Int64 x1[x1 = 2];
 } tests/h5/dims_1d.h5;"#;
 
-        assert_eq!(hd.dds.all(), res);
+        assert_eq!(hd.dds.all().to_string(), res);
     }
 
     #[test]
@@ -363,6 +382,6 @@ mod tests {
     Int64 y1[y1 = 3];
 } tests/h5/dims_2d.h5;"#;
 
-        assert_eq!(hd.dds.all(), res);
+        assert_eq!(hd.dds.all().to_string(), res);
     }
 }

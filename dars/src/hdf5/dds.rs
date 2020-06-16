@@ -191,11 +191,16 @@ impl dds::ToDds for &HDF5File {
 mod tests {
     use super::super::Hdf5Dataset;
     use dap2::constraint::Constraint;
+    use test::Bencher;
 
-    #[test]
-    fn coads() {
+    #[bench]
+    fn coads(b: &mut Bencher) {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
-        println!("dds: {}", hd.dds.all());
+
+        let dds = b.iter(|| hd.dds.all().to_string());
+
+        let dds = hd.dds.all().to_string();
+        println!("dds: {}", dds);
 
         // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds
         //
@@ -275,11 +280,12 @@ mod tests {
         assert_eq!(dds.to_string(), tds);
     }
 
-    #[test]
-    fn coads_sst_grid() {
+    #[bench]
+    fn coads_sst_grid(b: &mut Bencher) {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
 
         let c = Constraint::parse(Some("SST".into())).unwrap();
+        let dds = b.iter(|| hd.dds.dds(&c).unwrap().to_string());
         let dds = hd.dds.dds(&c).unwrap();
         println!("{}", dds);
 

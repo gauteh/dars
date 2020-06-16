@@ -1,7 +1,9 @@
 #![feature(async_closure)]
 
-use std::env;
+#![feature(test)]
+extern crate test;
 
+use std::env;
 #[macro_use]
 extern crate log;
 #[macro_use]

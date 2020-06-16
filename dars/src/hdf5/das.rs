@@ -129,10 +129,14 @@ fn fixedascii_attr_value<T: hdf5::types::Array<Item = u8>>(
 #[cfg(test)]
 mod tests {
     use super::super::Hdf5Dataset;
+    use test::Bencher;
 
-    #[test]
-    fn coads() {
+    #[bench]
+    fn coads(b: &mut Bencher) {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+
+        b.iter(|| hd.das.to_string());
+
         println!("DAS:\n{}", hd.das);
     }
 }

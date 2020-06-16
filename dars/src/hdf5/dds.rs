@@ -96,7 +96,7 @@ impl VarLenRef {
     }
 
     pub fn as_slice(&self) -> &[hs::h5t::hvl_t] {
-        unsafe { slice::from_raw_parts(self.ptr as *const _, self.len()) }
+        unsafe { slice::from_raw_parts(self.ptr as *mut _, self.len()) }
     }
 }
 

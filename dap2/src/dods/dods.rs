@@ -5,13 +5,15 @@
 ///
 /// Arrays are preceeded by the XDR-encoded length as an u32 _repeated twice_, while single values
 /// are sent without header.
-use async_trait::async_trait;
 use futures::stream::{self, TryStreamExt};
 use futures::{AsyncBufRead, AsyncReadExt};
 use std::pin::Pin;
 
-use super::xdr::*;
+use async_trait::async_trait;
 use byte_slice_cast::IntoByteVec;
+
+pub use crate::dds::ConstrainedVariable;
+use super::xdr::*;
 
 pub trait Reader = Send + Sync + Unpin + AsyncBufRead + 'static;
 
@@ -23,7 +25,7 @@ pub enum DodsVariable {
 #[async_trait]
 pub trait Dods {
     /// The XDR bytes of a variable. Big-endian (network-endian) IEEE encoded.
-    async fn variable(&self, variable: &str, slab: Option<&[usize]>) -> DodsVariable;
+    async fn variable(&self, variable: &ConstrainedVariable) -> DodsVariable;
 }
 
 impl DodsVariable {

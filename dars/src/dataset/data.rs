@@ -2,9 +2,10 @@
 ///! module to parse queries and dispatch metadata or data requests to the `Dataset` implementation
 ///! on each dataset-source.
 use std::collections::HashMap;
+use std::pin::Pin;
 use futures::stream::{self, StreamExt, TryStreamExt};
-use futures::io as fio;
-use futures::{FutureExt};
+use futures::io::BufReader;
+use futures::{Future, FutureExt};
 use futures::{AsyncBufRead, AsyncReadExt};
 
 use tide::{Error, StatusCode};
@@ -13,6 +14,7 @@ use super::Dataset;
 use crate::hdf5;
 use crate::Request;
 use dap2::Constraint;
+use dap2::dods::AsyncReadFlatten;
 
 #[derive(Default)]
 pub struct Datasets {
@@ -97,41 +99,29 @@ impl Datasets {
                     ))
                 })?;
 
-                use dap2::dods::*;
-                // let stream = stream::iter(constraint.iter().map(|c| dset.variable("TEST", None).map(|d| d.as_reader()).into_stream())).flatten();
-                //
-                // let k: () = stream;
-                // let stream = dset.variable("TEST", None).into_stream().map(|d| d.as_reader());
-                // let readers = stream::iter(
-                //                 constraint.iter()
-                //                     .map(|c| dset.variable("TEST", None).into_stream()))
-                //                 .flatten()
-                //                 .collect::<Vec<DodsVariable>>().await;
-                // let reader = fio::BufReader::new(AsyncReadFlatten::from(stream));
-                // let stream = stream::iter(constraint.iter().map(|c| dset.variable("TEST", None).map(|d| d.as_reader()).into_stream())).flatten();
-                // let readers = stream.collect::<Vec<_>>().await;
+                let dds_bytes = dds.to_string().as_bytes().to_vec();
+                let len = dds_bytes.len() + dds.dods_size();
+
+                let readers = dds.variables
+                        .into_iter()
+                        .map(|c| async move {
+                            dset.variable(&c).await.as_reader()
+                        })
+                        .collect::<stream::FuturesOrdered<_>>()
+                        .collect::<Vec<_>>().await;
+
+                let reader = BufReader::new(AsyncReadFlatten::from(
+                        Box::pin(stream::iter(readers.into_iter()))
+                ));
 
                 Ok(
                     tide::Body::from_reader(
                         Box::pin(
-                            stream::once(async move { Ok(dds.to_string().as_bytes().to_vec()) }))
+                            stream::once(async move { Ok(dds_bytes) }))
                             .into_async_read()
-                            // .chain(reader)
-                            // .chain(
-                            //     AsyncReadFlatten::from(
-                            //         constraint.iter().map(|c| dset.variable("TEST", None)).into_stream()
-                            //     )
-                            // )
-
-                            // .chain(
-                            //     (0..2).map(|i| dset.variable("test", None).await.reader())
-                            //     )
-                        , None).into()
+                            .chain(reader)
+                        , Some(len)).into()
                 )
-
-
-                    // .chain(constraint.iter().map(|c| dset.variable("test", None)).flatten()).into()
-
             },
 
             // TODO: why is this slower than from_file?

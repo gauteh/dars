@@ -15,7 +15,13 @@ pub trait Dataset: Dods {
     async fn dds(&self) -> &Dds;
 
     /// Returns a async reader of the raw file as well as the length of the file (if available).
-    async fn raw(&self) -> Result<(Box<dyn Send + Sync + Unpin + AsyncBufRead + 'static>, Option<usize>), anyhow::Error>;
+    async fn raw(
+        &self,
+    ) -> Result<
+        (
+            Box<dyn Send + Sync + Unpin + AsyncBufRead + 'static>,
+            Option<usize>,
+        ),
+        anyhow::Error,
+    >;
 }
-
-

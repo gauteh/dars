@@ -173,7 +173,7 @@ impl dds::ToDds for &HDF5File {
                 name: m.clone(),
                 vartype: hdf5_vartype(&d.dtype().unwrap()),
                 dimensions: hdf5_dimensions(m, &d),
-                shape: d.shape().clone()
+                shape: d.shape().clone(),
             })
             .collect()
     }
@@ -197,7 +197,7 @@ mod tests {
     fn coads(b: &mut Bencher) {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
 
-        let dds = b.iter(|| hd.dds.all().to_string());
+        b.iter(|| hd.dds.all().to_string());
 
         let dds = hd.dds.all().to_string();
         println!("dds: {}", dds);
@@ -285,7 +285,7 @@ mod tests {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
 
         let c = Constraint::parse(Some("SST".into())).unwrap();
-        let dds = b.iter(|| hd.dds.dds(&c).unwrap().to_string());
+        b.iter(|| hd.dds.dds(&c).unwrap().to_string());
         let dds = hd.dds.dds(&c).unwrap();
         println!("{}", dds);
 

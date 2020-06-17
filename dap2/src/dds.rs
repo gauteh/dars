@@ -349,23 +349,28 @@ impl Dds {
 }
 
 pub struct DdsVariableDetails {
-    name: String,
-    vartype: VarType,
+    pub name: String,
+    pub vartype: VarType,
 
     /// Dimensions and their _constrained_ size
-    dimensions: Vec<(String, usize)>,
+    pub dimensions: Vec<(String, usize)>,
 
     /// The _constrained_ length of array or variable in elements (constructed from `counts.prod()`)
     size: usize,
 
     /// Slice in the variable
-    indices: Vec<usize>,
-    counts: Vec<usize>,
+    pub indices: Vec<usize>,
+    pub counts: Vec<usize>,
 }
 
 impl DdsVariableDetails {
     pub fn is_scalar(&self) -> bool {
         self.dimensions.is_empty()
+    }
+
+    /// Number of elements in array.
+    pub fn len(&self) -> usize {
+        self.size
     }
 
     /// Size of variable in bytes.

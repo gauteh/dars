@@ -12,20 +12,22 @@ use std::pin::Pin;
 use async_trait::async_trait;
 use byte_slice_cast::IntoByteVec;
 
-pub use crate::dds::ConstrainedVariable;
+use crate::dds::DdsVariableDetails;
 use super::xdr::*;
 
 pub trait Reader = Send + Sync + Unpin + AsyncBufRead + 'static;
 
 pub enum DodsVariable {
     Value(Pin<Box<dyn Reader>>),
+
+    /// size and reader. size is number of elements reader will output.
     Array(usize, Pin<Box<dyn Reader>>),
 }
 
 #[async_trait]
 pub trait Dods {
     /// The XDR bytes of a variable. Big-endian (network-endian) IEEE encoded.
-    async fn variable(&self, variable: &ConstrainedVariable) -> DodsVariable;
+    async fn variable(&self, variable: &DdsVariableDetails) -> Result<DodsVariable, anyhow::Error>;
 }
 
 impl DodsVariable {

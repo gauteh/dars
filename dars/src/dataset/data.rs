@@ -178,6 +178,8 @@ enum DapRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use test::Bencher;
+    use futures::executor::block_on;
 
     #[test]
     fn request_types() {
@@ -210,5 +212,35 @@ mod tests {
             Datasets::request(".dods.nc"),
             (".dods.nc", DapRequest::Raw)
         ));
+    }
+
+    #[bench]
+    fn coads_get_sst(b: &mut Bencher) {
+        use crate::Server;
+
+        let mut data = Datasets::default();
+        data.datasets.insert(
+            "coads_climatology.nc4".to_string(),
+            DatasetType::HDF5(hdf5::Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap()),
+            );
+
+        use tide::http::{Url, Method, Request};
+        let req = Request::new(Method::Get, Url::parse("http://localhost/data/coads_climatology.nc4.dods?SST").unwrap());
+
+        let server = Server { data };
+        let mut dars = tide::with_state(server);
+        dars.at("/data/:dataset")
+            .get(|req: tide::Request<Server>| async move { req.state().data.dataset(&req).await });
+
+
+        b.iter(|| {
+            let req = req.clone();
+
+            block_on( async {
+                let mut res: tide::Response = dars.respond(req).await.unwrap();
+                assert_eq!(res.status(), 200);
+                res.take_body().into_bytes().await.unwrap()
+            })
+        })
     }
 }

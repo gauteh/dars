@@ -15,7 +15,12 @@ log = "*"
 num_cpus = "*"
 sled = "*"
 tide = "*"
+warp = "*"
 zerocopy = "*"
+
+[dependencies.tokio]
+features = ["macros"]
+version = "*"
 
 [dependencies.async-std]
 features = ["attributes"]

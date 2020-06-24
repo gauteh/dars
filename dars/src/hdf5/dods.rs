@@ -11,9 +11,7 @@ use super::Hdf5Dataset;
 #[async_trait]
 impl Dods for Hdf5Dataset {
     async fn variable(&self, variable: &DdsVariableDetails) -> Result<DodsVariable, anyhow::Error> {
-        let reader = self
-            .idx
-            .streamer(&variable.name)?;
+        let reader = self.idx.streamer(&variable.name)?;
 
         let indices: Vec<u64> = variable.indices.iter().map(|c| *c as u64).collect();
         let counts: Vec<u64> = variable.counts.iter().map(|c| *c as u64).collect();
@@ -22,15 +20,15 @@ impl Dods for Hdf5Dataset {
         let order = reader.order();
 
         let r = Box::pin(
-            reader.stream(Some(indices.as_slice()), Some(counts.as_slice()))
-            .and_then(move |mut v| {
-                let dsz = dsz;
-                async move {
-                    to_big_e_sized(&mut v, order, dsz).map(|_| v)
-                }
-            })
-            .map_err(|_| std::io::ErrorKind::UnexpectedEof.into()))
-            .into_async_read();
+            reader
+                .stream(Some(indices.as_slice()), Some(counts.as_slice()))
+                .and_then(move |mut v| {
+                    let dsz = dsz;
+                    async move { to_big_e_sized(&mut v, order, dsz).map(|_| v) }
+                })
+                .map_err(|_| std::io::ErrorKind::UnexpectedEof.into()),
+        )
+        .into_async_read();
 
         if variable.is_scalar() {
             Ok(DodsVariable::Value(Box::pin(r)))
@@ -57,8 +55,12 @@ mod tests {
         let dds = hd.dds.dds(&c).unwrap();
 
         assert_eq!(dds.variables.len(), 1);
-        if let ConstrainedVariable::Structure { variable: _, member } = &dds.variables[0] {
-            b.iter(||
+        if let ConstrainedVariable::Structure {
+            variable: _,
+            member,
+        } = &dds.variables[0]
+        {
+            b.iter(|| {
                 block_on(async {
                     let reader = hd.variable(&member).await.unwrap();
                     if let DodsVariable::Array(sz, mut reader) = reader {
@@ -70,7 +72,7 @@ mod tests {
                         panic!("not array variable");
                     }
                 })
-            );
+            });
         } else {
             panic!("wrong constrained variable");
         }

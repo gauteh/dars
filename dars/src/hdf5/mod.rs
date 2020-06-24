@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use futures::AsyncBufRead;
 use hidefix::idx;
 
-use crate::dataset::Dataset;
+use crate::data::Dataset;
 
 mod das;
 mod dds;

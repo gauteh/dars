@@ -54,6 +54,7 @@ pub fn dds(
                 .and(with_state(state))
                 .and_then(with_dataset),
         )
+        .and(constraint())
         .and_then(handlers::dds)
 }
 
@@ -126,66 +127,6 @@ async fn with_dataset(
     }
 }
 // impl Datasets {
-//     pub async fn datasets(&self) -> tide::Result {
-//         Ok(format!(
-//             "Index of datasets:\n\n{}",
-//             self.datasets
-//                 .keys()
-//                 .map(|s| &**s)
-//                 .collect::<Vec<&str>>()
-//                 .join("\n")
-//         )
-//         .into())
-//     }
-
-//     pub async fn dataset(&self, req: &Request) -> tide::Result {
-//         let dset = req.param::<String>("dataset")?;
-//         let (dset, dap_request) = Datasets::request(&dset);
-
-//         if let Some(dset) = self.datasets.get(dset) {
-//             let constraint = Constraint::parse(req.url().query()).or_else(|_| {
-//                 Err(Error::from_str(
-//                     StatusCode::BadRequest,
-//                     "Invalid constraints in query.",
-//                 ))
-//             })?;
-
-//             debug!("dataset: {:?} [{:?}] ({:?})", dset, dap_request, constraint);
-
-//             match dset {
-//                 DatasetType::HDF5(dset) => {
-//                     self.dataset_dap_request(dset, dap_request, constraint)
-//                         .await
-//                 }
-//             }
-//         } else {
-//             Err(Error::from_str(StatusCode::NotFound, "Dataset not found."))
-//         }
-//     }
-
-//     async fn dataset_dap_request<T: Dataset>(
-//         &self,
-//         dset: &T,
-//         dap_request: DapRequest,
-//         constraint: Constraint,
-//     ) -> tide::Result {
-//         use DapRequest::*;
-
-//         match dap_request {
-//             Das => Ok(dset.das().await.0.as_str().into()),
-
-//             Dds => dset
-//                 .dds()
-//                 .await
-//                 .dds(&constraint)
-//                 .map(|dds| Ok(dds.to_string().into()))
-//                 .or_else(|e| {
-//                     Err(Error::from_str(
-//                         StatusCode::BadRequest,
-//                         format!("Invalid DDS request: {}", e.to_string()),
-//                     ))
-//                 })?,
-
 //             Dods => {
 //                 let dds = dset.dds().await.dds(&constraint).or_else(|e| {
 //                     Err(Error::from_str(
@@ -399,47 +340,35 @@ mod tests {
 
     #[bench]
     fn coads_dds_constrained(b: &mut Bencher) {
-        let filter = constraint();
-
-        let constraint = block_on(
-            warp::test::request()
-                .path("/data/coads_climatology.nc4.dds?SST[0:5][0:70][0:70],TIME,COADSX,COADSY")
-                .filter(&filter),
-        )
-        .unwrap();
-
         let state = test_state();
+        let dds = dds(state.clone());
 
         b.iter(|| {
-            let coads = state.datasets.get("coads_climatology.nc4").unwrap().clone();
-            if let super::DatasetType::HDF5(coads) = &*coads {
-                block_on(coads.dds()).dds(&constraint).unwrap();
-            } else {
-                panic!("wrong type");
-            }
+            let res = block_on(
+                warp::test::request()
+                    .path("/data/coads_climatology.nc4.dds?SST[0:5][0:70][0:70],TIME,COADSX,COADSY")
+                    .reply(&dds),
+            );
+
+            assert_eq!(res.status(), 200);
+            test::black_box(|| res.body());
         })
     }
 
     #[bench]
-    fn coads_dds_constrained_all(b: &mut Bencher) {
-        let filter = constraint();
-
-        let constraint = block_on(
-            warp::test::request()
-                .path("/data/coads_climatology.nc4.dds")
-                .filter(&filter),
-        )
-        .unwrap();
-
+    fn coads_dds_unconstrained(b: &mut Bencher) {
         let state = test_state();
+        let dds = dds(state.clone());
 
         b.iter(|| {
-            let coads = state.datasets.get("coads_climatology.nc4").unwrap().clone();
-            if let super::DatasetType::HDF5(coads) = &*coads {
-                block_on(coads.dds()).dds(&constraint).unwrap();
-            } else {
-                panic!("wrong type");
-            }
+            let res = block_on(
+                warp::test::request()
+                    .path("/data/coads_climatology.nc4.dds")
+                    .reply(&dds),
+            );
+
+            assert_eq!(res.status(), 200);
+            test::black_box(|| res.body());
         })
     }
 }

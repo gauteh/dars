@@ -1,6 +1,9 @@
 use std::convert::Infallible;
 use std::sync::Arc;
 use warp::Rejection;
+use warp::reply::Reply;
+
+use dap2::Constraint;
 
 use super::{Dataset, DatasetType, State};
 
@@ -25,14 +28,26 @@ pub async fn list_datasets_json(state: State) -> Result<impl warp::Reply, Infall
     ))
 }
 
-pub async fn das(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Rejection> {
+pub async fn das(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallible> {
     match &*dataset {
         DatasetType::HDF5(dataset) => Ok(dataset.das().await.0.clone()),
     }
 }
 
-pub async fn dds(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallible> {
-    Ok("hello dds")
+pub async fn dds(
+    dataset: Arc<DatasetType>,
+    constraint: Constraint,
+) -> Result<impl warp::Reply, Infallible> {
+    match &*dataset {
+        DatasetType::HDF5(dataset) => dataset
+            .dds()
+            .await
+            .dds(&constraint)
+            .map(|dds| dds.to_string().into_response())
+            .or_else(|_| {
+                Ok(warp::http::StatusCode::BAD_REQUEST.into_response())
+            }),
+    }
 }
 
 pub async fn dods(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallible> {

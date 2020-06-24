@@ -274,24 +274,30 @@ impl Dds {
 
                                                 // XXX: More deeply nested dimensions are not
                                                 // supported.
-                                                dimensions: izip!(&var.dimensions, &indices, &counts)
-                                                    .map(|(dim, i, c)| {
-                                                        self.variables
-                                                            .get(dim)
-                                                            .map(|dim| {
-                                                                DdsVariableDetails {
-                                                                    name: dim.name.clone(),
-                                                                    vartype: dim.vartype,
-                                                                    dimensions: vec![(dim.name.clone(), *c)],
-                                                                    size: *c,
-                                                                    indices: vec![*i],
-                                                                    counts: vec![*c],
-
-                                                                }
-                                                            })
-                                                            .ok_or_else(|| anyhow!("Variable not found."))
-                                                    })
-                                                    .collect::<Result<Vec<_>,_>>()?
+                                                dimensions: izip!(
+                                                    &var.dimensions,
+                                                    &indices,
+                                                    &counts
+                                                )
+                                                .map(|(dim, i, c)| {
+                                                    self.variables
+                                                        .get(dim)
+                                                        .map(|dim| DdsVariableDetails {
+                                                            name: dim.name.clone(),
+                                                            vartype: dim.vartype,
+                                                            dimensions: vec![(
+                                                                dim.name.clone(),
+                                                                *c,
+                                                            )],
+                                                            size: *c,
+                                                            indices: vec![*i],
+                                                            counts: vec![*c],
+                                                        })
+                                                        .ok_or_else(|| {
+                                                            anyhow!("Variable not found.")
+                                                        })
+                                                })
+                                                .collect::<Result<Vec<_>, _>>()?,
                                             })
                                         } else {
                                             Ok(ConstrainedVariable::Variable(DdsVariableDetails {
@@ -311,35 +317,34 @@ impl Dds {
                                     })
                                     .ok_or_else(|| anyhow!("Variable not found"))?
                             }
-                            Structure((v1, v2, slab)) => {
-                                self.variables
-                                    .get(v1.as_str())
-                                    .and_then(|var1| {
-                                        self.variables.get(v2.as_str()).map(|var2| (var1, var2))
-                                    })
-                                    .map(|(var1, var2)| {
-                                        let counts = self.extend_counts(var2, slab);
-                                        let indices = self.extend_indices(var2, slab);
+                            Structure((v1, v2, slab)) => self
+                                .variables
+                                .get(v1.as_str())
+                                .and_then(|var1| {
+                                    self.variables.get(v2.as_str()).map(|var2| (var1, var2))
+                                })
+                                .map(|(var1, var2)| {
+                                    let counts = self.extend_counts(var2, slab);
+                                    let indices = self.extend_indices(var2, slab);
 
-                                        ConstrainedVariable::Structure {
-                                            variable: var1.name.clone(),
-                                            member: DdsVariableDetails {
-                                                name: var2.name.clone(),
-                                                vartype: var2.vartype,
-                                                dimensions: var2
-                                                    .dimensions
-                                                    .iter()
-                                                    .cloned()
-                                                    .zip(counts.iter().cloned())
-                                                    .collect(),
-                                                size: counts.iter().product(),
-                                                indices: indices,
-                                                counts: counts
-                                            }
-                                        }
-                                    })
-                                    .ok_or_else(|| anyhow!("Variable not found"))
-                            }
+                                    ConstrainedVariable::Structure {
+                                        variable: var1.name.clone(),
+                                        member: DdsVariableDetails {
+                                            name: var2.name.clone(),
+                                            vartype: var2.vartype,
+                                            dimensions: var2
+                                                .dimensions
+                                                .iter()
+                                                .cloned()
+                                                .zip(counts.iter().cloned())
+                                                .collect(),
+                                            size: counts.iter().product(),
+                                            indices: indices,
+                                            counts: counts,
+                                        },
+                                    }
+                                })
+                                .ok_or_else(|| anyhow!("Variable not found")),
                         }
                     })
                     .collect::<Result<Vec<ConstrainedVariable>, anyhow::Error>>()?,
@@ -392,8 +397,8 @@ pub enum ConstrainedVariable {
     },
     Structure {
         variable: String,
-        member: DdsVariableDetails
-    }
+        member: DdsVariableDetails,
+    },
 }
 
 impl ConstrainedVariable {
@@ -402,8 +407,15 @@ impl ConstrainedVariable {
         use ConstrainedVariable::*;
 
         match self {
-            Variable(v) | Structure { variable: _, member: v } => v.size(),
-            Grid { variable, dimensions } => variable.size() + dimensions.iter().map(|d| d.size()).sum::<usize>()
+            Variable(v)
+            | Structure {
+                variable: _,
+                member: v,
+            } => v.size(),
+            Grid {
+                variable,
+                dimensions,
+            } => variable.size() + dimensions.iter().map(|d| d.size()).sum::<usize>(),
         }
     }
 
@@ -412,8 +424,15 @@ impl ConstrainedVariable {
         use ConstrainedVariable::*;
 
         match self {
-            Variable(v) | Structure { variable: _, member: v } => v.dods_size(),
-            Grid { variable, dimensions } => variable.dods_size() + dimensions.iter().map(|d| d.dods_size()).sum::<usize>()
+            Variable(v)
+            | Structure {
+                variable: _,
+                member: v,
+            } => v.dods_size(),
+            Grid {
+                variable,
+                dimensions,
+            } => variable.dods_size() + dimensions.iter().map(|d| d.dods_size()).sum::<usize>(),
         }
     }
 }
@@ -461,10 +480,7 @@ impl fmt::Display for ConstrainedVariable {
                 write!(f, "{}}} {};", " ".repeat(INDENT), variable.name)
             }
 
-            Structure {
-                variable,
-                member
-            } => {
+            Structure { variable, member } => {
                 write!(f, "{}Structure {{\n", " ".repeat(INDENT))?;
                 write!(f, "{}", " ".repeat(2 * INDENT))?;
                 member.fmt(f)?;
@@ -502,4 +518,3 @@ impl fmt::Display for DdsResponse {
         write!(f, "}} {};", self.file_name)
     }
 }
-

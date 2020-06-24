@@ -127,7 +127,7 @@ impl Das {
             Uchar(n) => format!("{}Byte {} {};\n", " ".repeat(INDENT), a.name, n),
 
             // v => format!("{}Unimplemented {} {:?};\n", " ".repeat(INDENT), a.name, v),
-            _ => "".to_string()
+            _ => "".to_string(),
         }
     }
 

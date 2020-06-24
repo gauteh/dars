@@ -12,8 +12,8 @@ use std::pin::Pin;
 use async_trait::async_trait;
 use byte_slice_cast::IntoByteVec;
 
-use crate::dds::DdsVariableDetails;
 use super::xdr::*;
+use crate::dds::DdsVariableDetails;
 
 pub trait Reader = Send + Sync + Unpin + AsyncBufRead + 'static;
 

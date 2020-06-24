@@ -103,16 +103,13 @@ fn ends_with<'a>(
 }
 
 fn constraint() -> impl Filter<Extract = (Constraint,), Error = warp::reject::Rejection> + Clone {
-    warp::query::raw()
-        .and_then(move |s: String| async move {
-            let s = Some(s.as_str());
-
-            if let Ok(c) = Constraint::parse(s) {
-                Ok(c)
-            } else {
-                Err(warp::reject::reject())
-            }
-        })
+    warp::any()
+        .and(warp::query::raw().and_then(move |s: String| async move {
+            Constraint::parse(s.as_str()).or_else(|_| Err(warp::reject::reject()))
+        }))
+        .or(warp::any()
+            .and_then(|| async move { Ok::<_, warp::reject::Rejection>(Constraint::empty()) }))
+        .unify()
 }
 
 async fn with_dataset(
@@ -120,7 +117,6 @@ async fn with_dataset(
     state: State,
 ) -> Result<Arc<DatasetType>, warp::reject::Rejection> {
     let state = Arc::clone(&state);
-    let dataset = dataset.clone();
 
     if let Some(dataset) = state.datasets.get(&dataset) {
         Ok(Arc::clone(dataset))
@@ -395,8 +391,9 @@ mod tests {
             let res = block_on(
                 warp::test::request()
                     .path("/data/coads_climatology.nc4.dds?SST[0:5][0:70][0:70],TIME,COADSX,COADSY")
-                    .filter(&filter)
-            ).unwrap();
+                    .filter(&filter),
+            )
+            .unwrap();
         })
     }
 
@@ -407,8 +404,9 @@ mod tests {
         let constraint = block_on(
             warp::test::request()
                 .path("/data/coads_climatology.nc4.dds?SST[0:5][0:70][0:70],TIME,COADSX,COADSY")
-                .filter(&filter)
-        ).unwrap();
+                .filter(&filter),
+        )
+        .unwrap();
 
         let state = test_state();
 
@@ -429,8 +427,9 @@ mod tests {
         let constraint = block_on(
             warp::test::request()
                 .path("/data/coads_climatology.nc4.dds")
-                .filter(&filter)
-        ).unwrap();
+                .filter(&filter),
+        )
+        .unwrap();
 
         let state = test_state();
 

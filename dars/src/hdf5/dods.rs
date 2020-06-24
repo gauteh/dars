@@ -51,7 +51,7 @@ mod tests {
     fn coads_sst_struct(b: &mut Bencher) {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
 
-        let c = Constraint::parse(Some("SST.SST".into())).unwrap();
+        let c = Constraint::parse("SST.SST").unwrap();
         let dds = hd.dds.dds(&c).unwrap();
 
         assert_eq!(dds.variables.len(), 1);

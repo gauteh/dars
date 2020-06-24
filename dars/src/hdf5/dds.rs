@@ -252,7 +252,7 @@ mod tests {
     fn coads_time() {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
 
-        let c = Constraint::parse(Some("TIME".into())).unwrap();
+        let c = Constraint::parse("TIME").unwrap();
         let dds = hd.dds.dds(&c).unwrap();
         println!("{}", dds);
 
@@ -268,7 +268,7 @@ mod tests {
     fn coads_time_slab() {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
 
-        let c = Constraint::parse(Some("TIME[0:5]".into())).unwrap();
+        let c = Constraint::parse("TIME[0:5]").unwrap();
         let dds = hd.dds.dds(&c).unwrap();
         println!("{}", dds);
 
@@ -284,7 +284,7 @@ mod tests {
     fn coads_sst_grid(b: &mut Bencher) {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
 
-        let c = Constraint::parse(Some("SST".into())).unwrap();
+        let c = Constraint::parse("SST").unwrap();
         b.iter(|| hd.dds.dds(&c).unwrap().to_string());
         let dds = hd.dds.dds(&c).unwrap();
         println!("{}", dds);
@@ -308,7 +308,7 @@ mod tests {
     fn coads_sst_struct() {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
 
-        let c = Constraint::parse(Some("SST.SST".into())).unwrap();
+        let c = Constraint::parse("SST.SST").unwrap();
         let dds = hd.dds.dds(&c).unwrap();
         println!("{}", dds);
 
@@ -328,7 +328,7 @@ mod tests {
     fn coads_sst_struct_span() {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
 
-        let c = Constraint::parse(Some("SST.SST[0:5][0:10][10:20]".into())).unwrap();
+        let c = Constraint::parse("SST.SST[0:5][0:10][10:20]").unwrap();
         let dds = hd.dds.dds(&c).unwrap();
         println!("{}", dds);
 
@@ -348,7 +348,7 @@ mod tests {
     fn coads_sst_time_struct_span() {
         let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
 
-        let c = Constraint::parse(Some("SST.TIME[0:5]".into())).unwrap();
+        let c = Constraint::parse("SST.TIME[0:5]").unwrap();
         let dds = hd.dds.dds(&c).unwrap();
         println!("{}", dds);
 

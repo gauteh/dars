@@ -26,44 +26,44 @@ pub enum ConstraintVariable {
 }
 
 impl Constraint {
-    pub fn parse(query: Option<&str>) -> anyhow::Result<Constraint> {
-        if let Some(query) = query {
-            query
-                .split(",")
-                .map(|var| {
-                    if let Some(s) = var.find(".") {
-                        let v1 = &var[..s];
-                        let v2 = &var[s + 1..];
+    pub fn parse(query: &str) -> anyhow::Result<Constraint> {
+        query
+            .split(",")
+            .map(|var| {
+                if let Some(s) = var.find(".") {
+                    let v1 = &var[..s];
+                    let v2 = &var[s + 1..];
 
-                        match v2.find("[") {
-                            Some(i) => hyperslab::parse_hyperslab(&v2[i..])
-                                .and_then(|slab| Ok((&v2[..i], Some(slab)))),
-                            None => Ok((v2, None)),
-                        }
-                        .and_then(|(v2, slab)| {
-                            Ok(ConstraintVariable::Structure((
-                                v1.to_string(),
-                                v2.to_string(),
-                                slab,
-                            )))
-                        })
-                    } else {
-                        match var.find("[") {
-                            Some(i) => hyperslab::parse_hyperslab(&var[i..])
-                                .and_then(|slab| Ok((&var[..i], Some(slab)))),
-                            None => Ok((var, None)),
-                        }
-                        .and_then(|(var, slab)| {
-                            Ok(ConstraintVariable::Variable((var.to_string(), slab)))
-                        })
+                    match v2.find("[") {
+                        Some(i) => hyperslab::parse_hyperslab(&v2[i..])
+                            .and_then(|slab| Ok((&v2[..i], Some(slab)))),
+                        None => Ok((v2, None)),
                     }
-                })
-                .collect::<anyhow::Result<_>>()
-                .and_then(|variables| Ok(Constraint { variables }))
-        } else {
-            Ok(Constraint {
-                variables: Vec::new(),
+                    .and_then(|(v2, slab)| {
+                        Ok(ConstraintVariable::Structure((
+                            v1.to_string(),
+                            v2.to_string(),
+                            slab,
+                        )))
+                    })
+                } else {
+                    match var.find("[") {
+                        Some(i) => hyperslab::parse_hyperslab(&var[i..])
+                            .and_then(|slab| Ok((&var[..i], Some(slab)))),
+                        None => Ok((var, None)),
+                    }
+                    .and_then(|(var, slab)| {
+                        Ok(ConstraintVariable::Variable((var.to_string(), slab)))
+                    })
+                }
             })
+            .collect::<anyhow::Result<_>>()
+            .and_then(|variables| Ok(Constraint { variables }))
+    }
+
+    pub fn empty() -> Constraint {
+        Constraint {
+            variables: Vec::new()
         }
     }
 }
@@ -74,12 +74,12 @@ mod tests {
 
     #[test]
     fn empty() {
-        assert_eq!(Constraint::parse(None).unwrap().len(), 0);
+        assert_eq!(Constraint::empty().len(), 0);
     }
 
     #[test]
     fn single_variable() {
-        let c = Constraint::parse(Some("SST")).unwrap();
+        let c = Constraint::parse("SST").unwrap();
 
         assert_eq!(c.len(), 1);
 
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn single_variable_slab() {
-        let c = Constraint::parse(Some("SST[0:5]")).unwrap();
+        let c = Constraint::parse("SST[0:5]").unwrap();
 
         assert_eq!(c.len(), 1);
 
@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn single_struct_slab() {
-        let c = Constraint::parse(Some("SST.TIME[0:5]")).unwrap();
+        let c = Constraint::parse("SST.TIME[0:5]").unwrap();
 
         assert_eq!(c.len(), 1);
 
@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn single_struct_slab_indexes() {
-        let c = Constraint::parse(Some("SST.TIME[5][4]")).unwrap();
+        let c = Constraint::parse("SST.TIME[5][4]").unwrap();
 
         assert_eq!(c.len(), 1);
 
@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn multi_struct_slab_indexes() {
-        let c = Constraint::parse(Some("SST.TIME[5][4],SST,TIME[4:5]")).unwrap();
+        let c = Constraint::parse("SST.TIME[5][4],SST,TIME[4:5]").unwrap();
 
         assert_eq!(c.len(), 3);
 
@@ -164,9 +164,9 @@ mod tests {
 
     #[test]
     fn erroneous_queries() {
-        assert!(Constraint::parse(Some("SST[a]")).is_err());
-        assert!(Constraint::parse(Some("SST[1")).is_err());
-        assert!(Constraint::parse(Some("SST.SST[1:3:4:5]")).is_err());
-        // assert!(Constraint::parse(Some("SST.SST[1],a]")).is_err());
+        assert!(Constraint::parse("SST[a]").is_err());
+        assert!(Constraint::parse("SST[1").is_err());
+        assert!(Constraint::parse("SST.SST[1:3:4:5]").is_err());
+        // assert!(Constraint::parse("SST.SST[1],a]").is_err());
     }
 }

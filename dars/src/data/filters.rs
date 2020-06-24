@@ -102,6 +102,19 @@ fn ends_with<'a>(
     })
 }
 
+fn constraint() -> impl Filter<Extract = (Constraint,), Error = warp::reject::Rejection> + Clone {
+    warp::query::raw()
+        .and_then(move |s: String| async move {
+            let s = Some(s.as_str());
+
+            if let Ok(c) = Constraint::parse(s) {
+                Ok(c)
+            } else {
+                Err(warp::reject::reject())
+            }
+        })
+}
+
 async fn with_dataset(
     dataset: String,
     state: State,
@@ -372,5 +385,62 @@ mod tests {
             assert_eq!(res.status(), 200);
             test::black_box(|| res.body());
         });
+    }
+
+    #[bench]
+    fn dds_constraint(b: &mut Bencher) {
+        let filter = constraint();
+
+        b.iter(|| {
+            let res = block_on(
+                warp::test::request()
+                    .path("/data/coads_climatology.nc4.dds?SST[0:5][0:70][0:70],TIME,COADSX,COADSY")
+                    .filter(&filter)
+            ).unwrap();
+        })
+    }
+
+    #[bench]
+    fn coads_dds_constrained(b: &mut Bencher) {
+        let filter = constraint();
+
+        let constraint = block_on(
+            warp::test::request()
+                .path("/data/coads_climatology.nc4.dds?SST[0:5][0:70][0:70],TIME,COADSX,COADSY")
+                .filter(&filter)
+        ).unwrap();
+
+        let state = test_state();
+
+        b.iter(|| {
+            let coads = state.datasets.get("coads_climatology.nc4").unwrap().clone();
+            if let super::DatasetType::HDF5(coads) = &*coads {
+                block_on(coads.dds()).dds(&constraint).unwrap();
+            } else {
+                panic!("wrong type");
+            }
+        })
+    }
+
+    #[bench]
+    fn coads_dds_constrained_all(b: &mut Bencher) {
+        let filter = constraint();
+
+        let constraint = block_on(
+            warp::test::request()
+                .path("/data/coads_climatology.nc4.dds")
+                .filter(&filter)
+        ).unwrap();
+
+        let state = test_state();
+
+        b.iter(|| {
+            let coads = state.datasets.get("coads_climatology.nc4").unwrap().clone();
+            if let super::DatasetType::HDF5(coads) = &*coads {
+                block_on(coads.dds()).dds(&constraint).unwrap();
+            } else {
+                panic!("wrong type");
+            }
+        })
     }
 }

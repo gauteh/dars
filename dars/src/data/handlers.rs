@@ -1,7 +1,8 @@
+use hyper::Body;
 use std::convert::Infallible;
 use std::sync::Arc;
-use warp::Rejection;
 use warp::reply::Reply;
+use warp::Rejection;
 
 use dap2::Constraint;
 
@@ -44,9 +45,7 @@ pub async fn dds(
             .await
             .dds(&constraint)
             .map(|dds| dds.to_string().into_response())
-            .or_else(|_| {
-                Ok(warp::http::StatusCode::BAD_REQUEST.into_response())
-            }),
+            .or_else(|_| Ok(warp::http::StatusCode::BAD_REQUEST.into_response())),
     }
 }
 
@@ -55,5 +54,17 @@ pub async fn dods(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infalli
 }
 
 pub async fn raw(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallible> {
-    Ok("hello raw")
+    match &*dataset {
+        DatasetType::HDF5(dataset) => dataset
+            .raw()
+            .await
+            .map(|s| {
+                warp::http::Response::builder()
+                    .header("Content-Type", "application/octet-stream")
+                    .header("Content-Disposition", "attachment")
+                    .header("XDODS-Server", "dars")
+                    .body(Body::wrap_stream(s))
+            })
+            .or_else(|_| Ok(Ok(warp::http::StatusCode::NOT_FOUND.into_response()))),
+    }
 }

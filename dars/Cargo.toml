@@ -9,22 +9,15 @@ async-trait = "*"
 colored = "*"
 env_logger = "*"
 futures = "*"
+hyper = "*"
 itertools = "*"
 libc = "*"
 log = "*"
 num_cpus = "*"
 sled = "*"
-tide = "*"
+tokio-util = "*"
 warp = "*"
 zerocopy = "*"
-
-[dependencies.tokio]
-features = ["macros"]
-version = "*"
-
-[dependencies.async-std]
-features = ["attributes"]
-version = "*"
 
 [dependencies.dap2]
 path = "../dap2"
@@ -41,4 +34,8 @@ git = "https://github.com/gauteh/hdf5-rust"
 
 [dependencies.hidefix]
 git = "https://github.com/gauteh/hidefix"
+version = "*"
+
+[dependencies.tokio]
+features = ["full"]
 version = "*"

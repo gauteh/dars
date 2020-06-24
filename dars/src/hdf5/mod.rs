@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use futures::AsyncBufRead;
 use hidefix::idx;
+use tokio::stream::Stream;
 
 use crate::data::Dataset;
 
@@ -44,6 +45,20 @@ impl Hdf5Dataset {
             dds,
         })
     }
+
+    pub async fn raw(
+        &self,
+    ) -> Result<impl Stream<Item = Result<hyper::body::Bytes, std::io::Error>>, std::io::Error>
+    {
+        use futures::StreamExt;
+        use tokio::fs::File;
+        use tokio_util::codec;
+        use tokio_util::codec::BytesCodec;
+
+        File::open(self.path.clone()).await.map(|file| {
+            codec::FramedRead::new(file, BytesCodec::new()).map(|r| r.map(|bytes| bytes.freeze()))
+        })
+    }
 }
 
 #[async_trait]
@@ -54,24 +69,6 @@ impl Dataset for Hdf5Dataset {
 
     async fn dds(&self) -> &dap2::Dds {
         &self.dds
-    }
-
-    async fn raw(
-        &self,
-    ) -> Result<
-        (
-            Box<dyn Send + Sync + Unpin + AsyncBufRead + 'static>,
-            Option<usize>,
-        ),
-        anyhow::Error,
-    > {
-        let file = async_std::fs::File::open(self.path.clone()).await?;
-        let len = file.metadata().await?.len();
-
-        Ok((
-            Box::new(async_std::io::BufReader::new(file)),
-            Some(len as usize),
-        ))
     }
 }
 

@@ -16,17 +16,6 @@ use crate::hdf5;
 pub trait Dataset: Dods {
     async fn das(&self) -> &Das;
     async fn dds(&self) -> &Dds;
-
-    /// Returns a async reader of the raw file as well as the length of the file (if available).
-    async fn raw(
-        &self,
-    ) -> Result<
-        (
-            Box<dyn Send + Sync + Unpin + AsyncBufRead + 'static>,
-            Option<usize>,
-        ),
-        anyhow::Error,
-    >;
 }
 
 /// The map of datasets.

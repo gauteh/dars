@@ -1,16 +1,15 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use async_trait::async_trait;
-use futures::AsyncBufRead;
+use futures::stream::TryStreamExt;
+use futures::Stream;
+use hidefix::filters::byteorder::to_big_e_sized;
 use hidefix::idx;
-use tokio::stream::Stream;
 
-use crate::data::Dataset;
+use dap2::dds::DdsVariableDetails;
 
 mod das;
 mod dds;
-mod dods;
 
 /// HDF5 dataset source.
 ///
@@ -59,22 +58,60 @@ impl Hdf5Dataset {
             codec::FramedRead::new(file, BytesCodec::new()).map(|r| r.map(|bytes| bytes.freeze()))
         })
     }
-}
 
-#[async_trait]
-impl Dataset for Hdf5Dataset {
-    async fn das(&self) -> &dap2::Das {
+    pub async fn das(&self) -> &dap2::Das {
         &self.das
     }
 
-    async fn dds(&self) -> &dap2::Dds {
+    pub async fn dds(&self) -> &dap2::Dds {
         &self.dds
+    }
+
+    pub async fn variable(
+        &self,
+        variable: &DdsVariableDetails,
+    ) -> Result<
+        (
+            Option<usize>,
+            impl Stream<Item = Result<Vec<u8>, std::io::Error>> + Send + 'static,
+        ),
+        anyhow::Error,
+    > {
+        let reader = self.idx.streamer(&variable.name)?;
+
+        let indices: Vec<u64> = variable.indices.iter().map(|c| *c as u64).collect();
+        let counts: Vec<u64> = variable.counts.iter().map(|c| *c as u64).collect();
+
+        let dsz = variable.vartype.size();
+        let order = reader.order();
+
+        let len = if variable.is_scalar() {
+            None
+        } else {
+            Some(variable.len())
+        };
+
+        Ok((
+            len,
+            reader
+                .stream(Some(indices.as_slice()), Some(counts.as_slice()))
+                .and_then(move |mut v| {
+                    let dsz = dsz;
+                    async move { to_big_e_sized(&mut v, order, dsz).map(|_| v) }
+                })
+                .map_err(|_| std::io::ErrorKind::UnexpectedEof.into()),
+        ))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dap2::constraint::Constraint;
+    use dap2::dds::ConstrainedVariable;
+    use futures::executor::block_on;
+    use futures::stream::TryStreamExt;
+    use test::Bencher;
 
     #[test]
     fn coads_read() {
@@ -86,5 +123,35 @@ mod tests {
         let mut r = hd.idx.reader("SST").unwrap();
         let v = r.values::<f32>(None, None).unwrap();
         assert_eq!(180 * 90 * 12, v.len());
+    }
+
+    #[bench]
+    fn coads_sst_struct(b: &mut Bencher) {
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+
+        let c = Constraint::parse("SST.SST").unwrap();
+        let dds = hd.dds.dds(&c).unwrap();
+
+        assert_eq!(dds.variables.len(), 1);
+        if let ConstrainedVariable::Structure {
+            variable: _,
+            member,
+        } = &dds.variables[0]
+        {
+            b.iter(|| {
+                block_on(async {
+                    let reader = hd.variable(&member).await.unwrap();
+                    if let (Some(sz), reader) = reader {
+                        assert_eq!(sz, 12 * 90 * 180);
+                        let _buf: Vec<Vec<u8>> = reader.try_collect().await.unwrap();
+                    // let buf: Vec<u8> = buf.into_iter().flatten().collect();
+                    } else {
+                        panic!("not array variable");
+                    }
+                })
+            });
+        } else {
+            panic!("wrong constrained variable");
+        }
     }
 }

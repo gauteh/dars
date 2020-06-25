@@ -1,22 +1,7 @@
-use async_trait::async_trait;
-use futures::AsyncBufRead;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use dap2::das::Das;
-use dap2::dds::Dds;
-use dap2::dods::Dods;
-
 use crate::hdf5;
-
-/// A dataset provides endpoints for the metadata or data requests over the DAP2 or DAP4 protocol.
-///
-/// Provide stream of data and access to metadata.
-#[async_trait]
-pub trait Dataset: Dods {
-    async fn das(&self) -> &Das;
-    async fn dds(&self) -> &Dds;
-}
 
 /// The map of datasets.
 #[derive(Default)]

@@ -12,4 +12,3 @@ pub mod hyperslab;
 pub use constraint::Constraint;
 pub use das::Das;
 pub use dds::Dds;
-pub use dods::Dods;

@@ -1,12 +1,18 @@
+use futures::stream::FuturesOrdered;
+use futures::stream::{self, StreamExt, TryStreamExt};
 use hyper::Body;
 use std::convert::Infallible;
+use std::iter;
 use std::sync::Arc;
 use warp::reply::Reply;
-use warp::Rejection;
 
+use dap2::dds::{ConstrainedVariable, DdsVariableDetails};
 use dap2::Constraint;
 
-use super::{Dataset, DatasetType, State};
+use byte_slice_cast::IntoByteVec;
+use dap2::dods::XdrPack;
+
+use super::{DatasetType, State};
 
 pub async fn list_datasets(state: State) -> Result<impl warp::Reply, Infallible> {
     Ok(format!(
@@ -49,8 +55,74 @@ pub async fn dds(
     }
 }
 
-pub async fn dods(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallible> {
-    Ok("hello dods")
+#[derive(Debug)]
+struct DodsError;
+impl warp::reject::Reject for DodsError {}
+
+pub async fn dods(
+    dataset: Arc<DatasetType>,
+    constraint: Constraint,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    match &*dataset {
+        DatasetType::HDF5(dataset) => {
+            let dds = dataset
+                .dds()
+                .await
+                .dds(&constraint)
+                .or_else(|_| Err(warp::reject::custom(DodsError)))?;
+
+            let dds_bytes = dds.to_string().as_bytes().to_vec();
+
+            let readers = dds
+                .variables
+                .into_iter()
+                .map(move |c| match c {
+                    ConstrainedVariable::Variable(v) => Box::new(iter::once(v))
+                        as Box<dyn Iterator<Item = DdsVariableDetails> + Send + Sync + 'static>,
+                    ConstrainedVariable::Structure {
+                        variable: _,
+                        member,
+                    } => Box::new(iter::once(member)),
+                    ConstrainedVariable::Grid {
+                        variable,
+                        dimensions,
+                    } => Box::new(iter::once(variable).chain(dimensions.into_iter())),
+                })
+                .flatten()
+                .map(|c| async move { dataset.variable(&c).await })
+                .collect::<FuturesOrdered<_>>()
+                .try_collect::<Vec<_>>()
+                .await
+                .or_else(|_| Err(warp::reject::custom(DodsError)))?
+                .into_iter()
+                .map(|(len, stream)| {
+                    let length = if let Some(len) = len {
+                        let mut length = vec![len as u32, len as u32];
+                        length.pack();
+                        let length = length.into_byte_vec();
+                        length
+                    } else {
+                        Vec::new()
+                    };
+
+                    stream::once(async move { Ok(length) }).chain(stream)
+                });
+
+            let stream = stream::once(async move { Ok(dds_bytes) })
+                .chain(stream::once(async move {
+                    Ok("\n\nData:\n".as_bytes().to_vec())
+                }))
+                .chain(stream::iter(readers).flatten());
+
+            // TODO: Send length of stream in Content-Length
+
+            Ok(warp::http::Response::builder()
+                .header("Content-Type", "application/octet-stream")
+                .header("Content-Description", "dods-data")
+                .header("XDODS-Server", "dars")
+                .body(Body::wrap_stream(stream)))
+        }
+    }
 }
 
 pub async fn raw(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallible> {

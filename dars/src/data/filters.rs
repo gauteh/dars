@@ -5,12 +5,11 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use warp::Filter;
 
-use dap2::dds::{ConstrainedVariable, DdsVariableDetails};
 use dap2::Constraint;
 
 use super::handlers;
+use super::DatasetType;
 use super::State;
-use super::{Dataset, DatasetType};
 
 pub fn datasets(
     state: State,
@@ -68,6 +67,7 @@ pub fn dods(
                 .and(with_state(state))
                 .and_then(with_dataset),
         )
+        .and(constraint())
         .and_then(handlers::dods)
 }
 
@@ -91,7 +91,7 @@ fn with_state(state: State) -> impl Filter<Extract = (State,), Error = Infallibl
 
 fn ends_with<'a>(
     ext: &'a str,
-) -> impl Filter<Extract = (String,), Error = warp::reject::Rejection> + Clone + 'a {
+) -> impl Filter<Extract = (String,), Error = warp::Rejection> + Clone + 'a {
     warp::path::tail().and_then(move |tail: warp::filters::path::Tail| async move {
         if tail.as_str().ends_with(ext) {
             Ok(String::from(
@@ -223,86 +223,60 @@ mod tests {
         Arc::new(data)
     }
 
-    // #[bench]
-    // fn coads_get_sst(b: &mut Bencher) {
-    //     use crate::Server;
-
-    //     let mut data = Datasets::default();
-    //     data.datasets.insert(
-    //         "coads_climatology.nc4".to_string(),
-    //         DatasetType::HDF5(hdf5::Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap()),
-    //         );
-
-    //     use tide::http::{Url, Method, Request};
-    //     let req = Request::new(Method::Get, Url::parse("http://localhost/data/coads_climatology.nc4.dods?SST").unwrap());
-
-    //     let server = Server { data };
-    //     let mut dars = tide::with_state(server);
-    //     dars.at("/data/:dataset")
-    //         .get(|req: tide::Request<Server>| async move { req.state().data.dataset(&req).await });
-
-    //     b.iter(|| {
-    //         let req = req.clone();
-
-    //         block_on(async {
-    //             let mut res: tide::Response = dars.respond(req).await.unwrap();
-    //             assert_eq!(res.status(), 200);
-    //             res.take_body().into_bytes().await.unwrap()
-    //         })
-    //     })
-    // }
-
-    #[test]
-    fn dap_methods() {
+    #[tokio::test]
+    async fn dap_methods() {
         let state = test_state();
 
-        assert!(block_on(
+        assert!(
             warp::test::request()
                 .path("/data/coads_climatology.nc4.das")
                 .matches(&das(state.clone()))
-        ));
+                .await
+        );
 
-        assert!(block_on(
+        assert!(
             warp::test::request()
                 .path("/data/coads_climatology.nc4.dds")
                 .matches(&dds(state.clone()))
-        ));
+                .await
+        );
 
-        assert!(block_on(
+        assert!(
             warp::test::request()
                 .path("/data/coads_climatology.nc4.dods")
                 .matches(&dods(state.clone()))
-        ));
+                .await
+        );
 
-        assert!(block_on(
+        assert!(
             warp::test::request()
                 .path("/data/nested/coads_climatology.nc4.dods")
                 .matches(&dods(state.clone()))
-        ));
+                .await
+        );
 
-        assert!(block_on(
+        assert!(
             warp::test::request()
                 .path("/data/coads_climatology.nc4")
                 .matches(&raw(state.clone()))
-        ));
+                .await
+        );
 
         assert_eq!(
-            block_on(
-                warp::test::request()
-                    .path("/test.das")
-                    .filter(&ends_with(".das"))
-            )
-            .unwrap(),
+            warp::test::request()
+                .path("/test.das")
+                .filter(&ends_with(".das"))
+                .await
+                .unwrap(),
             "test"
         );
 
         assert_eq!(
-            block_on(
-                warp::test::request()
-                    .path("/test.das?fasd")
-                    .filter(&ends_with(".das"))
-            )
-            .unwrap(),
+            warp::test::request()
+                .path("/test.das?fasd")
+                .filter(&ends_with(".das"))
+                .await
+                .unwrap(),
             "test"
         );
     }
@@ -329,12 +303,12 @@ mod tests {
         let filter = constraint();
 
         b.iter(|| {
-            let res = block_on(
+            block_on(
                 warp::test::request()
                     .path("/data/coads_climatology.nc4.dds?SST[0:5][0:70][0:70],TIME,COADSX,COADSY")
                     .filter(&filter),
             )
-            .unwrap();
+            .unwrap()
         })
     }
 
@@ -365,6 +339,23 @@ mod tests {
                 warp::test::request()
                     .path("/data/coads_climatology.nc4.dds")
                     .reply(&dds),
+            );
+
+            assert_eq!(res.status(), 200);
+            test::black_box(|| res.body());
+        })
+    }
+
+    #[bench]
+    fn coads_get_sst(b: &mut Bencher) {
+        let state = test_state();
+        let dods = dods(state.clone());
+
+        b.iter(|| {
+            let res = block_on(
+                warp::test::request()
+                    .path("/data/coads_climatology.nc4.dods?SST")
+                    .reply(&dods),
             );
 
             assert_eq!(res.status(), 200);

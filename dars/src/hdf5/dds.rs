@@ -12,6 +12,7 @@ use super::HDF5File;
 
 fn hdf5_vartype(dtype: &hdf5::Datatype) -> dds::VarType {
     use dds::VarType;
+    use hdf5::types::TypeDescriptor;
 
     match dtype {
         _ if dtype.is::<u8>() => VarType::Byte,
@@ -23,7 +24,14 @@ fn hdf5_vartype(dtype: &hdf5::Datatype) -> dds::VarType {
         _ if dtype.is::<i64>() => VarType::Int64,
         _ if dtype.is::<f32>() => VarType::Float32,
         _ if dtype.is::<f64>() => VarType::Float64,
-        _ => panic!("Unimplemented type: {:?}", dtype),
+        _ => match dtype.to_descriptor() {
+            Ok(desc) => match desc {
+                TypeDescriptor::FixedAscii(_) => VarType::String,
+                TypeDescriptor::FixedUnicode(_) => VarType::String,
+                _ => panic!("Unimplemented type: {:?}", dtype),
+            },
+            _ => panic!("Unimplemented type: {:?}", dtype),
+        }
     }
 }
 
@@ -169,12 +177,14 @@ impl dds::ToDds for &HDF5File {
             .map(|m| self.0.dataset(m).map(|d| (m, d)))
             .filter_map(Result::ok)
             .filter(|(_, d)| d.is_chunked() || d.offset().is_some()) // skipping un-allocated datasets.
-            .map(|(m, d)| Variable {
+            .map(|(m, d)| {
+                debug!("Variable: {}", m);
+                Variable {
                 name: m.clone(),
                 vartype: hdf5_vartype(&d.dtype().unwrap()),
                 dimensions: hdf5_dimensions(m, &d),
                 shape: d.shape().clone(),
-            })
+            }})
             .collect()
     }
 

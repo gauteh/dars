@@ -33,9 +33,15 @@ impl Hdf5Dataset {
     pub fn open<P: AsRef<Path>>(path: P) -> anyhow::Result<Hdf5Dataset> {
         let path = path.as_ref();
         let hf = HDF5File(hdf5::File::open(path)?, path.to_path_buf());
-        let idx = idx::Index::index_file(&hf.0, Some(path))?;
+
+        debug!("Building DAS of {:?}..", path);
         let das = (&hf).into();
+
+        debug!("Building DDS of {:?}..", path);
         let dds = (&hf).into();
+
+        debug!("Indexing: {:?}..", path);
+        let idx = idx::Index::index_file(&hf.0, Some(path))?;
 
         Ok(Hdf5Dataset {
             path: path.into(),

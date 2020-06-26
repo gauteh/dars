@@ -93,7 +93,10 @@ pub async fn dods(
                 .collect::<FuturesOrdered<_>>()
                 .try_collect::<Vec<_>>()
                 .await
-                .or_else(|_| Err(warp::reject::custom(DodsError)))?
+                .or_else(|e| {
+                    debug!("error building variable stream: {:?}", e);
+                    Err(warp::reject::custom(DodsError))
+                })?
                 .into_iter()
                 .map(|(len, stream)| {
                     let length = if let Some(len) = len {

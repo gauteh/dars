@@ -14,6 +14,7 @@ use super::State;
 pub fn datasets(
     state: State,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    // TODO: Include recover filter to catch errors without falling through to raw
     dataset_list(state.clone())
         .or(das(state.clone()))
         .or(dds(state.clone()))
@@ -26,8 +27,16 @@ pub fn dataset_list(
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("data")
         .and(warp::get())
-        .and(with_state(state))
-        .and_then(handlers::list_datasets)
+        .and(with_state(state.clone()))
+        .and(warp::header::exact_ignore_case(
+            "accept",
+            "application/json",
+        ))
+        .and_then(handlers::list_datasets_json)
+        .or(warp::path!("data")
+            .and(warp::get())
+            .and(with_state(state))
+            .and_then(handlers::list_datasets))
 }
 
 pub fn das(

@@ -31,7 +31,7 @@ fn hdf5_vartype(dtype: &hdf5::Datatype) -> dds::VarType {
                 _ => panic!("Unimplemented type: {:?}", dtype),
             },
             _ => panic!("Unimplemented type: {:?}", dtype),
-        }
+        },
     }
 }
 
@@ -180,11 +180,12 @@ impl dds::ToDds for &HDF5File {
             .map(|(m, d)| {
                 debug!("Variable: {}", m);
                 Variable {
-                name: m.clone(),
-                vartype: hdf5_vartype(&d.dtype().unwrap()),
-                dimensions: hdf5_dimensions(m, &d),
-                shape: d.shape().clone(),
-            }})
+                    name: m.clone(),
+                    vartype: hdf5_vartype(&d.dtype().unwrap()),
+                    dimensions: hdf5_dimensions(m, &d),
+                    shape: d.shape().clone(),
+                }
+            })
             .collect()
     }
 

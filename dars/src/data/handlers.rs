@@ -21,7 +21,7 @@ pub async fn list_datasets(state: State) -> Result<impl warp::Reply, Infallible>
             .datasets
             .keys()
             .map(|s|
-                format!("   {} [<a href=\"/data/{}\">dap</a>][<a href=\"/data/{}\">raw</a>] ([<a href=\"/data/{}.das\">das</a>][<a href=\"/data/{}.dds\">dds</a>][<a href=\"/data/{}.dods\">dods</a>])",
+                format!("   {} [<a href=\"/data/{}\">dap</a>][<a href=\"/data/{}\">raw</a>] ([<a href=\"/data/{}.das\">das</a>][<a href=\"/data/{}.dds\">dds</a>][<a href=\"/data/{}.dods\">dods</a>]<br />)",
                 s, s, s, s, s, s)
             )
             .collect::<Vec<String>>()

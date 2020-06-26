@@ -51,7 +51,10 @@ pub async fn dds(
             .await
             .dds(&constraint)
             .map(|dds| dds.to_string().into_response())
-            .or_else(|_| Ok(warp::http::StatusCode::BAD_REQUEST.into_response())),
+            .or_else(|e| {
+                error!("Error parsing DDS: {:?}", e);
+                Ok(warp::http::StatusCode::BAD_REQUEST.into_response())
+            }),
     }
 }
 
@@ -69,7 +72,10 @@ pub async fn dods(
                 .dds()
                 .await
                 .dds(&constraint)
-                .or_else(|_| Err(warp::reject::custom(DodsError)))?;
+                .or_else(|e| {
+                    error!("Error parsing DDS: {:?}", e);
+                    Err(warp::reject::custom(DodsError))
+                })?;
 
             let dds_bytes = dds.to_string().as_bytes().to_vec();
 
@@ -94,7 +100,7 @@ pub async fn dods(
                 .try_collect::<Vec<_>>()
                 .await
                 .or_else(|e| {
-                    debug!("error building variable stream: {:?}", e);
+                    error!("error building variable stream: {:?}", e);
                     Err(warp::reject::custom(DodsError))
                 })?
                 .into_iter()

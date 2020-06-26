@@ -47,8 +47,8 @@ script:
       cargo bench --all --verbose &&
       cargo doc --all --verbose &&
       cargo clippy -- --warn clippy::pedantic &&
-      cargo fmt -- --check &&
       cargo audit
+      # cargo fmt -- --check &&
 
 after_success: |
     cargo tarpaulin --verbose --out Xml --ignore-tests &&

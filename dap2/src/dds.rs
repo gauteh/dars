@@ -198,21 +198,21 @@ impl Dds {
                                 dimensions: var
                                     .dimensions
                                     .iter()
-                                    .map(|dim| {
-                                        let dim = self.variables.get(dim).unwrap();
-                                        DdsVariableDetails {
-                                            name: dim.name.clone(),
-                                            vartype: dim.vartype,
-                                            dimensions: dim
-                                                .dimensions
-                                                .iter()
-                                                .cloned()
-                                                .zip(dim.shape.iter().cloned())
-                                                .collect(),
-                                            size: dim.shape.iter().product(),
-                                            indices: vec![0; dim.shape.len()],
-                                            counts: dim.shape.clone(),
-                                        }
+                                    .filter_map(|dim| {
+                                        self.variables.get(dim).map(|dim|
+                                            DdsVariableDetails {
+                                                name: dim.name.clone(),
+                                                vartype: dim.vartype,
+                                                dimensions: dim
+                                                    .dimensions
+                                                    .iter()
+                                                    .cloned()
+                                                    .zip(dim.shape.iter().cloned())
+                                                    .collect(),
+                                                    size: dim.shape.iter().product(),
+                                                    indices: vec![0; dim.shape.len()],
+                                                    counts: dim.shape.clone(),
+                                            })
                                     })
                                     .collect(),
                             }

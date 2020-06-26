@@ -5,6 +5,7 @@ use std::convert::Infallible;
 use std::iter;
 use std::sync::Arc;
 use warp::reply::Reply;
+use bytes::Bytes;
 
 use dap2::dds::{ConstrainedVariable, DdsVariableDetails};
 use dap2::Constraint;
@@ -77,7 +78,7 @@ pub async fn dods(
                     Err(warp::reject::custom(DodsError))
                 })?;
 
-            let dds_bytes = dds.to_string().as_bytes().to_vec();
+            let dds_bytes = Bytes::copy_from_slice(dds.to_string().as_bytes());
 
             let readers = dds
                 .variables
@@ -108,10 +109,9 @@ pub async fn dods(
                     let length = if let Some(len) = len {
                         let mut length = vec![len as u32, len as u32];
                         length.pack();
-                        let length = length.into_byte_vec();
-                        length
+                        Bytes::copy_from_slice(length.into_byte_vec().as_slice())
                     } else {
-                        Vec::new()
+                        Bytes::new()
                     };
 
                     stream::once(async move { Ok(length) }).chain(stream)
@@ -119,7 +119,7 @@ pub async fn dods(
 
             let stream = stream::once(async move { Ok(dds_bytes) })
                 .chain(stream::once(async move {
-                    Ok("\n\nData:\n".as_bytes().to_vec())
+                    Ok(Bytes::from_static(b"\n\nData:\n"))
                 }))
                 .chain(stream::iter(readers).flatten());
 

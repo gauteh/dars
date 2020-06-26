@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use futures::stream::TryStreamExt;
 use futures::Stream;
-use hidefix::filters::byteorder::to_big_e_sized;
 use hidefix::idx;
+use bytes::Bytes;
 
 use dap2::dds::DdsVariableDetails;
 
@@ -79,7 +79,7 @@ impl Hdf5Dataset {
     ) -> Result<
         (
             Option<usize>,
-            impl Stream<Item = Result<Vec<u8>, std::io::Error>> + Send + 'static,
+            impl Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static,
         ),
         anyhow::Error,
     > {
@@ -87,9 +87,6 @@ impl Hdf5Dataset {
 
         let indices: Vec<u64> = variable.indices.iter().map(|c| *c as u64).collect();
         let counts: Vec<u64> = variable.counts.iter().map(|c| *c as u64).collect();
-
-        let dsz = variable.vartype.size();
-        let order = reader.order();
 
         let len = if variable.is_scalar() {
             None
@@ -101,10 +98,6 @@ impl Hdf5Dataset {
             len,
             reader
                 .stream(Some(indices.as_slice()), Some(counts.as_slice()))
-                .and_then(move |mut v| {
-                    let dsz = dsz;
-                    async move { to_big_e_sized(&mut v, order, dsz).map(|_| v) }
-                })
                 .map_err(|_| std::io::ErrorKind::UnexpectedEof.into()),
         ))
     }
@@ -115,8 +108,8 @@ mod tests {
     use super::*;
     use dap2::constraint::Constraint;
     use dap2::dds::ConstrainedVariable;
-    use futures::executor::block_on;
-    use futures::stream::TryStreamExt;
+    use futures::executor::{block_on, block_on_stream};
+    use futures::pin_mut;
     use test::Bencher;
 
     #[test]
@@ -145,16 +138,14 @@ mod tests {
         } = &dds.variables[0]
         {
             b.iter(|| {
-                block_on(async {
-                    let reader = hd.variable(&member).await.unwrap();
+                    let reader = block_on(hd.variable(&member)).unwrap();
                     if let (Some(sz), reader) = reader {
                         assert_eq!(sz, 12 * 90 * 180);
-                        let _buf: Vec<Vec<u8>> = reader.try_collect().await.unwrap();
-                    // let buf: Vec<u8> = buf.into_iter().flatten().collect();
+                        pin_mut!(reader);
+                        block_on_stream(reader).for_each(drop);
                     } else {
                         panic!("not array variable");
                     }
-                })
             });
         } else {
             panic!("wrong constrained variable");

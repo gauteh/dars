@@ -293,12 +293,11 @@ mod tests {
         b.iter(|| {
             let res = block_on(
                 warp::test::request()
-                    .path("/data/coads_climatology.nc4.dods?SST")
+                    .path("/data/coads_climatology.nc4.dods?SST.SST")
                     .reply(&dods),
             );
 
             assert_eq!(res.status(), 200);
-            test::black_box(|| res.body());
         })
     }
 }

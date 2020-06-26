@@ -3,6 +3,7 @@ use crate::hyperslab;
 ///! We currently only support constraints that slices variables, none based on the content
 ///! of the variable.
 use std::ops::Deref;
+use percent_encoding::percent_decode_str;
 
 #[derive(Debug)]
 pub struct Constraint {
@@ -27,6 +28,8 @@ pub enum ConstraintVariable {
 
 impl Constraint {
     pub fn parse(query: &str) -> anyhow::Result<Constraint> {
+        let query = percent_decode_str(query).decode_utf8()?;
+
         query
             .split(",")
             .map(|var| {

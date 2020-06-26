@@ -11,7 +11,7 @@ pub struct Attribute {
     pub value: AttrValue,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AttrValue {
     Str(String),
     Float(f32),
@@ -127,7 +127,10 @@ impl Das {
             Uchar(n) => format!("{}Byte {} {};\n", " ".repeat(INDENT), a.name, n),
 
             // v => format!("{}Unimplemented {} {:?};\n", " ".repeat(INDENT), a.name, v),
-            _ => "".to_string(),
+            v => {
+                debug!("Unimplemented DAS field: {:?}: {:?}", a.name, v);
+                "".to_string()
+            },
         }
     }
 

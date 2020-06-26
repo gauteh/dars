@@ -304,7 +304,7 @@ impl Dds {
                                                             counts: vec![*c],
                                                         })
                                                         .ok_or_else(|| {
-                                                            anyhow!("Variable not found.")
+                                                            anyhow!("Variable not found: {}", var.name)
                                                         })
                                                 })
                                                 .collect::<Result<Vec<_>, _>>()?,
@@ -325,7 +325,7 @@ impl Dds {
                                             }))
                                         }
                                     })
-                                    .ok_or_else(|| anyhow!("Variable not found"))?
+                                    .ok_or_else(|| anyhow!("Variable not found: {}", var))?
                             }
                             Structure((v1, v2, slab)) => self
                                 .variables
@@ -333,7 +333,7 @@ impl Dds {
                                 .and_then(|var1| {
                                     self.variables.get(v2.as_str()).map(|var2| (var1, var2))
                                 })
-                                .ok_or_else(|| anyhow!("Variable not found"))
+                                .ok_or_else(|| anyhow!("Variable not found: {}.{}", v1, v2))
                                 .and_then(|(var1, var2)| {
                                     let indices = self.extend_indices(var2, slab)?;
                                     let counts = self.extend_counts(var2, &indices, slab)?;

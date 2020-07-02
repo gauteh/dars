@@ -71,7 +71,7 @@ fn h5attr_to_das(n: &str, a: hdf5::Attribute) -> das::Attribute {
                 match dtype {
                     h5t::Integer(IntSize::U2) => Short(a.read_scalar().unwrap()),
                     h5t::Integer(IntSize::U4) => Int(a.read_scalar().unwrap()),
-                    h5t::FixedAscii(_) => Str(fixedascii_to_string(a).unwrap()),
+                    h5t::FixedAscii(_) => Str(fixedascii_to_string(&*a).unwrap()),
                     dtype => Unimplemented(format!("(scalar) {:?}", dtype)),
                 }
             } else {
@@ -101,11 +101,11 @@ macro_rules! branch_array_impl {
     };
 }
 
-fn fixedascii_to_string(a: hdf5::Attribute) -> Result<String, anyhow::Error> {
-    if let Ok(hdf5::types::TypeDescriptor::FixedAscii(n)) = a.dtype()?.to_descriptor() {
+fn fixedascii_to_string(c: &hdf5::Container) -> Result<String, anyhow::Error> {
+    if let Ok(hdf5::types::TypeDescriptor::FixedAscii(n)) = c.dtype()?.to_descriptor() {
         // values from: hdf5_types.rs/array.rs
         branch_array_impl!(
-            a, n, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+            c, n, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
             23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
             45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 70, 72,
             80, 90, 96, 100, 110, 120, 128, 130, 140, 150, 160, 170, 180, 190, 192, 200, 210, 220,
@@ -119,9 +119,9 @@ fn fixedascii_to_string(a: hdf5::Attribute) -> Result<String, anyhow::Error> {
 }
 
 fn fixedascii_attr_value<T: hdf5::types::Array<Item = u8>>(
-    a: hdf5::Attribute,
+    c: &hdf5::Container,
 ) -> Result<String, anyhow::Error> {
-    Ok(a.read_scalar::<hdf5::types::FixedAscii<T>>()?
+    Ok(c.read_scalar::<hdf5::types::FixedAscii<T>>()?
         .as_str()
         .to_owned())
 }

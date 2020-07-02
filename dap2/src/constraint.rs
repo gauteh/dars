@@ -29,6 +29,7 @@ pub enum ConstraintVariable {
 impl Constraint {
     pub fn parse(query: &str) -> anyhow::Result<Constraint> {
         let query = percent_decode_str(query).decode_utf8()?;
+        debug!("query: {}", query);
 
         query
             .split(",")

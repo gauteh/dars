@@ -41,7 +41,28 @@ impl Hdf5Dataset {
         let dds = (&hf).into();
 
         debug!("Indexing: {:?}..", path);
-        let idx = idx::Index::index_file(&hf.0, Some(path))?;
+
+        let mut idxpath = path.to_path_buf();
+        idxpath.set_extension("idx.fx");
+
+        let idx = if idxpath.exists() {
+            debug!("Loading index from {:?}..", idxpath);
+
+            let b = std::fs::read(idxpath)?;
+            flexbuffers::from_slice(&b)?
+        } else {
+            debug!("Writing index to {:?}", idxpath);
+
+            let idx = idx::Index::index_file(&hf.0, Some(path))?;
+            use serde::ser::Serialize;
+            use flexbuffers::FlexbufferSerializer as ser;
+
+            let mut s = ser::new();
+            idx.serialize(&mut s)?;
+            std::fs::write(idxpath, s.view())?;
+
+            idx
+        };
 
         Ok(Hdf5Dataset {
             path: path.into(),
@@ -83,6 +104,8 @@ impl Hdf5Dataset {
         ),
         anyhow::Error,
     > {
+        debug!("streaming: {} [{:?} / {:?}]", variable.name, variable.indices, variable.counts);
+
         let reader = self.idx.streamer(&variable.name)?;
 
         let indices: Vec<u64> = variable.indices.iter().map(|c| *c as u64).collect();

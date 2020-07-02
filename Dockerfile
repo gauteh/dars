@@ -10,7 +10,7 @@ ADD . .
 
 RUN cargo install --path dars
 
-EXPOSE 80
+EXPOSE 8001
 
 ENV RUST_LOG=info
 

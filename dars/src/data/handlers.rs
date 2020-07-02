@@ -1,17 +1,15 @@
 use bytes::Bytes;
-use futures::stream::FuturesOrdered;
-use futures::stream::{self, StreamExt, TryStreamExt};
+use futures::pin_mut;
+use futures::stream::StreamExt;
+use async_stream::stream;
 use hyper::Body;
 use std::convert::Infallible;
-use std::iter;
 use std::sync::Arc;
 use warp::reply::Reply;
 
-use dap2::dds::{ConstrainedVariable, DdsVariableDetails};
+use dap2::dds::ConstrainedVariable;
 use dap2::Constraint;
 
-use byte_slice_cast::IntoByteVec;
-use dap2::dods::XdrPack;
 
 use super::{DatasetType, State};
 
@@ -68,64 +66,70 @@ pub async fn dods(
     constraint: Constraint,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match &*dataset {
-        DatasetType::HDF5(dataset) => {
-            let dds = dataset.dds().await.dds(&constraint).or_else(|e| {
+        DatasetType::HDF5(inner) => {
+            let dds = inner.dds().await.dds(&constraint).or_else(|e| {
                 error!("Error parsing DDS: {:?}", e);
                 Err(warp::reject::custom(DodsError))
             })?;
 
-            let dds_bytes = Bytes::copy_from_slice(dds.to_string().as_bytes());
+            let dds_bytes = Bytes::from(dds.to_string());
+            let content_length = dds.dods_size() + dds_bytes.len() + 8;
 
-            let readers = dds
-                .variables
-                .into_iter()
-                .map(move |c| match c {
-                    ConstrainedVariable::Variable(v) => Box::new(iter::once(v))
-                        as Box<dyn Iterator<Item = DdsVariableDetails> + Send + Sync + 'static>,
-                    ConstrainedVariable::Structure {
-                        variable: _,
-                        member,
-                    } => Box::new(iter::once(member)),
-                    ConstrainedVariable::Grid {
-                        variable,
-                        dimensions,
-                    } => Box::new(iter::once(variable).chain(dimensions.into_iter())),
-                })
-                .flatten()
-                .map(|c| async move { dataset.variable(&c).await })
-                .collect::<FuturesOrdered<_>>()
-                .try_collect::<Vec<_>>()
-                .await
-                .or_else(|e| {
-                    error!("error building variable stream: {:?}", e);
-                    Err(warp::reject::custom(DodsError))
-                })?
-                .into_iter()
-                .map(|(len, stream)| {
-                    let length = if let Some(len) = len {
-                        let mut length = vec![len as u32, len as u32];
-                        length.pack();
-                        Bytes::copy_from_slice(length.into_byte_vec().as_slice())
-                    } else {
-                        Bytes::new()
-                    };
+            let body = stream! {
+                let dataset = Arc::clone(&dataset);
+                let DatasetType::HDF5(dataset) = &*dataset;
 
-                    stream::once(async move { Ok(length) }).chain(stream)
-                });
+                yield Ok::<_, std::io::Error>(dds_bytes);
+                yield Ok(Bytes::from_static(b"\n\nData:\n"));
 
-            let stream = stream::once(async move { Ok(dds_bytes) })
-                .chain(stream::once(async move {
-                    Ok(Bytes::from_static(b"\n\nData:\n"))
-                }))
-                .chain(stream::iter(readers).flatten());
+                for c in dds.variables {
+                    match c {
+                        ConstrainedVariable::Variable(v) |
+                            ConstrainedVariable::Structure { variable: _, member: v }
+                            => {
+                            let reader = dataset.variable(&v).await
+                                .map_err(|_| std::io::ErrorKind::UnexpectedEof)?;
 
-            // TODO: Send length of stream in Content-Length
+                            pin_mut!(reader);
+
+                            while let Some(b) = reader.next().await {
+                                yield b;
+                            }
+                        },
+                        ConstrainedVariable::Grid {
+                            variable,
+                            dimensions,
+                        } => {
+                            let reader = dataset.variable(&variable).await
+                                .map_err(|_| std::io::ErrorKind::UnexpectedEof)?;
+
+                            pin_mut!(reader);
+
+                            while let Some(b) = reader.next().await {
+                                yield b;
+                            }
+
+                            for variable in dimensions {
+                                let reader = dataset.variable(&variable).await
+                                    .map_err(|_| std::io::ErrorKind::UnexpectedEof)?;
+
+                                pin_mut!(reader);
+
+                                while let Some(b) = reader.next().await {
+                                    yield b;
+                                }
+                            }
+                        }
+                    }
+                }
+            };
 
             Ok(warp::http::Response::builder()
                 .header("Content-Type", "application/octet-stream")
                 .header("Content-Description", "dods-data")
+                .header("Content-Length", content_length)
                 .header("XDODS-Server", "dars")
-                .body(Body::wrap_stream(stream)))
+                .body(Body::wrap_stream(body)))
         }
     }
 }
@@ -136,6 +140,7 @@ pub async fn raw(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallib
             .raw()
             .await
             .map(|s| {
+                // TODO: Add Content-Length, this should increase performance.
                 warp::http::Response::builder()
                     .header("Content-Type", "application/octet-stream")
                     .header("Content-Disposition", "attachment")

@@ -2,8 +2,11 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use bytes::Bytes;
-use futures::stream::TryStreamExt;
-use futures::Stream;
+use futures::{pin_mut, Stream, StreamExt};
+
+use async_stream::stream;
+use byte_slice_cast::IntoByteVec;
+
 use hidefix::idx;
 
 use dap2::dds::DdsVariableDetails;
@@ -76,7 +79,6 @@ impl Hdf5Dataset {
         &self,
     ) -> Result<impl Stream<Item = Result<hyper::body::Bytes, std::io::Error>>, std::io::Error>
     {
-        use futures::StreamExt;
         use tokio::fs::File;
         use tokio_util::codec;
         use tokio_util::codec::BytesCodec;
@@ -97,13 +99,7 @@ impl Hdf5Dataset {
     pub async fn variable(
         &self,
         variable: &DdsVariableDetails,
-    ) -> Result<
-        (
-            Option<usize>,
-            impl Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static,
-        ),
-        anyhow::Error,
-    > {
+    ) -> Result<impl Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static, anyhow::Error> {
         debug!(
             "streaming: {} [{:?} / {:?}]",
             variable.name, variable.indices, variable.counts
@@ -114,18 +110,24 @@ impl Hdf5Dataset {
         let indices: Vec<u64> = variable.indices.iter().map(|c| *c as u64).collect();
         let counts: Vec<u64> = variable.counts.iter().map(|c| *c as u64).collect();
 
-        let len = if variable.is_scalar() {
-            None
-        } else {
-            Some(variable.len())
-        };
+        let length = if !variable.is_scalar() {
+            let len = (variable.len() as u32).to_be();
+            Some(Bytes::from(vec![len, len].into_byte_vec()))
+        } else { None };
 
-        Ok((
-            len,
-            reader
-                .stream(Some(indices.as_slice()), Some(counts.as_slice()))
-                .map_err(|_| std::io::ErrorKind::UnexpectedEof.into()),
-        ))
+        let bytes = reader.stream(Some(indices.as_slice()), Some(counts.as_slice()));
+
+        Ok(stream! {
+            if let Some(length) = length {
+                yield Ok(length);
+            }
+
+            pin_mut!(bytes);
+
+            while let Some(b) = bytes.next().await {
+                yield b.map_err(|_| std::io::ErrorKind::UnexpectedEof.into());
+            }
+        })
     }
 }
 
@@ -165,13 +167,8 @@ mod tests {
         {
             b.iter(|| {
                 let reader = block_on(hd.variable(&member)).unwrap();
-                if let (Some(sz), reader) = reader {
-                    assert_eq!(sz, 12 * 90 * 180);
-                    pin_mut!(reader);
-                    block_on_stream(reader).for_each(drop);
-                } else {
-                    panic!("not array variable");
-                }
+                pin_mut!(reader);
+                block_on_stream(reader).for_each(drop);
             });
         } else {
             panic!("wrong constrained variable");

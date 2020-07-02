@@ -19,7 +19,7 @@ services:
   dars:
     build: ..
     ports:
-      - "8001:80"
+      - "8001:8001"
     volumes:
       - ../data:/data:ro
 

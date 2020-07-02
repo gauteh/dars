@@ -1,3 +1,4 @@
+#![recursion_limit="256"]
 #![feature(async_closure)]
 #![feature(test)]
 extern crate test;
@@ -10,7 +11,6 @@ extern crate log;
 #[macro_use]
 extern crate anyhow;
 
-use colored::Colorize;
 use env_logger::Env;
 use warp::Filter;
 
@@ -49,8 +49,7 @@ async fn main() -> anyhow::Result<()> {
     let data = Arc::new(data);
     let dars = data::filters::datasets(data).with(warp::log::custom(mlog::mlog));
 
-    info!("Listening on {}", "127.0.0.1:8001".yellow());
-    warp::serve(dars).run(([127, 0, 0, 1], 8001)).await;
+    warp::serve(dars).run(([0, 0, 0, 0], 8001)).await;
 
     Ok(())
 }

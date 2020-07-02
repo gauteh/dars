@@ -581,7 +581,7 @@ dependencies = [
 [[package]]
 name = "hidefix"
 version = "0.0.0"
-source = "git+https://github.com/gauteh/hidefix#343fcd5a22fd46865f89c44df0b3d815e874e747"
+source = "git+https://github.com/gauteh/hidefix#b0f4bb8acd4de592619037e096e9e6f148558a59"
 dependencies = [
  "anyhow 1.0.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-stream 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",

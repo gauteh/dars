@@ -14,9 +14,9 @@ use colored::Colorize;
 use env_logger::Env;
 use warp::Filter;
 
-mod mlog;
 mod data;
 mod hdf5;
+mod mlog;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 

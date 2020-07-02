@@ -24,6 +24,7 @@ pub enum AttrValue {
     Ints(Vec<i32>),
     Uchar(u8),
     Unimplemented(String),
+    Ignored(String),
 }
 
 pub trait ToDas {
@@ -54,7 +55,7 @@ where
             das.push_str(
                 &dataset
                     .global_attributes()
-                    .map(|a| format!("{}{}", " ".repeat(INDENT), Das::format_attr(a)))
+                    .map(|a| format!("{}{}\n", " ".repeat(INDENT), Das::format_attr(a)))
                     .collect::<String>(),
             );
             das.push_str(&format!("{}}}\n", " ".repeat(INDENT)));
@@ -65,7 +66,7 @@ where
             das.push_str(
                 &dataset
                     .variable_attributes(&var)
-                    .map(|a| format!("{}{}", " ".repeat(INDENT), Das::format_attr(a)))
+                    .map(|a| format!("{}{}\n", " ".repeat(INDENT), Das::format_attr(a)))
                     .collect::<String>(),
             );
             das.push_str("    }\n");
@@ -88,14 +89,14 @@ impl Das {
 
         match a.value {
             Str(s) => format!(
-                "{}String {} \"{}\";\n",
+                "{}String {} \"{}\";",
                 " ".repeat(INDENT),
                 a.name,
                 s.escape_default()
             ),
-            Float(f) => format!("{}Float32 {} {:+E};\n", " ".repeat(INDENT), a.name, f),
+            Float(f) => format!("{}Float32 {} {:+E};", " ".repeat(INDENT), a.name, f),
             Floats(f) => format!(
-                "{}Float32 {} {};\n",
+                "{}Float32 {} {};",
                 " ".repeat(INDENT),
                 a.name,
                 f.iter()
@@ -103,9 +104,9 @@ impl Das {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            Double(f) => format!("{}Float64 {} {:+E};\n", " ".repeat(INDENT), a.name, f),
+            Double(f) => format!("{}Float64 {} {:+E};", " ".repeat(INDENT), a.name, f),
             Doubles(f) => format!(
-                "{}Float64 {} {};\n",
+                "{}Float64 {} {};",
                 " ".repeat(INDENT),
                 a.name,
                 f.iter()
@@ -113,10 +114,10 @@ impl Das {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            Short(f) => format!("{}Int16 {} {};\n", " ".repeat(INDENT), a.name, f),
-            Int(f) => format!("{}Int32 {} {};\n", " ".repeat(INDENT), a.name, f),
+            Short(f) => format!("{}Int16 {} {};", " ".repeat(INDENT), a.name, f),
+            Int(f) => format!("{}Int32 {} {};", " ".repeat(INDENT), a.name, f),
             Ints(f) => format!(
-                "{}Int32 {} {};\n",
+                "{}Int32 {} {};",
                 " ".repeat(INDENT),
                 a.name,
                 f.iter()
@@ -124,13 +125,22 @@ impl Das {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            Uchar(n) => format!("{}Byte {} {};\n", " ".repeat(INDENT), a.name, n),
+            Uchar(n) => format!("{}Byte {} {};", " ".repeat(INDENT), a.name, n),
 
-            // v => format!("{}Unimplemented {} {:?};\n", " ".repeat(INDENT), a.name, v),
+            Ignored(n) => {
+                debug!("Ignored (hidden) DAS field: {:?}: {:?}", a.name, n);
+                "".to_string()
+            }
+
+            Unimplemented(v) => {
+                debug!("Unimplemented attribute: {:?}: {:?}", a.name, v);
+                "".to_string()
+            }
+
             v => {
                 debug!("Unimplemented DAS field: {:?}: {:?}", a.name, v);
                 "".to_string()
-            },
+            }
         }
     }
 

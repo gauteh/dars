@@ -64,7 +64,12 @@ fn h5attr_to_das(n: &str, a: hdf5::Attribute) -> das::Attribute {
     use hdf5::types::IntSize;
     use hdf5::types::TypeDescriptor as h5t;
 
-    if let Ok(dtype) = a.dtype().unwrap().to_descriptor() {
+    if n == "DIMENSION_LIST" || n == "REFERENCE_LIST" {
+        das::Attribute {
+            name: n.to_string(),
+            value: Ignored("Dimension metadata".into()),
+        }
+    } else if let Ok(dtype) = a.dtype().unwrap().to_descriptor() {
         das::Attribute {
             name: n.to_string(),
             value: if a.is_scalar() {

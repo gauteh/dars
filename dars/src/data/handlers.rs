@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use futures::stream::FuturesOrdered;
 use futures::stream::{self, StreamExt, TryStreamExt};
 use hyper::Body;
@@ -5,7 +6,6 @@ use std::convert::Infallible;
 use std::iter;
 use std::sync::Arc;
 use warp::reply::Reply;
-use bytes::Bytes;
 
 use dap2::dds::{ConstrainedVariable, DdsVariableDetails};
 use dap2::Constraint;
@@ -69,14 +69,10 @@ pub async fn dods(
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match &*dataset {
         DatasetType::HDF5(dataset) => {
-            let dds = dataset
-                .dds()
-                .await
-                .dds(&constraint)
-                .or_else(|e| {
-                    error!("Error parsing DDS: {:?}", e);
-                    Err(warp::reject::custom(DodsError))
-                })?;
+            let dds = dataset.dds().await.dds(&constraint).or_else(|e| {
+                error!("Error parsing DDS: {:?}", e);
+                Err(warp::reject::custom(DodsError))
+            })?;
 
             let dds_bytes = Bytes::copy_from_slice(dds.to_string().as_bytes());
 

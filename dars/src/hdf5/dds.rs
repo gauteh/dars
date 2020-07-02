@@ -189,10 +189,6 @@ impl dds::ToDds for &HDF5File {
             .collect()
     }
 
-    fn dimension_length(&self, dim: &str) -> usize {
-        self.0.dataset(dim).unwrap().size()
-    }
-
     fn file_name(&self) -> String {
         self.1.to_string_lossy().to_string()
     }

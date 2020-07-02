@@ -1,6 +1,6 @@
 //! Ripped off from warp::filters::log to get to debug!
-use std::fmt;
 use log::debug;
+use std::fmt;
 
 pub fn mlog(info: warp::filters::log::Info) {
     debug!(

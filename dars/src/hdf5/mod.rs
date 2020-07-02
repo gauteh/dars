@@ -1,10 +1,10 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+use bytes::Bytes;
 use futures::stream::TryStreamExt;
 use futures::Stream;
 use hidefix::idx;
-use bytes::Bytes;
 
 use dap2::dds::DdsVariableDetails;
 
@@ -54,8 +54,8 @@ impl Hdf5Dataset {
             debug!("Writing index to {:?}", idxpath);
 
             let idx = idx::Index::index_file(&hf.0, Some(path))?;
-            use serde::ser::Serialize;
             use flexbuffers::FlexbufferSerializer as ser;
+            use serde::ser::Serialize;
 
             let mut s = ser::new();
             idx.serialize(&mut s)?;
@@ -104,7 +104,10 @@ impl Hdf5Dataset {
         ),
         anyhow::Error,
     > {
-        debug!("streaming: {} [{:?} / {:?}]", variable.name, variable.indices, variable.counts);
+        debug!(
+            "streaming: {} [{:?} / {:?}]",
+            variable.name, variable.indices, variable.counts
+        );
 
         let reader = self.idx.streamer(&variable.name)?;
 
@@ -161,14 +164,14 @@ mod tests {
         } = &dds.variables[0]
         {
             b.iter(|| {
-                    let reader = block_on(hd.variable(&member)).unwrap();
-                    if let (Some(sz), reader) = reader {
-                        assert_eq!(sz, 12 * 90 * 180);
-                        pin_mut!(reader);
-                        block_on_stream(reader).for_each(drop);
-                    } else {
-                        panic!("not array variable");
-                    }
+                let reader = block_on(hd.variable(&member)).unwrap();
+                if let (Some(sz), reader) = reader {
+                    assert_eq!(sz, 12 * 90 * 180);
+                    pin_mut!(reader);
+                    block_on_stream(reader).for_each(drop);
+                } else {
+                    panic!("not array variable");
+                }
             });
         } else {
             panic!("wrong constrained variable");

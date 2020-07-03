@@ -150,3 +150,42 @@ pub async fn raw(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallib
             .or_else(|_| Ok(Ok(warp::http::StatusCode::NOT_FOUND.into_response()))),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test::Bencher;
+    use futures::executor::{block_on, block_on_stream};
+
+    #[bench]
+    fn coads_build_sst_struct(b: &mut Bencher) {
+        use crate::hdf5::Hdf5Dataset;
+
+        let hd = Arc::new(DatasetType::HDF5(Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap()));
+
+        let c = Constraint::parse("SST.SST").unwrap();
+
+        b.iter(|| {
+            let hd = hd.clone();
+            let c = c.clone();
+            block_on(dods(hd, c))
+        })
+    }
+
+    #[bench]
+    fn coads_stream_sst_struct(b: &mut Bencher) {
+        use crate::hdf5::Hdf5Dataset;
+        use warp::reply::Reply;
+
+        let hd = Arc::new(DatasetType::HDF5(Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap()));
+
+        let c = Constraint::parse("SST.SST").unwrap();
+
+        b.iter(|| {
+            let hd = hd.clone();
+            let c = c.clone();
+            let response = block_on(dods(hd, c)).unwrap().into_response();
+            block_on_stream(response.into_body()).for_each(drop);
+        })
+    }
+}

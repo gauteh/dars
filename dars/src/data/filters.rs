@@ -285,19 +285,17 @@ mod tests {
         })
     }
 
-    #[bench]
-    fn coads_get_sst(b: &mut Bencher) {
+    #[test]
+    fn coads_dods_constrained() {
         let state = test_state();
         let dods = dods(state.clone());
 
-        b.iter(|| {
-            let res = block_on(
-                warp::test::request()
-                    .path("/data/coads_climatology.nc4.dods?SST.SST")
-                    .reply(&dods),
+        let res = block_on(
+            warp::test::request()
+            .path("/data/coads_climatology.nc4.dods?SST.SST")
+            .reply(&dods),
             );
 
-            assert_eq!(res.status(), 200);
-        })
+        assert_eq!(res.status(), 200);
     }
 }

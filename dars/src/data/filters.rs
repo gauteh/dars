@@ -292,9 +292,9 @@ mod tests {
 
         let res = block_on(
             warp::test::request()
-            .path("/data/coads_climatology.nc4.dods?SST.SST")
-            .reply(&dods),
-            );
+                .path("/data/coads_climatology.nc4.dods?SST.SST")
+                .reply(&dods),
+        );
 
         assert_eq!(res.status(), 200);
     }

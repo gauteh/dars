@@ -1,15 +1,13 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+use async_stream::stream;
+use byte_slice_cast::IntoByteVec;
 use bytes::Bytes;
 use futures::{pin_mut, Stream, StreamExt};
 
-use async_stream::stream;
-use byte_slice_cast::IntoByteVec;
-
-use hidefix::idx;
-
 use dap2::dds::DdsVariableDetails;
+use hidefix::idx;
 
 mod das;
 mod dds;
@@ -99,7 +97,8 @@ impl Hdf5Dataset {
     pub async fn variable(
         &self,
         variable: &DdsVariableDetails,
-    ) -> Result<impl Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static, anyhow::Error> {
+    ) -> Result<impl Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static, anyhow::Error>
+    {
         debug!(
             "streaming: {} [{:?} / {:?}]",
             variable.name, variable.indices, variable.counts
@@ -113,7 +112,9 @@ impl Hdf5Dataset {
         let length = if !variable.is_scalar() {
             let len = (variable.len() as u32).to_be();
             Some(Bytes::from(vec![len, len].into_byte_vec()))
-        } else { None };
+        } else {
+            None
+        };
 
         let bytes = reader.stream(Some(indices.as_slice()), Some(counts.as_slice()));
 

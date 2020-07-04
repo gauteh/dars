@@ -1,4 +1,4 @@
-#![recursion_limit="256"]
+#![recursion_limit = "256"]
 #![feature(async_closure)]
 #![feature(test)]
 extern crate test;

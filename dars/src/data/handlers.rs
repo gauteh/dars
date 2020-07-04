@@ -1,7 +1,7 @@
+use async_stream::stream;
 use bytes::Bytes;
 use futures::pin_mut;
 use futures::stream::StreamExt;
-use async_stream::stream;
 use hyper::Body;
 use std::convert::Infallible;
 use std::sync::Arc;
@@ -9,7 +9,6 @@ use warp::reply::Reply;
 
 use dap2::dds::ConstrainedVariable;
 use dap2::Constraint;
-
 
 use super::{DatasetType, State};
 
@@ -154,14 +153,16 @@ pub async fn raw(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallib
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test::Bencher;
     use futures::executor::{block_on, block_on_stream};
+    use test::Bencher;
 
     #[bench]
     fn coads_build_sst_struct(b: &mut Bencher) {
         use crate::hdf5::Hdf5Dataset;
 
-        let hd = Arc::new(DatasetType::HDF5(Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap()));
+        let hd = Arc::new(DatasetType::HDF5(
+            Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap(),
+        ));
 
         let c = Constraint::parse("SST.SST").unwrap();
 
@@ -177,7 +178,9 @@ mod tests {
         use crate::hdf5::Hdf5Dataset;
         use warp::reply::Reply;
 
-        let hd = Arc::new(DatasetType::HDF5(Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap()));
+        let hd = Arc::new(DatasetType::HDF5(
+            Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap(),
+        ));
 
         let c = Constraint::parse("SST.SST").unwrap();
 

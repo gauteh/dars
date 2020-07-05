@@ -19,7 +19,6 @@ use warp::Filter;
 
 mod data;
 mod hdf5;
-mod mlog;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -50,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
     );
 
     let data = Arc::new(data);
-    let dars = data::filters::datasets(data).with(warp::log::custom(mlog::mlog));
+    let dars = data::filters::datasets(data).with(warp::log::custom(data::request_log));
 
     warp::serve(dars).run(([0, 0, 0, 0], 8001)).await;
 

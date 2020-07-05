@@ -1,7 +1,7 @@
 use crate::hyperslab;
 use percent_encoding::percent_decode_str;
-///! DAP constraints consist of variable list and slices (hyperslabs) of those variables.
-///! We currently only support constraints that slices variables, none based on the content
+///! DAP constraints consist of variable list and slices [hyperslabs] of those variables.
+///! We currently only support constraints that slices variables without strides, none based on the content
 ///! of the variable.
 use std::ops::Deref;
 

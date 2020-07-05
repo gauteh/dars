@@ -1,10 +1,10 @@
-/// Hyperslabs
-///
-/// OPeNDAP constraint expressions for ranges can consist of:
-/// - single values:            [1]     -> [1]
-/// - a range:                  [1:5]   -> [1, 2, 3, 4, 5]
-/// - a range with strides:     [1:2:7] -> [1, 3, 5, 7]
-///                             [1:2:8] -> [1, 3, 5, 7]
+//! Hyperslabs
+//!
+//! OPeNDAP constraint expressions for ranges can consist of:
+//! - single values:            `[1]`     -> `[1]`
+//! - a range:                  `[1:5]`   -> `[1, 2, 3, 4, 5]`
+//! - a range with strides:     `[1:2:7]` -> `[1, 3, 5, 7]`
+//!                             `[1:2:8]` -> `[1, 3, 5, 7]`
 
 pub fn count_slab(slab: &[usize]) -> usize {
     if slab.len() == 1 {

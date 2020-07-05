@@ -5,7 +5,6 @@ name = "dap2"
 version = "0.1.0"
 [dependencies]
 anyhow = "*"
-futures = "*"
 itertools = "*"
 log = "*"
 percent-encoding = "*"

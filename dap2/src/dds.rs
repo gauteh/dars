@@ -8,17 +8,14 @@ use super::hyperslab;
 const INDENT: usize = 4;
 
 /// Data Description Structure
-///
-/// TODO: Serializable.
 #[derive(Default)]
 pub struct Dds {
     /// Variables, needs to be ordered for libnetcdf clients to work correctly.
     variables: BTreeMap<String, Variable>,
-
     file_name: String,
 }
 
-// TODO: Use Rc for String's?
+// TODO: Use Cow's for String's?
 pub struct Variable {
     pub name: String,
     pub vartype: VarType,
@@ -26,7 +23,7 @@ pub struct Variable {
     pub shape: Vec<usize>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum VarType {
     Float32,
     Float64,
@@ -37,7 +34,8 @@ pub enum VarType {
     Int32,
     Int64,
     Byte,
-    String,
+    String(usize),
+    Unimplemented,
 }
 
 impl VarType {
@@ -45,10 +43,12 @@ impl VarType {
         use VarType::*;
 
         match self {
-            Byte | String => 1,
+            Byte => 1,
+            String(n) => *n,
             UInt16 | Int16 => 2,
             Float32 | UInt32 | Int32 => 4,
             Float64 | UInt64 | Int64 => 8,
+            Unimplemented => panic!("Tried to get size of unimplemented variable")
         }
     }
 }
@@ -65,7 +65,8 @@ impl fmt::Display for VarType {
             VarType::Int32 => "Int32",
             VarType::Int64 => "Int64",
             VarType::Byte => "Byte",
-            VarType::String => "String",
+            VarType::String(_) => "String",
+            VarType::Unimplemented => panic!("Tried to display unimplemented type"),
         })
     }
 }
@@ -84,6 +85,7 @@ where
         let variables = dataset
             .variables()
             .into_iter()
+            .filter(|var| !matches!(var.vartype, VarType::Unimplemented))
             .map(|var| (var.name.clone(), var))
             .collect::<Vec<_>>();
 
@@ -136,8 +138,8 @@ impl Dds {
                             }
                         }
                         Right(c) => {
-                            if *i <= c {
-                                Err(anyhow!("Indices greater than dimension shape"))
+                            if *i >= c {
+                                Err(anyhow!("Index greater than dimension shape"))
                             } else {
                                 Ok(c - i)
                             }

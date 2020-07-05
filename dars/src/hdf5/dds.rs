@@ -1,5 +1,9 @@
 ///! HDF5 files have dimensions defined through various special attributes, linking them using ID's
 ///! reference lists.
+///!
+///! String and char type datasets are not supported.
+///!
+///! There are some types of datasets that apparently should be ignored.
 use hdf5_sys as hs;
 use libc;
 use std::convert::TryInto;
@@ -26,8 +30,8 @@ fn hdf5_vartype(dtype: &hdf5::Datatype) -> dds::VarType {
         _ if dtype.is::<f64>() => VarType::Float64,
         _ => match dtype.to_descriptor() {
             Ok(desc) => match desc {
-                TypeDescriptor::FixedAscii(_) => VarType::String,
-                TypeDescriptor::FixedUnicode(_) => VarType::String,
+                TypeDescriptor::FixedAscii(_) => VarType::Unimplemented,
+                TypeDescriptor::FixedUnicode(_) => VarType::Unimplemented,
                 _ => panic!("Unimplemented type: {:?}", dtype),
             },
             _ => panic!("Unimplemented type: {:?}", dtype),
@@ -178,7 +182,7 @@ impl dds::ToDds for &HDF5File {
             .filter_map(Result::ok)
             .filter(|(_, d)| d.is_chunked() || d.offset().is_some()) // skipping un-allocated datasets.
             .map(|(m, d)| {
-                debug!("Variable: {}", m);
+                debug!("Variable: {} {:?}", m, hdf5_vartype(&d.dtype().unwrap()));
                 Variable {
                     name: m.clone(),
                     vartype: hdf5_vartype(&d.dtype().unwrap()),

@@ -11,6 +11,9 @@ extern crate log;
 #[macro_use]
 extern crate anyhow;
 
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 use env_logger::Env;
 use warp::Filter;
 

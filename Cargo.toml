@@ -1,4 +1,7 @@
 [workspace]
 members = ["dars", "dap2"]
 
+[profile.release]
+lto = "fat"
+codegen-units = 1
 

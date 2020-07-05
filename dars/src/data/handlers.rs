@@ -99,16 +99,7 @@ pub async fn dods(
                             variable,
                             dimensions,
                         } => {
-                            let reader = dataset.variable(&variable).await
-                                .map_err(|_| std::io::ErrorKind::UnexpectedEof)?;
-
-                            pin_mut!(reader);
-
-                            while let Some(b) = reader.next().await {
-                                yield b;
-                            }
-
-                            for variable in dimensions {
+                            for variable in std::iter::once(variable).chain(dimensions) {
                                 let reader = dataset.variable(&variable).await
                                     .map_err(|_| std::io::ErrorKind::UnexpectedEof)?;
 

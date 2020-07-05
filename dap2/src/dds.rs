@@ -263,6 +263,8 @@ impl Dds {
                                 self.variables
                                     .get(var.as_str())
                                     .map(|var| {
+                                        ensure!(slab.as_ref().map(|s| s.iter().all(|i| i.len() < 3)).unwrap_or(true), "hyperslabs with strides not supported");
+
                                         let indices = self.extend_indices(var, slab)?;
                                         let counts = self.extend_counts(var, &indices, slab)?;
 
@@ -344,6 +346,8 @@ impl Dds {
                                 })
                                 .ok_or_else(|| anyhow!("Variable not found: {}.{}", v1, v2))
                                 .and_then(|(var1, var2)| {
+                                    ensure!(slab.as_ref().map(|s| s.iter().all(|i| i.len() < 3)).unwrap_or(true), "hyperslabs with strides not supported");
+
                                     let indices = self.extend_indices(var2, slab)?;
                                     let counts = self.extend_counts(var2, &indices, slab)?;
 

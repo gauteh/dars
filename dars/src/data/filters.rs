@@ -251,6 +251,20 @@ mod tests {
         })
     }
 
+    #[test]
+    fn dds_strides_unsupported() {
+        let state = test_state();
+        let dds = dds(state.clone());
+
+        let res = block_on(
+            warp::test::request()
+                .path("/data/coads_climatology.nc4.dds?SST[0:2:5][0:70][0:70],TIME,COADSX,COADSY")
+                .reply(&dds),
+        );
+
+        assert_eq!(res.status(), 400);
+    }
+
     #[bench]
     fn coads_dds_constrained(b: &mut Bencher) {
         let state = test_state();

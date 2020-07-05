@@ -265,7 +265,8 @@ impl Dds {
                                         let counts = self.extend_counts(var, &indices, slab)?;
 
                                         if var.dimensions.len() > 1
-                                            && var.dimensions
+                                            && var
+                                                .dimensions
                                                 .iter()
                                                 .all(|d| self.variables.get(d).is_some())
                                         {

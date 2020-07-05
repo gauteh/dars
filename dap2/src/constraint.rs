@@ -5,7 +5,7 @@ use percent_encoding::percent_decode_str;
 ///! of the variable.
 use std::ops::Deref;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Constraint {
     variables: Vec<ConstraintVariable>,
 }
@@ -18,7 +18,7 @@ impl Deref for Constraint {
     }
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum ConstraintVariable {
     Variable((String, Option<Vec<Vec<usize>>>)),
 

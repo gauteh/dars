@@ -2,11 +2,11 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use async_stream::stream;
-use byte_slice_cast::IntoByteVec;
 use bytes::Bytes;
 use futures::{pin_mut, Stream, StreamExt};
 
 use dap2::dds::DdsVariableDetails;
+use dap2::dods::xdr_length;
 use hidefix::idx;
 
 mod das;
@@ -110,8 +110,7 @@ impl Hdf5Dataset {
         let counts: Vec<u64> = variable.counts.iter().map(|c| *c as u64).collect();
 
         let length = if !variable.is_scalar() {
-            let len = (variable.len() as u32).to_be();
-            Some(Bytes::from(vec![len, len].into_byte_vec()))
+            Some(Bytes::from(Vec::from(xdr_length(variable.len() as u32))))
         } else {
             None
         };

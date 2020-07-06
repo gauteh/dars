@@ -129,12 +129,12 @@ pub async fn raw(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallib
         DatasetType::HDF5(dataset) => dataset
             .raw()
             .await
-            .map(|s| {
-                // TODO: Add Content-Length, this should increase performance.
+            .map(|(sz, s)| {
                 warp::http::Response::builder()
                     .header("Content-Type", "application/octet-stream")
                     .header("Content-Disposition", "attachment")
                     .header("XDODS-Server", "dars")
+                    .header("Content-Length", sz)
                     .body(Body::wrap_stream(s))
             })
             .or_else(|_| Ok(Ok(warp::http::StatusCode::NOT_FOUND.into_response()))),

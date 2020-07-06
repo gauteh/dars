@@ -75,14 +75,18 @@ impl Hdf5Dataset {
 
     pub async fn raw(
         &self,
-    ) -> Result<impl Stream<Item = Result<hyper::body::Bytes, std::io::Error>>, std::io::Error>
+    ) -> Result<(u64, impl Stream<Item = Result<hyper::body::Bytes, std::io::Error>>), std::io::Error>
     {
         use tokio::fs::File;
         use tokio_util::codec;
         use tokio_util::codec::BytesCodec;
 
-        File::open(self.path.clone()).await.map(|file| {
-            codec::FramedRead::new(file, BytesCodec::new()).map(|r| r.map(|bytes| bytes.freeze()))
+        let sz = std::fs::metadata(&self.path)?.len();
+
+        File::open(&self.path).await.map(|file| {
+            (sz,
+             codec::FramedRead::new(file, BytesCodec::new()).map(|r| r.map(|bytes| bytes.freeze()))
+            )
         })
     }
 
@@ -173,5 +177,13 @@ mod tests {
         } else {
             panic!("wrong constrained variable");
         }
+    }
+
+    #[bench]
+    fn coads_get_modified_time(b: &mut Bencher) {
+        b.iter(|| {
+            let m = std::fs::metadata("../data/coads_climatology.nc4").unwrap();
+            test::black_box(m.modified().unwrap());
+        })
     }
 }

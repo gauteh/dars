@@ -376,20 +376,20 @@ mod tests {
 
     #[test]
     fn dimensions_1d() {
-        let hd = Hdf5Dataset::open("tests/h5/dims_1d.h5").unwrap();
+        let hd = Hdf5Dataset::open("../data/h5/dims_1d.h5").unwrap();
         println!("DDS:\n{}", hd.dds.all());
 
         let res = r#"Dataset {
     Float32 data[x1 = 2];
     Int64 x1[x1 = 2];
-} tests/h5/dims_1d.h5;"#;
+} ../data/h5/dims_1d.h5;"#;
 
         assert_eq!(hd.dds.all().to_string(), res);
     }
 
     #[test]
     fn dimensions_2d() {
-        let hd = Hdf5Dataset::open("tests/h5/dims_2d.h5").unwrap();
+        let hd = Hdf5Dataset::open("../data/h5/dims_2d.h5").unwrap();
         println!("DDS:\n{}", hd.dds.all());
 
         let res = r#"Dataset {
@@ -402,7 +402,7 @@ mod tests {
     } data;
     Int64 x1[x1 = 2];
     Int64 y1[y1 = 3];
-} tests/h5/dims_2d.h5;"#;
+} ../data/h5/dims_2d.h5;"#;
 
         assert_eq!(hd.dds.all().to_string(), res);
     }

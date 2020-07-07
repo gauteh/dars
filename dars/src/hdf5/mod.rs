@@ -20,6 +20,7 @@ pub struct Hdf5Dataset {
     idx: idx::Index,
     das: dap2::Das,
     dds: dap2::Dds,
+    modified: std::time::SystemTime
 }
 
 impl fmt::Debug for Hdf5Dataset {
@@ -34,6 +35,7 @@ impl Hdf5Dataset {
     pub fn open<P: AsRef<Path>>(path: P) -> anyhow::Result<Hdf5Dataset> {
         let path = path.as_ref();
         let hf = HDF5File(hdf5::File::open(path)?, path.to_path_buf());
+        let modified = std::fs::metadata("../data/coads_climatology.nc4")?.modified()?;
 
         debug!("Building DAS of {:?}..", path);
         let das = (&hf).into();
@@ -70,6 +72,7 @@ impl Hdf5Dataset {
             idx,
             das,
             dds,
+            modified
         })
     }
 
@@ -103,6 +106,9 @@ impl Hdf5Dataset {
         variable: &DdsVariableDetails,
     ) -> Result<impl Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static, anyhow::Error>
     {
+        let modified = std::fs::metadata("../data/coads_climatology.nc4")?.modified()?;
+        ensure!(modified == self.modified, "{:?} has changed on disk", self.path);
+
         debug!(
             "streaming: {} [{:?} / {:?}]",
             variable.name, variable.indices, variable.counts

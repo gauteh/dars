@@ -27,7 +27,7 @@ _dars_ currently supports hyperslabs (except strides) and variable selection [co
 
 File formats:
 
-* NetCDF
+* HDF5 or HDF5 backed NetCDF (version 4)
 * [NcML](https://www.unidata.ucar.edu/software/netcdf-java/current/ncml/Aggregation.html) (only aggregation along existing dimension).
 
 > Dataset groups are not supported, only variables and gridded variables on root.

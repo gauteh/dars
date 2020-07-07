@@ -35,15 +35,13 @@ impl Hdf5Dataset {
     pub fn open<P: AsRef<Path>>(path: P) -> anyhow::Result<Hdf5Dataset> {
         let path = path.as_ref();
         let hf = HDF5File(hdf5::File::open(path)?, path.to_path_buf());
-        let modified = std::fs::metadata("../data/coads_climatology.nc4")?.modified()?;
+        let modified = std::fs::metadata(path)?.modified()?;
 
         debug!("Building DAS of {:?}..", path);
         let das = (&hf).into();
 
         debug!("Building DDS of {:?}..", path);
         let dds = (&hf).into();
-
-        debug!("Indexing: {:?}..", path);
 
         let mut idxpath = path.to_path_buf();
         idxpath.set_extension("idx.fx");
@@ -54,12 +52,12 @@ impl Hdf5Dataset {
             let b = std::fs::read(idxpath)?;
             flexbuffers::from_slice(&b)?
         } else {
-            debug!("Writing index to {:?}", idxpath);
-
+            debug!("Indexing: {:?}..", path);
             let idx = idx::Index::index_file(&hf.0, Some(path))?;
             use flexbuffers::FlexbufferSerializer as ser;
             use serde::ser::Serialize;
 
+            debug!("Writing index to {:?}", idxpath);
             let mut s = ser::new();
             idx.serialize(&mut s)?;
             std::fs::write(idxpath, s.view())?;
@@ -104,10 +102,13 @@ impl Hdf5Dataset {
     pub async fn variable(
         &self,
         variable: &DdsVariableDetails,
-    ) -> Result<impl Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static, anyhow::Error>
+    ) -> Result<impl Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static, anyhow::Error>
     {
-        let modified = std::fs::metadata("../data/coads_climatology.nc4")?.modified()?;
-        ensure!(modified == self.modified, "{:?} has changed on disk", self.path);
+        let modified = std::fs::metadata(&self.path)?.modified()?;
+        if modified != self.modified {
+            warn!("{:?} has changed on disk", self.path);
+            return Err(anyhow!("{:?} has changed on disk", self.path));
+        }
 
         debug!(
             "streaming: {} [{:?} / {:?}]",
@@ -135,7 +136,7 @@ impl Hdf5Dataset {
             pin_mut!(bytes);
 
             while let Some(b) = bytes.next().await {
-                yield b.map_err(|_| std::io::ErrorKind::UnexpectedEof.into());
+                yield b;
             }
         })
     }

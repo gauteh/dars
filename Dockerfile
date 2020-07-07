@@ -15,5 +15,5 @@ EXPOSE 8001
 ENV RUST_LOG=info
 
 ENTRYPOINT [ "dars" ]
-# CMD [ "-a", "0.0.0.0:80", "/data/" ]
+CMD [ "-a", "0.0.0.0:80", "/data/" ]
 

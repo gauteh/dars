@@ -32,9 +32,15 @@ fn hdf5_vartype(dtype: &hdf5::Datatype) -> dds::VarType {
             Ok(desc) => match desc {
                 TypeDescriptor::FixedAscii(_) => VarType::Unimplemented,
                 TypeDescriptor::FixedUnicode(_) => VarType::Unimplemented,
-                _ => panic!("Unimplemented type: {:?}", dtype),
+                _ => {
+                    debug!("Unimplemented type: {:?}", dtype);
+                    VarType::Unimplemented
+                },
             },
-            _ => panic!("Unimplemented type: {:?}", dtype),
+            _ => {
+                debug!("Unimplemented type: {:?}", dtype);
+                VarType::Unimplemented
+            },
         },
     }
 }

@@ -1,7 +1,7 @@
 use async_stream::stream;
 use bytes::Bytes;
 use futures::pin_mut;
-use futures::stream::StreamExt;
+use futures::stream::{StreamExt, TryStreamExt};
 use hyper::Body;
 use std::convert::Infallible;
 use std::sync::Arc;
@@ -13,18 +13,21 @@ use dap2::Constraint;
 use super::{DatasetType, State};
 
 pub async fn list_datasets(state: State) -> Result<impl warp::Reply, Infallible> {
-    Ok(format!(
-        "Index of datasets:\n\n{}",
+    Ok(warp::http::Response::builder()
+        .header("Content-Type", "text/html")
+        .body(Body::from(
+        format!(
+        "Index of datasets:<br/><br/>{}",
         state
             .datasets
             .keys()
             .map(|s|
-                format!("   {} [<a href=\"/data/{}\">dap</a>][<a href=\"/data/{}\">raw</a>] ([<a href=\"/data/{}.das\">das</a>][<a href=\"/data/{}.dds\">dds</a>][<a href=\"/data/{}.dods\">dods</a>]<br />)",
+                format!("   {} [<a href=\"/data/{}\">dap</a>][<a href=\"/data/{}\">raw</a>] ([<a href=\"/data/{}.das\">das</a>][<a href=\"/data/{}.dds\">dds</a>][<a href=\"/data/{}.dods\">dods</a>])<br />",
                 s, s, s, s, s, s)
             )
             .collect::<Vec<String>>()
             .join("\n")
-    ))
+    ))))
 }
 
 pub async fn list_datasets_json(state: State) -> Result<impl warp::Reply, Infallible> {
@@ -78,7 +81,7 @@ pub async fn dods(
                 let dataset = Arc::clone(&dataset);
                 let DatasetType::HDF5(dataset) = &*dataset;
 
-                yield Ok::<_, std::io::Error>(dds_bytes);
+                yield Ok::<_, anyhow::Error>(dds_bytes);
                 yield Ok(Bytes::from_static(b"\n\nData:\n"));
 
                 for c in dds.variables {
@@ -86,8 +89,7 @@ pub async fn dods(
                         ConstrainedVariable::Variable(v) |
                             ConstrainedVariable::Structure { variable: _, member: v }
                             => {
-                            let reader = dataset.variable(&v).await
-                                .map_err(|_| std::io::ErrorKind::UnexpectedEof)?;
+                            let reader = dataset.variable(&v).await?;
 
                             pin_mut!(reader);
 
@@ -100,8 +102,7 @@ pub async fn dods(
                             dimensions,
                         } => {
                             for variable in std::iter::once(variable).chain(dimensions) {
-                                let reader = dataset.variable(&variable).await
-                                    .map_err(|_| std::io::ErrorKind::UnexpectedEof)?;
+                                let reader = dataset.variable(&variable).await?;
 
                                 pin_mut!(reader);
 
@@ -112,7 +113,10 @@ pub async fn dods(
                         }
                     }
                 }
-            };
+            }.map_err(|e| {
+                error!("Error while streaming: {:?}", e);
+                std::io::Error::from(std::io::ErrorKind::UnexpectedEof)
+            });
 
             Ok(warp::http::Response::builder()
                 .header("Content-Type", "application/octet-stream")

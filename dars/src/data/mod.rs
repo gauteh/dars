@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use log::debug;
 use std::fmt;
+use colored::Colorize;
 
 mod dataset;
 pub mod filters;
@@ -13,15 +14,15 @@ pub type State = Arc<Datasets>;
 pub fn request_log(info: warp::filters::log::Info) {
     debug!(
         target: "dars::data",
-        "{} \"{} {} {:?}\" {} \"{}\" \"{}\" {:?}",
-        OptFmt(info.remote_addr()),
-        info.method(),
-        info.path(),
+        "{} \"{} {} {:?}\" {} \"{}\" \"{}\" {}",
+        OptFmt(info.remote_addr()).to_string().yellow(),
+        info.method().to_string().blue(),
+        info.path().bold(),
         info.version(),
-        info.status().as_u16(),
+        info.status().as_u16().to_string().white(),
         OptFmt(info.referer()),
         OptFmt(info.user_agent()),
-        info.elapsed(),
+        format!("{:?}", info.elapsed()).italic(),
     );
 }
 

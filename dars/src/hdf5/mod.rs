@@ -29,7 +29,7 @@ impl fmt::Debug for Hdf5Dataset {
     }
 }
 
-struct HDF5File(hdf5::File, PathBuf);
+pub struct HDF5File(pub hdf5::File, pub PathBuf);
 
 impl Hdf5Dataset {
     pub fn open<P: AsRef<Path>>(path: P) -> anyhow::Result<Hdf5Dataset> {

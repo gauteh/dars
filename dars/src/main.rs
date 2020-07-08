@@ -22,6 +22,7 @@ use warp::Filter;
 
 mod data;
 mod hdf5;
+mod ncml;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 

@@ -4,19 +4,12 @@ use bytes::Bytes;
 use roxmltree::Node;
 use walkdir::WalkDir;
 
+use hidefix::reader::stream;
 use crate::hdf5::HDF5File;
 
 mod dds;
 mod member;
 use member::NcmlMember;
-
-/// The coordinate variable is cached since it is always requested and requires all files to be
-/// opened and read.
-pub struct CoordinateVariable {
-    bytes: Bytes,
-    /// Data type size
-    dsz: usize,
-}
 
 /// # NCML aggregated datasets
 ///
@@ -24,7 +17,7 @@ pub struct CoordinateVariable {
 ///
 /// ## JoinExisting
 ///
-/// The aggregating dimension must already have a coordinate variable. Only the outer (slowest varying) dimension
+/// The aggregating dimension must already have a coordinate variable. Only the slowest varying or outer dimension
 /// (first index) may be joined.
 ///
 /// No handling of overlapping coordinate variable is done, it is concatenated in order listed.
@@ -34,13 +27,13 @@ pub struct NcmlDataset {
     dds: dap2::Dds,
     /// Aggregation dimension
     dimension: String,
-
+    coordinates: CoordinateVariable,
     modified: std::time::SystemTime,
     members: Vec<NcmlMember>,
 }
 
 impl NcmlDataset {
-    pub fn open<P>(path: P) -> anyhow::Result<NcmlDataset>
+    pub async fn open<P>(path: P) -> anyhow::Result<NcmlDataset>
     where
         P: AsRef<Path>,
     {
@@ -94,7 +87,6 @@ impl NcmlDataset {
             // DAS should be the same regardless of files, using first member.
             let path = &members[0].path;
             let hf = HDF5File(hdf5::File::open(path)?, path.to_path_buf());
-
             (&hf).into()
         };
 
@@ -106,14 +98,14 @@ impl NcmlDataset {
         )
         .into();
 
-        // TODO: Read coordinate variable (use cache reader, or just stream..)
-        // TODO: Create streamer (have code I think)
+        let coordinates = CoordinateVariable::from(&members, &dimension).await?;
 
         Ok(NcmlDataset {
             path: path.into(),
             das,
             dds,
             dimension,
+            coordinates,
             modified,
             members,
         })
@@ -196,5 +188,46 @@ impl NcmlDataset {
             })
             .collect::<Result<Vec<Vec<_>>, _>>()
             .map(|vecs| vecs.into_iter().flatten().collect())
+    }
+}
+
+/// The coordinate variable is cached since it is always requested and requires all files to be
+/// opened and read.
+pub struct CoordinateVariable {
+    bytes: Bytes,
+    /// Data type size
+    dsz: usize,
+    n: usize,
+}
+
+impl CoordinateVariable {
+    pub async fn from(members: &Vec<NcmlMember>, dimension: &str) -> anyhow::Result<CoordinateVariable> {
+        use bytes::BytesMut;
+        use futures::future;
+        use futures::stream::TryStreamExt;
+
+        ensure!(!members.is_empty(), "no members");
+
+        let dsz = members[0].idx.dataset(dimension).ok_or_else(|| anyhow!("dimension dataset not found."))?.dsize;
+        let n = members.iter().map(|m| m.n).sum();
+
+        let mut bytes = BytesMut::with_capacity(n * dsz);
+
+        for m in members {
+            let ds = m.idx.dataset(dimension).ok_or_else(|| anyhow!("dimension dataset not found."))?;
+            let reader = stream::DatasetReader::with_dataset(&ds, &m.path)?;
+            let reader = reader.stream(None, None);
+
+            reader.try_for_each(|b| {
+                bytes.extend_from_slice(b.as_ref());
+                future::ready(Ok(()))
+            }).await?;
+        }
+
+        Ok(CoordinateVariable {
+            bytes: bytes.freeze(),
+            dsz,
+            n
+        })
     }
 }

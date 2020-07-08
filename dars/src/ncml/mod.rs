@@ -246,10 +246,17 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn open() {
-        use env_logger::Env;
-        env_logger::from_env(Env::default().default_filter_or("dars=info")).init();
+    async fn agg_existing_location() {
+        let _ = env_logger::builder().is_test(true).try_init();
         let ncml = NcmlDataset::open("../data/ncml/aggExisting.ncml").await.unwrap();
+
+        assert_eq!(ncml.coordinates.bytes.len(), 4 * (31 + 28));
+    }
+
+    #[tokio::test]
+    async fn agg_existing_scan() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let ncml = NcmlDataset::open("../data/ncml/scan.ncml").await.unwrap();
 
         assert_eq!(ncml.coordinates.bytes.len(), 4 * (31 + 28));
     }

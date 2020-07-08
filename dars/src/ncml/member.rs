@@ -65,3 +65,17 @@ impl NcmlMember {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rank_int32() {
+        let m1 = NcmlMember::open("../data/ncml/jan.nc4", "time").unwrap();
+        assert_eq!(m1.rank, 0.);
+
+        let m2 = NcmlMember::open("../data/ncml/feb.nc4", "time").unwrap();
+        assert_eq!(m2.rank, 31.);
+    }
+}

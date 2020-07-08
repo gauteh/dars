@@ -67,11 +67,12 @@ impl NcmlDataset {
             .attribute("dimName")
             .ok_or_else(|| anyhow!("aggregation dimension not specified"))?
             .to_string();
+        trace!("Coordinate variable: {}", dimension);
 
         let files = NcmlDataset::get_member_files(path.parent(), &aggregation)?;
+
         let mut members = files
             .iter()
-            .flatten()
             .map(|p| NcmlMember::open(p, &dimension))
             .collect::<Result<Vec<NcmlMember>, _>>()?;
 
@@ -83,6 +84,7 @@ impl NcmlDataset {
 
         ensure!(members.len() > 0, "no members in aggregate.");
 
+        trace!("Generating DAS..");
         let das = {
             // DAS should be the same regardless of files, using first member.
             let path = &members[0].path;
@@ -90,14 +92,18 @@ impl NcmlDataset {
             (&hf).into()
         };
 
-        let dds = dds::NcmlDdsBuilder::new(
-            hdf5::File::open(path)?,
-            path.into(),
-            dimension.clone(),
-            members[0].n,
-        )
-        .into();
+        trace!("Generating DDS..");
+        let dds = {
+            let ipath = &members[0].path;
+            dds::NcmlDdsBuilder::new(
+                hdf5::File::open(ipath)?,
+                path.into(),
+                dimension.clone(),
+                members[0].n,
+                ).into()
+        };
 
+        debug!("Reading coordinate variable..");
         let coordinates = CoordinateVariable::from(&members, &dimension).await?;
 
         Ok(NcmlDataset {
@@ -197,6 +203,7 @@ pub struct CoordinateVariable {
     bytes: Bytes,
     /// Data type size
     dsz: usize,
+    /// Total number of elements in coordinate variable.
     n: usize,
 }
 
@@ -224,6 +231,8 @@ impl CoordinateVariable {
             }).await?;
         }
 
+        trace!("Coordinate variable: {}, length: {}, data type size: {}", dimension, bytes.len(), dsz);
+
         Ok(CoordinateVariable {
             bytes: bytes.freeze(),
             dsz,
@@ -231,3 +240,18 @@ impl CoordinateVariable {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn open() {
+        use env_logger::Env;
+        env_logger::from_env(Env::default().default_filter_or("dars=info")).init();
+        let ncml = NcmlDataset::open("../data/ncml/aggExisting.ncml").await.unwrap();
+
+        assert_eq!(ncml.coordinates.bytes.len(), 4 * (31 + 28));
+    }
+}
+

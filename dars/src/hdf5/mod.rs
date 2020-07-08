@@ -7,7 +7,7 @@ use futures::{pin_mut, Stream, StreamExt};
 
 use dap2::dds::DdsVariableDetails;
 use dap2::dods::xdr_length;
-use hidefix::idx;
+use hidefix::{idx, reader::stream};
 
 mod das;
 mod dds;
@@ -115,7 +115,10 @@ impl Hdf5Dataset {
             variable.name, variable.indices, variable.counts
         );
 
-        let reader = self.idx.streamer(&variable.name)?;
+        let reader = match self.idx.dataset(&variable.name) {
+            Some(ds) => stream::DatasetReader::with_dataset(&ds, &self.path),
+            None => Err(anyhow!("dataset does not exist")),
+        }?;
 
         let indices: Vec<u64> = variable.indices.iter().map(|c| *c as u64).collect();
         let counts: Vec<u64> = variable.counts.iter().map(|c| *c as u64).collect();
@@ -150,18 +153,6 @@ mod tests {
     use futures::executor::{block_on, block_on_stream};
     use futures::pin_mut;
     use test::Bencher;
-
-    #[test]
-    fn coads_read() {
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
-        assert!(matches!(
-            hd.idx.dataset("SST").unwrap().dtype,
-            idx::Datatype::Float(4)
-        ));
-        let mut r = hd.idx.reader("SST").unwrap();
-        let v = r.values::<f32>(None, None).unwrap();
-        assert_eq!(180 * 90 * 12, v.len());
-    }
 
     #[bench]
     fn coads_stream_sst_struct(b: &mut Bencher) {

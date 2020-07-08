@@ -1,6 +1,6 @@
 use crate::hdf5::dds as hdf5dds;
 use dap2::dds::{self, Variable};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub struct NcmlDdsBuilder {
     file: hdf5::File,

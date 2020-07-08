@@ -237,27 +237,50 @@ impl NcmlDataset {
             None
         };
 
-        let bytes = if variable.name == self.dimension {
-            self.coordinates
-                .stream(indices.as_slice(), counts.as_slice())?
-        } else {
-            todo!();
-            // let reader = match self.idx.dataset(&variable.name) {
-            //     Some(ds) => stream::DatasetReader::with_dataset(&ds, &self.path),
-            //     None => Err(anyhow!("dataset does not exist")),
-            // }?;
+        enum ABC<A,B,C> {
+            A(A),
+            B(B),
+            C(C)
         };
-        // reader.stream(Some(indices.as_slice()), Some(counts.as_slice()));
+
+        let bytes = if variable.name == self.dimension {
+            ABC::A(self.coordinates
+                .stream(indices.as_slice(), counts.as_slice())?)
+        } else if variable.dimensions.get(0).map(|d| d.0 != self.dimension).unwrap_or(true) {
+            // non-aggregated variable, using first member.
+            ABC::B(self.members[0].stream(&variable.name, indices.as_slice(), counts.as_slice()).await?)
+        } else {
+            ABC::C(stream! {
+                self.members.iter()
+
+            })
+        };
+
 
         Ok(stream! {
             if let Some(length) = length {
                 yield Ok(length);
             }
 
-            pin_mut!(bytes);
-
-            while let Some(b) = bytes.next().await {
-                yield b;
+            match bytes {
+                ABC::A(bytes) => {
+                    pin_mut!(bytes);
+                    while let Some(b) = bytes.next().await {
+                        yield b;
+                    }
+                },
+                ABC::B(bytes) => {
+                    pin_mut!(bytes);
+                    while let Some(b) = bytes.next().await {
+                        yield b;
+                    }
+                },
+                ABC::C(bytes) => {
+                    pin_mut!(bytes);
+                    while let Some(b) = bytes.next().await {
+                        yield b;
+                    }
+                },
             }
         })
     }

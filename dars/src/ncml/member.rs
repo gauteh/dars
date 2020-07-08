@@ -1,6 +1,10 @@
-use hidefix::{idx, reader::stream};
 use std::path::{Path, PathBuf};
 
+use async_stream::stream;
+use futures::{pin_mut, Stream, StreamExt};
+use bytes::Bytes;
+
+use hidefix::{idx, reader::stream};
 use crate::hdf5::HDF5File;
 
 /// One member of the NCML dataset.
@@ -62,6 +66,39 @@ impl NcmlMember {
             modified,
             n,
             rank,
+        })
+    }
+
+    pub async fn stream(
+        &self,
+        variable: &str,
+        indices: &[u64],
+        counts: &[u64]
+    ) -> Result<impl Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static, anyhow::Error>
+    {
+        let modified = std::fs::metadata(&self.path)?.modified()?;
+        if modified != self.modified {
+            warn!("{:?} has changed on disk", self.path);
+            return Err(anyhow!("{:?} has changed on disk", self.path));
+        }
+
+        debug!(
+            "streaming: {} [{:?} / {:?}]",
+            variable, indices, counts
+        );
+
+        let reader = match self.idx.dataset(variable) {
+            Some(ds) => stream::DatasetReader::with_dataset(&ds, &self.path),
+            None => Err(anyhow!("dataset does not exist")),
+        }?;
+        let bytes = reader.stream(Some(indices), Some(counts));
+
+        Ok(stream! {
+            pin_mut!(bytes);
+
+            while let Some(b) = bytes.next().await {
+                yield b;
+            }
         })
     }
 }

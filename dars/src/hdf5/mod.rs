@@ -34,20 +34,23 @@ struct HDF5File(hdf5::File, PathBuf);
 impl Hdf5Dataset {
     pub fn open<P: AsRef<Path>>(path: P) -> anyhow::Result<Hdf5Dataset> {
         let path = path.as_ref();
-        let hf = HDF5File(hdf5::File::open(path)?, path.to_path_buf());
+
         let modified = std::fs::metadata(path)?.modified()?;
 
-        debug!("Building DAS of {:?}..", path);
+        let _silence = hdf5::silence_errors();
+        let hf = HDF5File(hdf5::File::open(path)?, path.to_path_buf());
+
+        trace!("Building DAS of {:?}..", path);
         let das = (&hf).into();
 
-        debug!("Building DDS of {:?}..", path);
+        trace!("Building DDS of {:?}..", path);
         let dds = (&hf).into();
 
         let mut idxpath = path.to_path_buf();
         idxpath.set_extension("idx.fx");
 
         let idx = if idxpath.exists() {
-            debug!("Loading index from {:?}..", idxpath);
+            trace!("Loading index from {:?}..", idxpath);
 
             let b = std::fs::read(idxpath)?;
             flexbuffers::from_slice(&b)?
@@ -57,7 +60,7 @@ impl Hdf5Dataset {
             use flexbuffers::FlexbufferSerializer as ser;
             use serde::ser::Serialize;
 
-            debug!("Writing index to {:?}", idxpath);
+            trace!("Writing index to {:?}", idxpath);
             let mut s = ser::new();
             idx.serialize(&mut s)?;
             std::fs::write(idxpath, s.view())?;

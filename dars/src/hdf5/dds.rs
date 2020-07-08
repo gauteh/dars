@@ -33,12 +33,12 @@ fn hdf5_vartype(dtype: &hdf5::Datatype) -> dds::VarType {
                 TypeDescriptor::FixedAscii(_) => VarType::Unimplemented,
                 TypeDescriptor::FixedUnicode(_) => VarType::Unimplemented,
                 _ => {
-                    debug!("Unimplemented type: {:?}", dtype);
+                    trace!("Unimplemented type: {:?}", dtype);
                     VarType::Unimplemented
                 },
             },
             _ => {
-                debug!("Unimplemented type: {:?}", dtype);
+                trace!("Unimplemented type: {:?}", dtype);
                 VarType::Unimplemented
             },
         },
@@ -188,7 +188,7 @@ impl dds::ToDds for &HDF5File {
             .filter_map(Result::ok)
             .filter(|(_, d)| d.is_chunked() || d.offset().is_some()) // skipping un-allocated datasets.
             .map(|(m, d)| {
-                debug!("Variable: {} {:?}", m, hdf5_vartype(&d.dtype().unwrap()));
+                trace!("Variable: {} {:?}", m, hdf5_vartype(&d.dtype().unwrap()));
                 Variable {
                     name: m.clone(),
                     vartype: hdf5_vartype(&d.dtype().unwrap()),

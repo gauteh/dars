@@ -16,7 +16,7 @@ impl Datasets {
     pub fn new_with_datadir(url: Option<String>, datadir: String) -> Datasets {
         info!("Scanning {} for datasets..", datadir.yellow());
 
-        let datasets = WalkDir::new(&datadir)
+        let datasets: HashMap<_,_> = WalkDir::new(&datadir)
             .into_iter()
             .filter_entry(|entry| entry.file_name().to_str().map(|s| entry.depth() == 0 || !s.starts_with(".")).unwrap_or(false))
             .filter_map(|e| e.ok())
@@ -45,7 +45,7 @@ impl Datasets {
 
             let key = key.trim_start_matches('/').to_string();
 
-            info!("Loading {}: {}..", key.yellow(), path.to_string_lossy().blue());
+            debug!("Loading {}: {}..", key.yellow(), path.to_string_lossy().blue());
 
             match hdf5::Hdf5Dataset::open(path.clone()) {
                 Ok(d) => Some((key, Arc::new(DatasetType::HDF5(d)))),
@@ -57,6 +57,8 @@ impl Datasets {
 
         })
         .collect();
+
+        info!("Loaded {} datasets.", datasets.len());
 
         Datasets {
             datasets,

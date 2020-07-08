@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::hdf5;
+use crate::{hdf5, ncml};
 use colored::Colorize;
 use walkdir::WalkDir;
 
@@ -13,7 +13,7 @@ pub struct Datasets {
 }
 
 impl Datasets {
-    pub fn new_with_datadir(url: Option<String>, datadir: String) -> Datasets {
+    pub async fn new_with_datadir(url: Option<String>, datadir: String) -> Datasets {
         info!("Scanning {} for datasets..", datadir.yellow());
 
         let datasets: HashMap<_, _> = WalkDir::new(&datadir)
@@ -31,7 +31,7 @@ impl Datasets {
 
                 match path.extension() {
                     Some(ext) => {
-                        if ext == "nc4" || ext == "nc" || ext == "h5" {
+                        if ext == "nc4" || ext == "nc" || ext == "h5" || ext == "ncml" {
                             Some(path)
                         } else {
                             None
@@ -57,15 +57,29 @@ impl Datasets {
                     path.to_string_lossy().blue()
                 );
 
-                match hdf5::Hdf5Dataset::open(path.clone()) {
-                    Ok(d) => Some((key, Arc::new(DatasetType::HDF5(d)))),
-                    Err(e) => {
-                        warn!(
-                            "Could not load: {}, error: {}",
-                            path.to_string_lossy().blue(),
-                            e.to_string().red()
-                        );
-                        None
+                if path.extension().expect("already filtered on extension") == "ncml" {
+                    match ncml::NcmlDataset::open(path.clone()) {
+                        Ok(d) => Some((key, Arc::new(DatasetType::NCML(d)))),
+                        Err(e) => {
+                            warn!(
+                                "Could not load: {}, error: {}",
+                                path.to_string_lossy().blue(),
+                                e.to_string().red()
+                            );
+                            None
+                        }
+                    }
+                } else {
+                    match hdf5::Hdf5Dataset::open(path.clone()) {
+                        Ok(d) => Some((key, Arc::new(DatasetType::HDF5(d)))),
+                        Err(e) => {
+                            warn!(
+                                "Could not load: {}, error: {}",
+                                path.to_string_lossy().blue(),
+                                e.to_string().red()
+                            );
+                            None
+                        }
                     }
                 }
             })
@@ -80,4 +94,5 @@ impl Datasets {
 #[derive(Debug)]
 pub enum DatasetType {
     HDF5(hdf5::Hdf5Dataset),
+    NCML(ncml::NcmlDataset),
 }

@@ -1,11 +1,16 @@
+use std::fmt;
 use std::path::{Path, PathBuf};
 
-use bytes::Bytes;
+use async_stream::stream;
+use bytes::{Bytes, BytesMut};
+use futures::{executor::block_on_stream, pin_mut, Stream, StreamExt};
 use roxmltree::Node;
 use walkdir::WalkDir;
 
-use hidefix::reader::stream;
 use crate::hdf5::HDF5File;
+use dap2::dds::DdsVariableDetails;
+use dap2::dods::xdr_length;
+use hidefix::reader::stream;
 
 mod dds;
 mod member;
@@ -32,8 +37,14 @@ pub struct NcmlDataset {
     members: Vec<NcmlMember>,
 }
 
+impl fmt::Debug for NcmlDataset {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "NcmlDataset <{:?}>", self.path)
+    }
+}
+
 impl NcmlDataset {
-    pub async fn open<P>(path: P) -> anyhow::Result<NcmlDataset>
+    pub fn open<P>(path: P) -> anyhow::Result<NcmlDataset>
     where
         P: AsRef<Path>,
     {
@@ -84,7 +95,7 @@ impl NcmlDataset {
 
         ensure!(members.len() > 0, "no members in aggregate.");
 
-        trace!("Generating DAS..");
+        trace!("Building DAS..");
         let das = {
             // DAS should be the same regardless of files, using first member.
             let path = &members[0].path;
@@ -92,19 +103,16 @@ impl NcmlDataset {
             (&hf).into()
         };
 
-        trace!("Generating DDS..");
+        trace!("Building DDS..");
         let dds = {
             let ipath = &members[0].path;
-            dds::NcmlDdsBuilder::new(
-                hdf5::File::open(ipath)?,
-                path.into(),
-                dimension.clone(),
-                members[0].n,
-                ).into()
+            let n = members.iter().map(|m| m.n).sum();
+            dds::NcmlDdsBuilder::new(hdf5::File::open(ipath)?, path.into(), dimension.clone(), n)
+                .into()
         };
 
         debug!("Reading coordinate variable..");
-        let coordinates = CoordinateVariable::from(&members, &dimension).await?;
+        let coordinates = CoordinateVariable::from(&members, &dimension)?;
 
         Ok(NcmlDataset {
             path: path.into(),
@@ -195,6 +203,64 @@ impl NcmlDataset {
             .collect::<Result<Vec<Vec<_>>, _>>()
             .map(|vecs| vecs.into_iter().flatten().collect())
     }
+
+    pub async fn das(&self) -> &dap2::Das {
+        &self.das
+    }
+
+    pub async fn dds(&self) -> &dap2::Dds {
+        &self.dds
+    }
+
+    pub async fn variable(
+        &self,
+        variable: &DdsVariableDetails,
+    ) -> Result<impl Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static, anyhow::Error>
+    {
+        let modified = std::fs::metadata(&self.path)?.modified()?;
+        if modified != self.modified {
+            warn!("{:?} has changed on disk", self.path);
+            return Err(anyhow!("{:?} has changed on disk", self.path));
+        }
+
+        debug!(
+            "streaming: {} [{:?} / {:?}]",
+            variable.name, variable.indices, variable.counts
+        );
+
+        let indices: Vec<u64> = variable.indices.iter().map(|c| *c as u64).collect();
+        let counts: Vec<u64> = variable.counts.iter().map(|c| *c as u64).collect();
+
+        let length = if !variable.is_scalar() {
+            Some(Bytes::from(Vec::from(xdr_length(variable.len() as u32))))
+        } else {
+            None
+        };
+
+        let bytes = if variable.name == self.dimension {
+            self.coordinates
+                .stream(indices.as_slice(), counts.as_slice())?
+        } else {
+            todo!();
+            // let reader = match self.idx.dataset(&variable.name) {
+            //     Some(ds) => stream::DatasetReader::with_dataset(&ds, &self.path),
+            //     None => Err(anyhow!("dataset does not exist")),
+            // }?;
+        };
+        // reader.stream(Some(indices.as_slice()), Some(counts.as_slice()));
+
+        Ok(stream! {
+            if let Some(length) = length {
+                yield Ok(length);
+            }
+
+            pin_mut!(bytes);
+
+            while let Some(b) = bytes.next().await {
+                yield b;
+            }
+        })
+    }
 }
 
 /// The coordinate variable is cached since it is always requested and requires all files to be
@@ -208,36 +274,62 @@ pub struct CoordinateVariable {
 }
 
 impl CoordinateVariable {
-    pub async fn from(members: &Vec<NcmlMember>, dimension: &str) -> anyhow::Result<CoordinateVariable> {
-        use bytes::BytesMut;
-        use futures::future;
-        use futures::stream::TryStreamExt;
-
+    pub fn from(members: &Vec<NcmlMember>, dimension: &str) -> anyhow::Result<CoordinateVariable> {
         ensure!(!members.is_empty(), "no members");
 
-        let dsz = members[0].idx.dataset(dimension).ok_or_else(|| anyhow!("dimension dataset not found."))?.dsize;
+        let dsz = members[0]
+            .idx
+            .dataset(dimension)
+            .ok_or_else(|| anyhow!("dimension dataset not found."))?
+            .dsize;
         let n = members.iter().map(|m| m.n).sum();
 
         let mut bytes = BytesMut::with_capacity(n * dsz);
 
         for m in members {
-            let ds = m.idx.dataset(dimension).ok_or_else(|| anyhow!("dimension dataset not found."))?;
+            let ds = m
+                .idx
+                .dataset(dimension)
+                .ok_or_else(|| anyhow!("dimension dataset not found."))?;
             let reader = stream::DatasetReader::with_dataset(&ds, &m.path)?;
             let reader = reader.stream(None, None);
 
-            reader.try_for_each(|b| {
-                bytes.extend_from_slice(b.as_ref());
-                future::ready(Ok(()))
-            }).await?;
+            pin_mut!(reader);
+
+            block_on_stream(reader)
+                .try_for_each(|b| b.map(|b| bytes.extend_from_slice(b.as_ref())))?;
         }
 
-        trace!("Coordinate variable: {}, length: {}, data type size: {}", dimension, bytes.len(), dsz);
+        trace!(
+            "Coordinate variable: {}, length: {}, data type size: {}",
+            dimension,
+            bytes.len(),
+            dsz
+        );
 
         Ok(CoordinateVariable {
             bytes: bytes.freeze(),
             dsz,
-            n
+            n,
         })
+    }
+
+    pub fn stream(
+        &self,
+        indices: &[u64],
+        counts: &[u64],
+    ) -> Result<impl Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static, anyhow::Error>
+    {
+        ensure!(
+            indices.len() == 1 && counts.len() == 1,
+            "coordinate dimension is always 1 dimension"
+        );
+        let start = indices[0] as usize * self.dsz;
+        let end = (indices[0] + counts[0]) as usize * self.dsz;
+        ensure!(end <= self.bytes.len(), "slab out of range");
+
+        let bytes = self.bytes.slice(start..end);
+        Ok(futures::stream::once(async { Ok(bytes) }))
     }
 }
 
@@ -248,7 +340,7 @@ mod tests {
     #[tokio::test]
     async fn agg_existing_location() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let ncml = NcmlDataset::open("../data/ncml/aggExisting.ncml").await.unwrap();
+        let ncml = NcmlDataset::open("../data/ncml/aggExisting.ncml").unwrap();
 
         assert_eq!(ncml.coordinates.bytes.len(), 4 * (31 + 28));
     }
@@ -256,9 +348,8 @@ mod tests {
     #[tokio::test]
     async fn agg_existing_scan() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let ncml = NcmlDataset::open("../data/ncml/scan.ncml").await.unwrap();
+        let ncml = NcmlDataset::open("../data/ncml/scan.ncml").unwrap();
 
         assert_eq!(ncml.coordinates.bytes.len(), 4 * (31 + 28));
     }
 }
-

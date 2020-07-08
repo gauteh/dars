@@ -79,7 +79,7 @@ If no DATA is specified, "data/" is used."#
     let addr: SocketAddr = matches.opt_get_default("a", "127.0.0.1:8001".parse()?)?;
     let root: Option<String> = matches.opt_str("root-url");
 
-    let data = Arc::new(data::Datasets::new_with_datadir(root.clone(), datadir));
+    let data = Arc::new(data::Datasets::new_with_datadir(root.clone(), datadir).await);
     let dars = data::filters::datasets(data).with(warp::log::custom(data::request_log));
 
     info!(

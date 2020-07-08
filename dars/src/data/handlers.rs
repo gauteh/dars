@@ -39,6 +39,7 @@ pub async fn list_datasets_json(state: State) -> Result<impl warp::Reply, Infall
 pub async fn das(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallible> {
     match &*dataset {
         DatasetType::HDF5(dataset) => Ok(dataset.das().await.0.clone()),
+        DatasetType::NCML(dataset) => Ok(dataset.das().await.0.clone()),
     }
 }
 
@@ -48,6 +49,15 @@ pub async fn dds(
 ) -> Result<impl warp::Reply, Infallible> {
     match &*dataset {
         DatasetType::HDF5(dataset) => dataset
+            .dds()
+            .await
+            .dds(&constraint)
+            .map(|dds| dds.to_string().into_response())
+            .or_else(|e| {
+                error!("Error parsing DDS: {:?}", e);
+                Ok(warp::http::StatusCode::BAD_REQUEST.into_response())
+            }),
+        DatasetType::NCML(dataset) => dataset
             .dds()
             .await
             .dds(&constraint)
@@ -79,7 +89,67 @@ pub async fn dods(
 
             let body = stream! {
                 let dataset = Arc::clone(&dataset);
-                let DatasetType::HDF5(dataset) = &*dataset;
+                let dataset = if let DatasetType::HDF5(dataset) = &*dataset { dataset } else {
+                    panic!("we are already matched on HDF5") };
+
+                yield Ok::<_, anyhow::Error>(dds_bytes);
+                yield Ok(Bytes::from_static(b"\n\nData:\n"));
+
+                for c in dds.variables {
+                    match c {
+                        ConstrainedVariable::Variable(v) |
+                            ConstrainedVariable::Structure { variable: _, member: v }
+                            => {
+                            let reader = dataset.variable(&v).await?;
+
+                            pin_mut!(reader);
+
+                            while let Some(b) = reader.next().await {
+                                yield b;
+                            }
+                        },
+                        ConstrainedVariable::Grid {
+                            variable,
+                            dimensions,
+                        } => {
+                            for variable in std::iter::once(variable).chain(dimensions) {
+                                let reader = dataset.variable(&variable).await?;
+
+                                pin_mut!(reader);
+
+                                while let Some(b) = reader.next().await {
+                                    yield b;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .map_err(|e| {
+                error!("Error while streaming: {:?}", e);
+                std::io::Error::from(std::io::ErrorKind::UnexpectedEof)
+            });
+
+            Ok(warp::http::Response::builder()
+                .header("Content-Type", "application/octet-stream")
+                .header("Content-Description", "dods-data")
+                .header("Content-Length", content_length)
+                .header("XDODS-Server", "dars")
+                .body(Body::wrap_stream(body)))
+        }
+        DatasetType::NCML(inner) => {
+            let dds = inner.dds().await.dds(&constraint).or_else(|e| {
+                error!("Error parsing DDS: {:?}", e);
+                Err(warp::reject::custom(DodsError))
+            })?;
+
+            let dds_bytes = Bytes::from(dds.to_string());
+            let content_length = dds.dods_size() + dds_bytes.len() + 8;
+
+            let body = stream! {
+                let dataset = Arc::clone(&dataset);
+                let dataset = if let DatasetType::NCML(dataset) = &*dataset { dataset } else {
+                    panic!("we are already matched on NCML") };
 
                 yield Ok::<_, anyhow::Error>(dds_bytes);
                 yield Ok(Bytes::from_static(b"\n\nData:\n"));
@@ -143,6 +213,7 @@ pub async fn raw(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallib
                     .body(Body::wrap_stream(s))
             })
             .or_else(|_| Ok(Ok(warp::http::StatusCode::NOT_FOUND.into_response()))),
+        _ => Ok(Ok(warp::http::StatusCode::NOT_FOUND.into_response())),
     }
 }
 

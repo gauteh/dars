@@ -113,7 +113,8 @@ pub async fn dods(
                         }
                     }
                 }
-            }.map_err(|e| {
+            }
+            .map_err(|e| {
                 error!("Error while streaming: {:?}", e);
                 std::io::Error::from(std::io::ErrorKind::UnexpectedEof)
             });

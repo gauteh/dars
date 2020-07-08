@@ -15,9 +15,9 @@ use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use getopts::Options;
 use colored::Colorize;
 use env_logger::Env;
+use getopts::Options;
 use warp::Filter;
 
 mod data;
@@ -85,7 +85,8 @@ If no DATA is specified, "data/" is used."#
     info!(
         "Listening on {} {}",
         format!("http://{}", addr).yellow(),
-        root.map(|r| format!("({})", r.blue())).unwrap_or_else(|| "".to_string())
+        root.map(|r| format!("({})", r.blue()))
+            .unwrap_or_else(|| "".to_string())
     );
 
     warp::serve(dars).run(addr).await;

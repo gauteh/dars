@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use hidefix::{idx, reader::stream};
+use std::path::{Path, PathBuf};
 
 use crate::hdf5::HDF5File;
 
@@ -29,7 +29,10 @@ impl NcmlMember {
         let n = agg.size();
 
         // Read first value of aggregate dimension
-        let rank: f64 = *agg.read_slice_1d::<f64, _>(ndarray::s![0..1])?.get(0).ok_or_else(|| anyhow!("aggregate dimension is empty"))?;
+        let rank: f64 = *agg
+            .read_slice_1d::<f64, _>(ndarray::s![0..1])?
+            .get(0)
+            .ok_or_else(|| anyhow!("aggregate dimension is empty"))?;
 
         let mut idxpath = path.to_path_buf();
         idxpath.set_extension("idx.fx");
@@ -58,7 +61,7 @@ impl NcmlMember {
             idx,
             modified,
             n,
-            rank
+            rank,
         })
     }
 }

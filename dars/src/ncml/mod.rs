@@ -6,12 +6,13 @@ use walkdir::WalkDir;
 
 use crate::hdf5::HDF5File;
 
+mod dds;
 mod member;
 use member::NcmlMember;
 
-/// The coordinate dimension is cached since it is always requested and requires all files to be
+/// The coordinate variable is cached since it is always requested and requires all files to be
 /// opened and read.
-pub struct CoordinateDimension {
+pub struct CoordinateVariable {
     bytes: Bytes,
     /// Data type size
     dsz: usize,
@@ -30,7 +31,7 @@ pub struct CoordinateDimension {
 pub struct NcmlDataset {
     path: PathBuf,
     das: dap2::Das,
-    // dds: dap2::Dds,
+    dds: dap2::Dds,
     /// Aggregation dimension
     dimension: String,
 
@@ -81,31 +82,40 @@ impl NcmlDataset {
             .map(|p| NcmlMember::open(p, &dimension))
             .collect::<Result<Vec<NcmlMember>, _>>()?;
 
-        members.sort_by(|a, b|
+        members.sort_by(|a, b| {
             a.rank
                 .partial_cmp(&b.rank)
-                .unwrap_or(std::cmp::Ordering::Equal));
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         ensure!(members.len() > 0, "no members in aggregate.");
 
         let das = {
+            // DAS should be the same regardless of files, using first member.
             let path = &members[0].path;
             let hf = HDF5File(hdf5::File::open(path)?, path.to_path_buf());
 
             (&hf).into()
         };
 
-        // TODO: DDS
+        let dds = dds::NcmlDdsBuilder::new(
+            hdf5::File::open(path)?,
+            path.into(),
+            dimension.clone(),
+            members[0].n,
+        )
+        .into();
+
         // TODO: Read coordinate variable (use cache reader, or just stream..)
         // TODO: Create streamer (have code I think)
 
         Ok(NcmlDataset {
             path: path.into(),
             das,
-            // dds,
+            dds,
             dimension,
             modified,
-            members
+            members,
         })
     }
 
@@ -142,27 +152,39 @@ impl NcmlDataset {
                                     .unwrap_or(false)
                             })
                             .filter_map(|entry| {
-                                entry.ok()
+                                entry
+                                    .ok()
                                     .map(|entry| {
-                                    entry.metadata().ok()
-                                        .map(|m| {
-                                        if m.is_file()
-                                            && entry
-                                            .path()
-                                            .to_str()
-                                            .map(|s| s.ends_with(sf) && !ignore.map(|i| s.contains(i)).unwrap_or(false))
-                                            .unwrap_or(false) {
-                                                Some(entry.into_path())
-                                            } else {
-                                                None
-                                            }
-                                    }).flatten()
-                                }).flatten()
+                                        entry
+                                            .metadata()
+                                            .ok()
+                                            .map(|m| {
+                                                if m.is_file()
+                                                    && entry
+                                                        .path()
+                                                        .to_str()
+                                                        .map(|s| {
+                                                            s.ends_with(sf)
+                                                                && !ignore
+                                                                    .map(|i| s.contains(i))
+                                                                    .unwrap_or(false)
+                                                        })
+                                                        .unwrap_or(false)
+                                                {
+                                                    Some(entry.into_path())
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .flatten()
+                                    })
+                                    .flatten()
                             })
-                            .map(|path|
+                            .map(|path| {
                                 std::fs::canonicalize(path)
-                                    .map_err(|e| anyhow!("failed to scan member: {:?}", e)))
-                            .collect::<Result<Vec<_>,_>>()
+                                    .map_err(|e| anyhow!("failed to scan member: {:?}", e))
+                            })
+                            .collect::<Result<Vec<_>, _>>()
                     } else {
                         Err(anyhow!("no suffix specified in ncml scan tag"))
                     }
@@ -173,7 +195,6 @@ impl NcmlDataset {
                 }
             })
             .collect::<Result<Vec<Vec<_>>, _>>()
-                .map(|vecs| vecs.into_iter().flatten().collect())
+            .map(|vecs| vecs.into_iter().flatten().collect())
     }
 }
-

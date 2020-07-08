@@ -10,7 +10,7 @@ use dap2::dods::xdr_length;
 use hidefix::{idx, reader::stream};
 
 mod das;
-mod dds;
+pub(crate) mod dds;
 
 /// HDF5 dataset source.
 ///
@@ -20,7 +20,7 @@ pub struct Hdf5Dataset {
     idx: idx::Index,
     das: dap2::Das,
     dds: dap2::Dds,
-    modified: std::time::SystemTime
+    modified: std::time::SystemTime,
 }
 
 impl fmt::Debug for Hdf5Dataset {
@@ -73,14 +73,19 @@ impl Hdf5Dataset {
             idx,
             das,
             dds,
-            modified
+            modified,
         })
     }
 
     pub async fn raw(
         &self,
-    ) -> Result<(u64, impl Stream<Item = Result<hyper::body::Bytes, std::io::Error>>), std::io::Error>
-    {
+    ) -> Result<
+        (
+            u64,
+            impl Stream<Item = Result<hyper::body::Bytes, std::io::Error>>,
+        ),
+        std::io::Error,
+    > {
         use tokio::fs::File;
         use tokio_util::codec;
         use tokio_util::codec::BytesCodec;
@@ -88,8 +93,10 @@ impl Hdf5Dataset {
         let sz = std::fs::metadata(&self.path)?.len();
 
         File::open(&self.path).await.map(|file| {
-            (sz,
-             codec::FramedRead::new(file, BytesCodec::new()).map(|r| r.map(|bytes| bytes.freeze()))
+            (
+                sz,
+                codec::FramedRead::new(file, BytesCodec::new())
+                    .map(|r| r.map(|bytes| bytes.freeze())),
             )
         })
     }

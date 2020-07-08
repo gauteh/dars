@@ -14,7 +14,7 @@ use dap2::dds::{self, Variable};
 
 use super::HDF5File;
 
-fn hdf5_vartype(dtype: &hdf5::Datatype) -> dds::VarType {
+pub(crate) fn hdf5_vartype(dtype: &hdf5::Datatype) -> dds::VarType {
     use dds::VarType;
     use hdf5::types::TypeDescriptor;
 
@@ -35,12 +35,12 @@ fn hdf5_vartype(dtype: &hdf5::Datatype) -> dds::VarType {
                 _ => {
                     trace!("Unimplemented type: {:?}", dtype);
                     VarType::Unimplemented
-                },
+                }
             },
             _ => {
                 trace!("Unimplemented type: {:?}", dtype);
                 VarType::Unimplemented
-            },
+            }
         },
     }
 }
@@ -118,7 +118,7 @@ impl VarLenRef {
     }
 }
 
-fn hdf5_dimensions(m: &str, dataset: &hdf5::Dataset) -> Vec<String> {
+pub(crate) fn hdf5_dimensions(m: &str, dataset: &hdf5::Dataset) -> Vec<String> {
     if let Ok(dim_list) = dataset.attribute("DIMENSION_LIST") {
         let id = dim_list.id();
 

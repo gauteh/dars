@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use colored::Colorize;
 use log::debug;
 use std::fmt;
-use colored::Colorize;
+use std::sync::Arc;
 
 mod dataset;
 pub mod filters;
@@ -37,4 +37,3 @@ impl<T: fmt::Display> fmt::Display for OptFmt<T> {
         }
     }
 }
-

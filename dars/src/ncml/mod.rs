@@ -1,5 +1,7 @@
+use std::cmp::min;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use async_stream::stream;
 use bytes::{Bytes, BytesMut};
@@ -34,7 +36,7 @@ pub struct NcmlDataset {
     dimension: String,
     coordinates: CoordinateVariable,
     modified: std::time::SystemTime,
-    members: Vec<NcmlMember>,
+    members: Arc<Vec<NcmlMember>>,
 }
 
 impl fmt::Debug for NcmlDataset {
@@ -94,6 +96,7 @@ impl NcmlDataset {
         });
 
         ensure!(members.len() > 0, "no members in aggregate.");
+        let members = Arc::new(members);
 
         trace!("Building DAS..");
         let das = {
@@ -237,25 +240,82 @@ impl NcmlDataset {
             None
         };
 
-        enum ABC<A,B,C> {
+        enum ABC<A, B, C> {
             A(A),
             B(B),
-            C(C)
+            C(C),
         };
 
         let bytes = if variable.name == self.dimension {
-            ABC::A(self.coordinates
-                .stream(indices.as_slice(), counts.as_slice())?)
-        } else if variable.dimensions.get(0).map(|d| d.0 != self.dimension).unwrap_or(true) {
-            // non-aggregated variable, using first member.
-            ABC::B(self.members[0].stream(&variable.name, indices.as_slice(), counts.as_slice()).await?)
+            // Coordinate dimension (aggregation variable).
+            ABC::A(
+                self.coordinates
+                    .stream(indices.as_slice(), counts.as_slice())?,
+            )
+        } else if variable
+            .dimensions
+            .get(0)
+            .map(|d| d.0 != self.dimension)
+            .unwrap_or(true)
+        {
+            // Non-aggregated variable, using first member.
+            ABC::B(
+                self.members[0]
+                    .stream(&variable.name, indices.as_slice(), counts.as_slice())
+                    .await?,
+            )
         } else {
-            ABC::C(stream! {
-                self.members.iter()
+            // Aggregated variable
+            let members = Arc::clone(&self.members);
+            let var = variable.name.clone();
 
+            ABC::C(stream! {
+                trace!("streaming aggregated variable");
+                let mut member_start = 0;
+
+                for m in &*members  {
+                    if indices[0] >= member_start && indices[0] < (member_start + m.n as u64) {
+                        let mut mindices = indices.clone();
+                        mindices[0] = indices[0] - member_start;
+
+                        let mut mcounts = counts.clone();
+                        mcounts[0] = min(counts[0], m.n as u64 - mindices[0]);
+
+                        trace!("First file: {} to {} (mi = {:?}, mc = {:?})", member_start, member_start + m.n as u64, mindices, mcounts);
+
+                        let bytes = m.stream(&var, &mindices, &mcounts).await?;
+                        pin_mut!(bytes);
+                        while let Some(b) = bytes.next().await {
+                            yield b;
+                        }
+                    } else if indices[0] < member_start && (member_start < indices[0] + counts[0]) {
+                        let mut mcounts = counts.clone();
+                        mcounts[0] = min(indices[0] + counts[0] - member_start, m.n as u64);
+
+                        let mut mindices = indices.clone();
+                        mindices[0] = 0;
+
+                        trace!(
+                            "Consecutive file at {} to {} (i = {:?}, c = {:?})",
+                            member_start,
+                            member_start + m.n as u64,
+                            mindices,
+                            mcounts
+                        );
+
+                        let bytes = m.stream(&var, &mindices, &mcounts).await?;
+                        pin_mut!(bytes);
+                        while let Some(b) = bytes.next().await {
+                            yield b;
+                        }
+                    } else if indices[0] + counts[0] < member_start {
+                        break;
+                    }
+
+                    member_start += m.n as u64;
+                }
             })
         };
-
 
         Ok(stream! {
             if let Some(length) = length {
@@ -292,8 +352,6 @@ pub struct CoordinateVariable {
     bytes: Bytes,
     /// Data type size
     dsz: usize,
-    /// Total number of elements in coordinate variable.
-    n: usize,
 }
 
 impl CoordinateVariable {
@@ -305,7 +363,7 @@ impl CoordinateVariable {
             .dataset(dimension)
             .ok_or_else(|| anyhow!("dimension dataset not found."))?
             .dsize;
-        let n = members.iter().map(|m| m.n).sum();
+        let n: usize = members.iter().map(|m| m.n).sum();
 
         let mut bytes = BytesMut::with_capacity(n * dsz);
 
@@ -333,7 +391,6 @@ impl CoordinateVariable {
         Ok(CoordinateVariable {
             bytes: bytes.freeze(),
             dsz,
-            n,
         })
     }
 

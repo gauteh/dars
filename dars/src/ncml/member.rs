@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
 
 use async_stream::stream;
-use futures::{pin_mut, Stream, StreamExt};
 use bytes::Bytes;
+use futures::{pin_mut, Stream, StreamExt};
 
-use hidefix::{idx, reader::stream};
 use crate::hdf5::HDF5File;
+use hidefix::{idx, reader::stream};
 
 /// One member of the NCML dataset.
 pub struct NcmlMember {
@@ -73,7 +73,7 @@ impl NcmlMember {
         &self,
         variable: &str,
         indices: &[u64],
-        counts: &[u64]
+        counts: &[u64],
     ) -> Result<impl Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static, anyhow::Error>
     {
         let modified = std::fs::metadata(&self.path)?.modified()?;
@@ -82,10 +82,7 @@ impl NcmlMember {
             return Err(anyhow!("{:?} has changed on disk", self.path));
         }
 
-        debug!(
-            "streaming: {} [{:?} / {:?}]",
-            variable, indices, counts
-        );
+        debug!("streaming: {} [{:?} / {:?}]", variable, indices, counts);
 
         let reader = match self.idx.dataset(variable) {
             Some(ds) => stream::DatasetReader::with_dataset(&ds, &self.path),

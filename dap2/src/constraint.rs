@@ -3,7 +3,7 @@ use percent_encoding::percent_decode_str;
 ///! DAP constraints consist of variable list and slices [hyperslabs] of those variables.
 ///! We currently only support constraints that slices variables without strides, none based on the content
 ///! of the variable.
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone)]
 pub struct Constraint {
@@ -15,6 +15,12 @@ impl Deref for Constraint {
 
     fn deref(&self) -> &Self::Target {
         &self.variables
+    }
+}
+
+impl DerefMut for Constraint {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.variables
     }
 }
 

@@ -189,12 +189,12 @@ impl dds::ToDds for &HDF5File {
             .filter(|(_, d)| d.is_chunked() || d.offset().is_some()) // skipping un-allocated datasets.
             .map(|(m, d)| {
                 trace!("Variable: {} {:?}", m, hdf5_vartype(&d.dtype().unwrap()));
-                Variable {
-                    name: m.clone(),
-                    vartype: hdf5_vartype(&d.dtype().unwrap()),
-                    dimensions: hdf5_dimensions(m, &d),
-                    shape: d.shape().clone(),
-                }
+                Variable::new(
+                    m.clone(),
+                    hdf5_vartype(&d.dtype().unwrap()),
+                    hdf5_dimensions(m, &d),
+                    d.shape().clone(),
+                )
             })
             .collect()
     }

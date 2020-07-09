@@ -44,13 +44,12 @@ impl dds::ToDds for NcmlDdsBuilder {
                         shape[0] = self.n;
                     }
                 }
-
-                Variable {
-                    name: m.clone(),
-                    vartype: hdf5dds::hdf5_vartype(&d.dtype().unwrap()),
+                Variable::new(
+                    m.clone(),
+                    hdf5dds::hdf5_vartype(&d.dtype().unwrap()),
                     dimensions,
                     shape,
-                }
+                )
             })
             .collect()
     }

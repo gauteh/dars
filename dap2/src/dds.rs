@@ -17,10 +17,28 @@ pub struct Dds {
 
 // TODO: Use Cow's for String's?
 pub struct Variable {
-    pub name: String,
-    pub vartype: VarType,
-    pub dimensions: Vec<String>,
-    pub shape: Vec<usize>,
+    name: String,
+    vartype: VarType,
+    dimensions: Vec<String>,
+    shape: Vec<usize>,
+    position: usize,
+}
+
+impl Variable {
+    pub fn new(
+        name: String,
+        vartype: VarType,
+        dimensions: Vec<String>,
+        shape: Vec<usize>,
+    ) -> Variable {
+        Variable {
+            name,
+            vartype,
+            dimensions,
+            shape,
+            position: 0,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -48,7 +66,7 @@ impl VarType {
             UInt16 | Int16 => 2,
             Float32 | UInt32 | Int32 => 4,
             Float64 | UInt64 | Int64 => 8,
-            Unimplemented => panic!("Tried to get size of unimplemented variable")
+            Unimplemented => panic!("Tried to get size of unimplemented variable"),
         }
     }
 }
@@ -86,7 +104,12 @@ where
             .variables()
             .into_iter()
             .filter(|var| !matches!(var.vartype, VarType::Unimplemented))
-            .map(|var| (var.name.clone(), var))
+            .enumerate()
+            .map(|(i, mut var)| {
+                var.position = i;
+
+                (var.name.clone(), var)
+            })
             .collect::<Vec<_>>();
 
         Dds {
@@ -253,49 +276,48 @@ impl Dds {
         if constraint.len() == 0 {
             Ok(self.all())
         } else {
-            Ok(DdsResponse {
-                file_name: self.file_name.clone(),
-                variables: constraint
-                    .iter()
-                    .map(|c| {
-                        match c {
-                            Variable((var, slab)) => {
-                                self.variables
-                                    .get(var.as_str())
-                                    .map(|var| {
-                                        ensure!(slab.as_ref().map(|s| s.iter().all(|i| i.len() < 3)).unwrap_or(true), "hyperslabs with strides not supported");
+            let mut variables = constraint
+                .iter()
+                .map(|c| {
+                    match c {
+                        Variable((var, slab)) => {
+                            self.variables
+                                .get(var.as_str())
+                                .map(|var| {
+                                    ensure!(
+                                        slab.as_ref()
+                                            .map(|s| s.iter().all(|i| i.len() < 3))
+                                            .unwrap_or(true),
+                                        "hyperslabs with strides not supported"
+                                    );
 
-                                        let indices = self.extend_indices(var, slab)?;
-                                        let counts = self.extend_counts(var, &indices, slab)?;
+                                    let indices = self.extend_indices(var, slab)?;
+                                    let counts = self.extend_counts(var, &indices, slab)?;
 
-                                        if var.dimensions.len() > 1
-                                            && var
-                                                .dimensions
-                                                .iter()
-                                                .all(|d| self.variables.get(d).is_some())
-                                        {
-                                            Ok(ConstrainedVariable::Grid {
-                                                variable: DdsVariableDetails {
-                                                    name: var.name.clone(),
-                                                    vartype: var.vartype,
-                                                    dimensions: var
-                                                        .dimensions
-                                                        .iter()
-                                                        .cloned()
-                                                        .zip(counts.iter().cloned())
-                                                        .collect(),
-                                                    size: counts.iter().product(),
-                                                    indices: indices.clone(),
-                                                    counts: counts.clone(),
-                                                },
+                                    if var.dimensions.len() > 1
+                                        && var
+                                            .dimensions
+                                            .iter()
+                                            .all(|d| self.variables.get(d).is_some())
+                                    {
+                                        Ok(ConstrainedVariable::Grid {
+                                            variable: DdsVariableDetails {
+                                                name: var.name.clone(),
+                                                vartype: var.vartype,
+                                                dimensions: var
+                                                    .dimensions
+                                                    .iter()
+                                                    .cloned()
+                                                    .zip(counts.iter().cloned())
+                                                    .collect(),
+                                                size: counts.iter().product(),
+                                                indices: indices.clone(),
+                                                counts: counts.clone(),
+                                            },
 
-                                                // XXX: More deeply nested dimensions are not
-                                                // supported.
-                                                dimensions: izip!(
-                                                    &var.dimensions,
-                                                    &indices,
-                                                    &counts
-                                                )
+                                            // XXX: More deeply nested dimensions are not
+                                            // supported.
+                                            dimensions: izip!(&var.dimensions, &indices, &counts)
                                                 .map(|(dim, i, c)| {
                                                     self.variables
                                                         .get(dim)
@@ -318,45 +340,12 @@ impl Dds {
                                                         })
                                                 })
                                                 .collect::<Result<Vec<_>, _>>()?,
-                                            })
-                                        } else {
-                                            Ok(ConstrainedVariable::Variable(DdsVariableDetails {
-                                                name: var.name.clone(),
-                                                vartype: var.vartype,
-                                                dimensions: var
-                                                    .dimensions
-                                                    .iter()
-                                                    .cloned()
-                                                    .zip(counts.iter().cloned())
-                                                    .collect(),
-                                                size: counts.iter().product(),
-                                                indices: indices,
-                                                counts: counts,
-                                            }))
-                                        }
-                                    })
-                                    .ok_or_else(|| anyhow!("Variable not found: {}", var))?
-                            }
-
-                            Structure((v1, v2, slab)) => self
-                                .variables
-                                .get(v1.as_str())
-                                .and_then(|var1| {
-                                    self.variables.get(v2.as_str()).map(|var2| (var1, var2))
-                                })
-                                .ok_or_else(|| anyhow!("Variable not found: {}.{}", v1, v2))
-                                .and_then(|(var1, var2)| {
-                                    ensure!(slab.as_ref().map(|s| s.iter().all(|i| i.len() < 3)).unwrap_or(true), "hyperslabs with strides not supported");
-
-                                    let indices = self.extend_indices(var2, slab)?;
-                                    let counts = self.extend_counts(var2, &indices, slab)?;
-
-                                    Ok(ConstrainedVariable::Structure {
-                                        variable: var1.name.clone(),
-                                        member: DdsVariableDetails {
-                                            name: var2.name.clone(),
-                                            vartype: var2.vartype,
-                                            dimensions: var2
+                                        })
+                                    } else {
+                                        Ok(ConstrainedVariable::Variable(DdsVariableDetails {
+                                            name: var.name.clone(),
+                                            vartype: var.vartype,
+                                            dimensions: var
                                                 .dimensions
                                                 .iter()
                                                 .cloned()
@@ -365,12 +354,63 @@ impl Dds {
                                             size: counts.iter().product(),
                                             indices: indices,
                                             counts: counts,
-                                        },
-                                    })
-                                }),
+                                        }))
+                                    }
+                                })
+                                .ok_or_else(|| anyhow!("Variable not found: {}", var))?
                         }
-                    })
-                    .collect::<Result<Vec<ConstrainedVariable>, anyhow::Error>>()?,
+
+                        Structure((v1, v2, slab)) => self
+                            .variables
+                            .get(v1.as_str())
+                            .and_then(|var1| {
+                                self.variables.get(v2.as_str()).map(|var2| (var1, var2))
+                            })
+                            .ok_or_else(|| anyhow!("Variable not found: {}.{}", v1, v2))
+                            .and_then(|(var1, var2)| {
+                                ensure!(
+                                    slab.as_ref()
+                                        .map(|s| s.iter().all(|i| i.len() < 3))
+                                        .unwrap_or(true),
+                                    "hyperslabs with strides not supported"
+                                );
+
+                                let indices = self.extend_indices(var2, slab)?;
+                                let counts = self.extend_counts(var2, &indices, slab)?;
+
+                                Ok(ConstrainedVariable::Structure {
+                                    variable: var1.name.clone(),
+                                    member: DdsVariableDetails {
+                                        name: var2.name.clone(),
+                                        vartype: var2.vartype,
+                                        dimensions: var2
+                                            .dimensions
+                                            .iter()
+                                            .cloned()
+                                            .zip(counts.iter().cloned())
+                                            .collect(),
+                                        size: counts.iter().product(),
+                                        indices: indices,
+                                        counts: counts,
+                                    },
+                                })
+                            }),
+                    }
+                })
+                .collect::<Result<Vec<ConstrainedVariable>, anyhow::Error>>()?;
+
+            // Netcdf clients require the response to be sorted the same way the initial free DDS
+            // query of all variables are.
+            variables.sort_by_key(|c| {
+                self.variables
+                    .get(c.name())
+                    .expect("already checked for missing variables")
+                    .position
+            });
+
+            Ok(DdsResponse {
+                file_name: self.file_name.clone(),
+                variables,
             })
         }
     }
@@ -456,6 +496,23 @@ impl ConstrainedVariable {
                 variable,
                 dimensions,
             } => variable.dods_size() + dimensions.iter().map(|d| d.dods_size()).sum::<usize>(),
+        }
+    }
+
+    /// Outer variable name
+    pub fn name(&self) -> &str {
+        use ConstrainedVariable::*;
+
+        match self {
+            Variable(v) => &v.name,
+            Structure {
+                variable: v,
+                member: _,
+            } => &v,
+            Grid {
+                variable,
+                dimensions: _,
+            } => &variable.name,
         }
     }
 }

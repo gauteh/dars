@@ -3,3 +3,4 @@
 perf.data*
 .cargo
 *.fx
+dars.db

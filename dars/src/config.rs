@@ -32,7 +32,7 @@ impl Default for Config {
 impl Default for Db {
     fn default() -> Self {
         Db {
-            path: "./dars.db/".into()
+            path: "./dars.db".into()
         }
     }
 }
@@ -60,7 +60,7 @@ pub fn load_config_with_args() -> anyhow::Result<Config> {
         "root URL of service (default: empty)",
         "ROOT",
     );
-    opts.optflag("h", "help", "print this help menu");
+    opts.optflag("h", "help", "print this help");
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,

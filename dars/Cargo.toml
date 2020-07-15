@@ -15,12 +15,13 @@ getopts = "*"
 hyper = "*"
 itertools = "*"
 jemallocator = "*"
+lazy_static = "*"
 libc = "*"
 log = "*"
 ndarray = "*"
 num_cpus = "*"
 roxmltree = "*"
-serde = "*"
+sled = "*"
 tokio-util = "*"
 toml = "*"
 walkdir = "*"
@@ -46,3 +47,8 @@ version = "*"
 [dependencies.tokio]
 features = ["full"]
 version = "*"
+
+[dependencies.serde]
+features = ["derive"]
+version = "*"
+

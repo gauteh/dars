@@ -13,8 +13,6 @@ mod das;
 pub(crate) mod dds;
 
 /// HDF5 dataset source.
-///
-/// This should be serializable and not keep any files open
 pub struct Hdf5Dataset {
     path: PathBuf,
     idx: idx::Index,
@@ -32,7 +30,7 @@ impl fmt::Debug for Hdf5Dataset {
 pub struct HDF5File(pub hdf5::File, pub PathBuf);
 
 impl Hdf5Dataset {
-    pub fn open<P: AsRef<Path>>(path: P) -> anyhow::Result<Hdf5Dataset> {
+    pub fn open<P: AsRef<Path>>(path: P, key: String, db: sled::Db) -> anyhow::Result<Hdf5Dataset> {
         let path = path.as_ref();
 
         let modified = std::fs::metadata(path)?.modified()?;
@@ -46,13 +44,8 @@ impl Hdf5Dataset {
         trace!("Building DDS of {:?}..", path);
         let dds = (&hf).into();
 
-        let mut idxpath = path.to_path_buf();
-        idxpath.set_extension("idx.fx");
-
-        let idx = if idxpath.exists() {
-            trace!("Loading index from {:?}..", idxpath);
-
-            let b = std::fs::read(idxpath)?;
+        let idx = if let Some(b) = db.get(&key)? {
+            trace!("Loading index db..");
             flexbuffers::from_slice(&b)?
         } else {
             debug!("Indexing: {:?}..", path);
@@ -60,10 +53,10 @@ impl Hdf5Dataset {
             use flexbuffers::FlexbufferSerializer as ser;
             use serde::ser::Serialize;
 
-            trace!("Writing index to {:?}", idxpath);
+            trace!("Inserting index into db ({})", key);
             let mut s = ser::new();
             idx.serialize(&mut s)?;
-            std::fs::write(idxpath, s.view())?;
+            db.insert(&key, s.view())?;
 
             idx
         };

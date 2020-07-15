@@ -1,20 +1,24 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::path::PathBuf;
 
 use crate::{hdf5, ncml};
 use colored::Colorize;
 use walkdir::WalkDir;
 
 /// The map of datasets.
-#[derive(Default)]
 pub struct Datasets {
     pub datasets: HashMap<String, Arc<DatasetType>>,
     pub url: Option<String>,
+    pub db: sled::Db,
 }
 
 impl Datasets {
-    pub async fn new_with_datadir(url: Option<String>, datadir: String) -> Datasets {
-        info!("Scanning {} for datasets..", datadir.yellow());
+    pub async fn new_with_datadir(url: Option<String>, datadir: PathBuf) -> anyhow::Result<Datasets> {
+        info!("Opening sled db: {}..", "dars.db".yellow());
+        let db = sled::open("dars.db")?;
+
+        info!("Scanning {} for datasets..", datadir.to_string_lossy().yellow());
 
         let datasets: HashMap<_, _> = WalkDir::new(&datadir)
             .into_iter()
@@ -41,12 +45,10 @@ impl Datasets {
                 }
             })
             .filter_map(|path| {
-                let key = path.to_string_lossy();
-
-                let key = if datadir.ends_with("/") {
-                    key[datadir.len()..].to_string()
+                let key = if datadir.to_string_lossy().ends_with("/") {
+                    path.strip_prefix(&datadir).ok()?.to_string_lossy()
                 } else {
-                    key.to_string()
+                    path.to_string_lossy()
                 };
 
                 let key = key.trim_start_matches('/').to_string();
@@ -70,7 +72,7 @@ impl Datasets {
                         }
                     }
                 } else {
-                    match hdf5::Hdf5Dataset::open(path.clone()) {
+                    match hdf5::Hdf5Dataset::open(path.clone(), key.clone(), db.clone()) {
                         Ok(d) => Some((key, Arc::new(DatasetType::HDF5(d)))),
                         Err(e) => {
                             warn!(
@@ -87,7 +89,7 @@ impl Datasets {
 
         info!("Loaded {} datasets.", datasets.len());
 
-        Datasets { datasets, url }
+        Ok(Datasets { datasets, url, db })
     }
 }
 

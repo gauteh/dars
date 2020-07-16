@@ -1,4 +1,4 @@
-//! Hyperslabs
+//! # Hyperslab constraints
 //!
 //! OPeNDAP constraint expressions for ranges can consist of:
 //! - single values:            `[1]`     -> `[1]`

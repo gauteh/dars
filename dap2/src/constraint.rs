@@ -1,10 +1,17 @@
+//! # Constraint
+//!
+//! DAP constraints consist of variable list and slices [hyperslabs](crate::hyperslab) of those variables.
+//!
+//! See [Constraint::parse] on how to parse a query into variable constraints. Use
+//! [crate::dds::Dds::dds] to constrain the actual variables of a dataset.
+//!
+//! * Strides are not supported.
+//! * Constraints based on variable value is not supported.
 use crate::hyperslab;
 use percent_encoding::percent_decode_str;
-///! DAP constraints consist of variable list and slices [hyperslabs] of those variables.
-///! We currently only support constraints that slices variables without strides, none based on the content
-///! of the variable.
 use std::ops::{Deref, DerefMut};
 
+/// Variables with constraints.
 #[derive(Debug, Clone)]
 pub struct Constraint {
     variables: Vec<ConstraintVariable>,
@@ -33,6 +40,7 @@ pub enum ConstraintVariable {
 }
 
 impl Constraint {
+    /// Parse a query into variable constraints.
     pub fn parse(query: &str) -> anyhow::Result<Constraint> {
         let query = percent_decode_str(query).decode_utf8()?;
         debug!("query: {}", query);
@@ -71,6 +79,7 @@ impl Constraint {
             .and_then(|variables| Ok(Constraint { variables }))
     }
 
+    /// An empty constraints, meaning all variables.
     pub fn empty() -> Constraint {
         Constraint {
             variables: Vec::new(),

@@ -1,3 +1,11 @@
+//! # Data Description Structure
+//!
+//! DDS responses describe the data type, size, and its coordintes. A [data response](crate::dods) is always
+//! accompanied by a DDS response prepended.
+//!
+//! This module takes [constraints](crate::constraint) and turns them into a [DDS
+//! response](DdsResponse) with [constrained variables](ConstrainedVariable). These are suitable
+//! for reading and streaming the XDR serialized variables.
 use itertools::{izip, Itertools};
 use std::collections::BTreeMap;
 use std::fmt;
@@ -89,6 +97,7 @@ impl fmt::Display for VarType {
     }
 }
 
+/// File type handlers or readers should implement this trait so that a DDS structure can be built.
 pub trait ToDds {
     fn variables(&self) -> Vec<Variable>;
     fn file_name(&self) -> String;
@@ -201,6 +210,7 @@ impl Dds {
             .unwrap_or_else(|| Ok(vec![0; var.shape.len()]))
     }
 
+    /// Return a DDS response with all the variables.
     pub fn all(&self) -> DdsResponse {
         DdsResponse {
             file_name: self.file_name.clone(),
@@ -270,6 +280,7 @@ impl Dds {
         }
     }
 
+    /// Return a constrained and validated DDS response.
     pub fn dds(&self, constraint: &Constraint) -> Result<DdsResponse, anyhow::Error> {
         use ConstraintVariable::*;
 
@@ -416,6 +427,8 @@ impl Dds {
     }
 }
 
+/// The details about a single variable in a DDS response. All information needed to stream the
+/// variable data.
 pub struct DdsVariableDetails {
     pub name: String,
     pub vartype: VarType,
@@ -452,6 +465,7 @@ impl DdsVariableDetails {
     }
 }
 
+/// A constrained and validated variable constructed from a [constraint](crate::constraint) query.
 pub enum ConstrainedVariable {
     Variable(DdsVariableDetails),
     Grid {
@@ -571,6 +585,8 @@ impl fmt::Display for ConstrainedVariable {
     }
 }
 
+/// A DDS response which can be used to build a HTTP response and contains the information needed
+/// to stream the variables.
 pub struct DdsResponse {
     pub variables: Vec<ConstrainedVariable>,
     pub file_name: String,

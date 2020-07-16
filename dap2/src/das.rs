@@ -1,8 +1,12 @@
+//! # Data Attribute Structure
+//!
+//! DAS responses contain additional information about each variable like _fill value_ or history
+//! fields.
+//!
+//! DAS responses are static once constructed from a source.
 use std::fmt;
 
 /// DAS (Data Attribute Structure)
-///
-/// TODO: Serializable.
 pub struct Das(pub String);
 
 #[derive(Debug)]
@@ -27,6 +31,7 @@ pub enum AttrValue {
     Ignored(String),
 }
 
+/// File type handlers or readers should implement this trait so that a DAS structure can be built.
 pub trait ToDas {
     /// Whether dataset has global attributes.
     fn has_global_attributes(&self) -> bool;

@@ -11,8 +11,8 @@
 //!
 //! ### Length
 //!
-//! Arrays are prepended with their XDR encoded length as `u32` _twice_. While scalars do not have
-//! length prepended. A Structure or Grid is sent as each member sequentially.
+//! Arrays are prepended with their XDR encoded length as `u32` _twice_. While scalars do not. A
+//! Structure or Grid is sent as each member sequentially.
 //!
 //!
 //! ### XDR types

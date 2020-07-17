@@ -60,7 +60,7 @@ impl Datasets {
                 );
 
                 if path.extension().expect("already filtered on extension") == "ncml" {
-                    match ncml::NcmlDataset::open(path.clone()) {
+                    match ncml::NcmlDataset::open(path.clone(), db.clone()) {
                         Ok(d) => Some((key, Arc::new(DatasetType::NCML(d)))),
                         Err(e) => {
                             warn!(

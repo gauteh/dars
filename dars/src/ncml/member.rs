@@ -17,7 +17,7 @@ pub struct NcmlMember {
 }
 
 impl NcmlMember {
-    pub fn open<P>(path: P, dimension: &str) -> anyhow::Result<NcmlMember>
+    pub fn open<P>(path: P, dimension: &str, db: &sled::Db) -> anyhow::Result<NcmlMember>
     where
         P: AsRef<Path>,
     {
@@ -38,13 +38,9 @@ impl NcmlMember {
             .get(0)
             .ok_or_else(|| anyhow!("aggregate dimension is empty"))?;
 
-        let mut idxpath = path.to_path_buf();
-        idxpath.set_extension("idx.fx");
-
-        let idx = if idxpath.exists() {
-            trace!("Loading index from {:?}..", idxpath);
-
-            let b = std::fs::read(idxpath)?;
+        let key = path.to_string_lossy().to_string();
+        let idx = if let Some(b) = db.get(&key)? {
+            trace!("Loading index db..");
             flexbuffers::from_slice(&b)?
         } else {
             debug!("Indexing: {:?}..", path);
@@ -52,10 +48,10 @@ impl NcmlMember {
             use flexbuffers::FlexbufferSerializer as ser;
             use serde::ser::Serialize;
 
-            trace!("Writing index to {:?}", idxpath);
+            trace!("Inserting index into db ({})", key);
             let mut s = ser::new();
             idx.serialize(&mut s)?;
-            std::fs::write(idxpath, s.view())?;
+            db.insert(&key, s.view())?;
 
             idx
         };

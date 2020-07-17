@@ -46,7 +46,7 @@ impl fmt::Debug for NcmlDataset {
 }
 
 impl NcmlDataset {
-    pub fn open<P>(path: P) -> anyhow::Result<NcmlDataset>
+    pub fn open<P>(path: P, db: sled::Db) -> anyhow::Result<NcmlDataset>
     where
         P: AsRef<Path>,
     {
@@ -86,7 +86,7 @@ impl NcmlDataset {
 
         let mut members = files
             .iter()
-            .map(|p| NcmlMember::open(p, &dimension))
+            .map(|p| NcmlMember::open(p, &dimension, &db))
             .collect::<Result<Vec<NcmlMember>, _>>()?;
 
         members.sort_by(|a, b| {

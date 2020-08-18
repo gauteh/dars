@@ -31,17 +31,15 @@ warp = "*"
 path = "../dap2"
 version = "*"
 
+# hdf5 repository is patched at workspace level
 [dependencies.hdf5]
-branch = "hidefix"
-git = "https://github.com/gauteh/hdf5-rust"
+version = "^0.7.0"
 
 [dependencies.hdf5-sys]
-branch = "hidefix"
+version = "^0.7.0"
 features = ["static", "zlib"]
-git = "https://github.com/gauteh/hdf5-rust"
 
 [dependencies.hidefix]
-git = "https://github.com/gauteh/hidefix"
 version = "*"
 
 [dependencies.tokio]
@@ -52,3 +50,6 @@ version = "*"
 features = ["derive"]
 version = "*"
 
+[features]
+default = ["static"]
+static = ["hdf5-sys/static", "hdf5-sys/zlib"]

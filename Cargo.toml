@@ -5,3 +5,6 @@ members = ["dars", "dap2"]
 lto = "fat"
 codegen-units = 1
 
+[patch.crates-io]
+hdf5 = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
+hdf5-sys = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }

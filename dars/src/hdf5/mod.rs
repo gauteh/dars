@@ -7,7 +7,7 @@ use futures::{pin_mut, Stream, StreamExt};
 
 use dap2::dds::DdsVariableDetails;
 use dap2::dods::xdr_length;
-use hidefix::{idx, reader::stream};
+use hidefix::idx;
 
 mod das;
 pub(crate) mod dds;
@@ -15,7 +15,7 @@ pub(crate) mod dds;
 /// HDF5 dataset source.
 pub struct Hdf5Dataset {
     path: PathBuf,
-    idx: idx::Index,
+    idx: idx::Index<'static>,
     das: dap2::Das,
     dds: dap2::Dds,
     modified: std::time::SystemTime,
@@ -119,7 +119,7 @@ impl Hdf5Dataset {
         );
 
         let reader = match self.idx.dataset(&variable.name) {
-            Some(ds) => stream::DatasetReader::with_dataset(&ds, &self.path),
+            Some(ds) => ds.as_streamer(&self.path),
             None => Err(anyhow!("dataset does not exist")),
         }?;
 

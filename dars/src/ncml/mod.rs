@@ -12,7 +12,6 @@ use walkdir::WalkDir;
 use crate::hdf5::HDF5File;
 use dap2::dds::DdsVariableDetails;
 use dap2::dods::xdr_length;
-use hidefix::reader::stream;
 
 mod dds;
 mod member;
@@ -362,7 +361,7 @@ impl CoordinateVariable {
             .idx
             .dataset(dimension)
             .ok_or_else(|| anyhow!("dimension dataset not found."))?
-            .dsize;
+            .dsize();
         let n: usize = members.iter().map(|m| m.n).sum();
 
         let mut bytes = BytesMut::with_capacity(n * dsz);
@@ -372,7 +371,7 @@ impl CoordinateVariable {
                 .idx
                 .dataset(dimension)
                 .ok_or_else(|| anyhow!("dimension dataset not found."))?;
-            let reader = stream::DatasetReader::with_dataset(&ds, &m.path)?;
+            let reader = ds.as_streamer(&m.path)?;
             let reader = reader.stream(None, None);
 
             pin_mut!(reader);

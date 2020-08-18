@@ -5,12 +5,12 @@ use bytes::Bytes;
 use futures::{pin_mut, Stream, StreamExt};
 
 use crate::hdf5::HDF5File;
-use hidefix::{idx, reader::stream};
+use hidefix::idx;
 
 /// One member of the NCML dataset.
 pub struct NcmlMember {
     pub path: PathBuf,
-    pub idx: idx::Index,
+    pub idx: idx::Index<'static>,
     pub modified: std::time::SystemTime,
     pub n: usize,
     pub rank: f64,
@@ -81,7 +81,7 @@ impl NcmlMember {
         debug!("streaming: {} [{:?} / {:?}]", variable, indices, counts);
 
         let reader = match self.idx.dataset(variable) {
-            Some(ds) => stream::DatasetReader::with_dataset(&ds, &self.path),
+            Some(ds) => ds.as_streamer(&self.path),
             None => Err(anyhow!("dataset does not exist")),
         }?;
         let bytes = reader.stream(Some(indices), Some(counts));

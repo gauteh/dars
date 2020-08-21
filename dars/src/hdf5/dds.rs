@@ -209,10 +209,12 @@ mod tests {
     use super::super::Hdf5Dataset;
     use dap2::constraint::Constraint;
     use test::Bencher;
+    use crate::data::test_db;
 
     #[bench]
     fn coads(b: &mut Bencher) {
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+        let db = test_db();
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
 
         b.iter(|| hd.dds.all().to_string());
 
@@ -267,7 +269,8 @@ mod tests {
 
     #[test]
     fn coads_time() {
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+        let db = test_db();
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
 
         let c = Constraint::parse("TIME").unwrap();
         let dds = hd.dds.dds(&c).unwrap();
@@ -283,7 +286,8 @@ mod tests {
 
     #[test]
     fn coads_time_slab() {
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+        let db = test_db();
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
 
         let c = Constraint::parse("TIME[0:5]").unwrap();
         let dds = hd.dds.dds(&c).unwrap();
@@ -299,7 +303,8 @@ mod tests {
 
     #[bench]
     fn coads_sst_grid(b: &mut Bencher) {
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+        let db = test_db();
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
 
         let c = Constraint::parse("SST").unwrap();
         b.iter(|| hd.dds.dds(&c).unwrap().to_string());
@@ -323,7 +328,8 @@ mod tests {
 
     #[test]
     fn coads_sst_struct() {
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+        let db = test_db();
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
 
         let c = Constraint::parse("SST.SST").unwrap();
         let dds = hd.dds.dds(&c).unwrap();
@@ -343,7 +349,8 @@ mod tests {
 
     #[test]
     fn coads_sst_struct_span() {
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+        let db = test_db();
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
 
         let c = Constraint::parse("SST.SST[0:5][0:10][10:20]").unwrap();
         let dds = hd.dds.dds(&c).unwrap();
@@ -363,7 +370,8 @@ mod tests {
 
     #[test]
     fn coads_sst_time_struct_span() {
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+        let db = test_db();
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
 
         let c = Constraint::parse("SST.TIME[0:5]").unwrap();
         let dds = hd.dds.dds(&c).unwrap();
@@ -382,7 +390,8 @@ mod tests {
 
     #[test]
     fn dimensions_1d() {
-        let hd = Hdf5Dataset::open("../data/h5/dims_1d.h5").unwrap();
+        let db = test_db();
+        let hd = Hdf5Dataset::open("../data/h5/dims_1d.h5", "1d".into(), &db).unwrap();
         println!("DDS:\n{}", hd.dds.all());
 
         let res = r#"Dataset {
@@ -395,7 +404,8 @@ mod tests {
 
     #[test]
     fn dimensions_2d() {
-        let hd = Hdf5Dataset::open("../data/h5/dims_2d.h5").unwrap();
+        let db = test_db();
+        let hd = Hdf5Dataset::open("../data/h5/dims_2d.h5", "2d".into(), &db).unwrap();
         println!("DDS:\n{}", hd.dds.all());
 
         let res = r#"Dataset {

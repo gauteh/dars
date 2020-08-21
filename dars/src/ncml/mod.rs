@@ -359,6 +359,7 @@ impl CoordinateVariable {
     pub fn from(members: &Vec<NcmlMember>, dimension: &str, db: &sled::Db) -> anyhow::Result<CoordinateVariable> {
         ensure!(!members.is_empty(), "no members");
 
+        trace!("Getting member 0: {}", members[0].key);
         let bts = db.get(&members[0].key)?.unwrap();
         let idx = bincode::deserialize::<idx::Index>(&bts)?;
 
@@ -371,7 +372,8 @@ impl CoordinateVariable {
         let mut bytes = BytesMut::with_capacity(n * dsz);
 
         for m in members {
-            let bts = db.get(&members[0].key)?.unwrap();
+            trace!("Getting member: {}", m.key);
+            let bts = db.get(&m.key)?.unwrap();
             let idx = bincode::deserialize::<idx::Index>(&bts)?;
 
             let ds = idx
@@ -421,11 +423,13 @@ impl CoordinateVariable {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data::test_db;
 
     #[tokio::test]
     async fn agg_existing_location() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let ncml = NcmlDataset::open("../data/ncml/aggExisting.ncml").unwrap();
+        let db = test_db();
+        let ncml = NcmlDataset::open("../data/ncml/aggExisting.ncml", db).unwrap();
 
         assert_eq!(ncml.coordinates.bytes.len(), 4 * (31 + 28));
     }
@@ -433,7 +437,8 @@ mod tests {
     #[tokio::test]
     async fn agg_existing_scan() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let ncml = NcmlDataset::open("../data/ncml/scan.ncml").unwrap();
+        let db = test_db();
+        let ncml = NcmlDataset::open("../data/ncml/scan.ncml", db).unwrap();
 
         assert_eq!(ncml.coordinates.bytes.len(), 4 * (31 + 28));
     }

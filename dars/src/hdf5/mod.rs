@@ -30,7 +30,7 @@ impl fmt::Debug for Hdf5Dataset {
 pub struct HDF5File(pub hdf5::File, pub PathBuf);
 
 impl Hdf5Dataset {
-    pub fn open<P: AsRef<Path>>(path: P, key: String, db: sled::Db) -> anyhow::Result<Hdf5Dataset> {
+    pub fn open<P: AsRef<Path>>(path: P, key: String, db: &sled::Db) -> anyhow::Result<Hdf5Dataset> {
         let path = path.as_ref();
 
         let modified = std::fs::metadata(path)?.modified()?;
@@ -155,10 +155,12 @@ mod tests {
     use futures::executor::{block_on, block_on_stream};
     use futures::pin_mut;
     use test::Bencher;
+    use crate::data::test_db;
 
     #[bench]
     fn coads_stream_sst_struct(b: &mut Bencher) {
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap();
+        let db = test_db();
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
 
         let c = Constraint::parse("SST.SST").unwrap();
         let dds = hd.dds.dds(&c).unwrap();
@@ -170,7 +172,8 @@ mod tests {
         } = &dds.variables[0]
         {
             b.iter(|| {
-                let reader = block_on(hd.variable(&member)).unwrap();
+                let db = db.clone();
+                let reader = block_on(hd.variable(&member, db)).unwrap();
                 pin_mut!(reader);
                 block_on_stream(reader).for_each(drop);
             });

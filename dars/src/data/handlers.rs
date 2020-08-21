@@ -228,16 +228,18 @@ mod tests {
     fn coads_build_sst_struct(b: &mut Bencher) {
         use crate::hdf5::Hdf5Dataset;
 
+        let db = crate::data::test_db();
         let hd = Arc::new(DatasetType::HDF5(
-            Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap(),
+            Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap(),
         ));
 
         let c = Constraint::parse("SST.SST").unwrap();
 
         b.iter(|| {
+            let db = db.clone();
             let hd = hd.clone();
             let c = c.clone();
-            block_on(dods(hd, c))
+            block_on(dods(hd, db, c))
         })
     }
 
@@ -246,16 +248,18 @@ mod tests {
         use crate::hdf5::Hdf5Dataset;
         use warp::reply::Reply;
 
+        let db = crate::data::test_db();
         let hd = Arc::new(DatasetType::HDF5(
-            Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap(),
+            Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap(),
         ));
 
         let c = Constraint::parse("SST.SST").unwrap();
 
         b.iter(|| {
+            let db = db.clone();
             let hd = hd.clone();
             let c = c.clone();
-            let response = block_on(dods(hd, c)).unwrap().into_response();
+            let response = block_on(dods(hd, db, c)).unwrap().into_response();
             block_on_stream(response.into_body()).for_each(drop);
         })
     }

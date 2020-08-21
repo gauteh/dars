@@ -98,13 +98,15 @@ impl NcmlMember {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data::test_db;
 
     #[test]
     fn rank_int32() {
-        let m1 = NcmlMember::open("../data/ncml/jan.nc4", "time").unwrap();
+        let db = test_db();
+        let m1 = NcmlMember::open("../data/ncml/jan.nc4", "time", &db).unwrap();
         assert_eq!(m1.rank, 0.);
 
-        let m2 = NcmlMember::open("../data/ncml/feb.nc4", "time").unwrap();
+        let m2 = NcmlMember::open("../data/ncml/feb.nc4", "time", &db).unwrap();
         assert_eq!(m2.rank, 31.);
     }
 }

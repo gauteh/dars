@@ -23,6 +23,16 @@ impl Datasets {
         self.datasets.get(key)
     }
 
+    /// Temporary State for tests.
+    #[cfg(test)]
+    pub fn temporary() -> Datasets {
+        Datasets {
+            datasets: HashMap::default(),
+            url: None,
+            db: super::test_db()
+        }
+    }
+
     pub async fn new_with_datadir(
         url: Option<String>,
         datadir: PathBuf,
@@ -87,7 +97,7 @@ impl Datasets {
                         }
                     }
                 } else {
-                    match hdf5::Hdf5Dataset::open(path.clone(), key.clone(), db.clone()) {
+                    match hdf5::Hdf5Dataset::open(path.clone(), key.clone(), &db) {
                         Ok(d) => Some((key, Arc::new(DatasetType::HDF5(d)))),
                         Err(e) => {
                             warn!(

@@ -37,3 +37,33 @@ impl<T: fmt::Display> fmt::Display for OptFmt<T> {
         }
     }
 }
+
+#[cfg(test)]
+pub fn test_state() -> State {
+    use crate::hdf5;
+
+    let mut data = Datasets::temporary();
+    data.datasets.insert(
+        "coads_climatology.nc4".to_string(),
+        Arc::new(DatasetType::HDF5(
+                hdf5::Hdf5Dataset::open("../data/coads_climatology.nc4", "nested/coads_climatology.nc4".into(), &data.db).unwrap(),
+                )),
+                );
+    data.datasets.insert(
+        "nested/coads_climatology.nc4".to_string(),
+        Arc::new(DatasetType::HDF5(
+                hdf5::Hdf5Dataset::open("../data/coads_climatology.nc4", "nested/coads_climatology.nc4".into(), &data.db).unwrap(),
+                )),
+                );
+    Arc::new(data)
+}
+
+#[cfg(test)]
+pub fn test_db() -> sled::Db {
+    sled::Config::default()
+        .temporary(true)
+        .print_profile_on_drop(true)
+        .open()
+        .unwrap()
+}
+

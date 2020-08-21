@@ -144,28 +144,9 @@ async fn with_dataset(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data;
-    use crate::hdf5;
+    use crate::data::test_state;
     use futures::executor::block_on;
-    use std::sync::Arc;
     use test::Bencher;
-
-    fn test_state() -> data::State {
-        let mut data = data::Datasets::default();
-        data.datasets.insert(
-            "coads_climatology.nc4".to_string(),
-            Arc::new(data::DatasetType::HDF5(
-                hdf5::Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap(),
-            )),
-        );
-        data.datasets.insert(
-            "nested/coads_climatology.nc4".to_string(),
-            Arc::new(data::DatasetType::HDF5(
-                hdf5::Hdf5Dataset::open("../data/coads_climatology.nc4").unwrap(),
-            )),
-        );
-        Arc::new(data)
-    }
 
     #[tokio::test]
     async fn dap_methods() {
@@ -238,7 +219,7 @@ mod tests {
             );
 
             assert_eq!(res.status(), 200);
-            test::black_box(|| res.body());
+            test::black_box(res.body());
         });
     }
 
@@ -283,7 +264,7 @@ mod tests {
             );
 
             assert_eq!(res.status(), 200);
-            test::black_box(|| res.body());
+            test::black_box(res.body());
         })
     }
 
@@ -300,7 +281,7 @@ mod tests {
             );
 
             assert_eq!(res.status(), 200);
-            test::black_box(|| res.body());
+            test::black_box(res.body());
         })
     }
 

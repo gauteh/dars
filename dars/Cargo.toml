@@ -26,6 +26,7 @@ tokio-util = "*"
 toml = "*"
 walkdir = "*"
 warp = "*"
+bincode = "*"
 
 [dependencies.dap2]
 path = "../dap2"

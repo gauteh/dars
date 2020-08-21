@@ -1,6 +1,7 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::{hdf5, ncml};
 use colored::Colorize;
@@ -14,11 +15,25 @@ pub struct Datasets {
 }
 
 impl Datasets {
-    pub async fn new_with_datadir(url: Option<String>, datadir: PathBuf) -> anyhow::Result<Datasets> {
+    pub fn get<Q>(&self, key: &Q) -> Option<&Arc<DatasetType>>
+    where
+        String: Borrow<Q>,
+        Q: std::hash::Hash + std::cmp::Eq,
+    {
+        self.datasets.get(key)
+    }
+
+    pub async fn new_with_datadir(
+        url: Option<String>,
+        datadir: PathBuf,
+    ) -> anyhow::Result<Datasets> {
         info!("Opening sled db: {}..", "dars.db".yellow());
         let db = sled::open("dars.db")?;
 
-        info!("Scanning {} for datasets..", datadir.to_string_lossy().yellow());
+        info!(
+            "Scanning {} for datasets..",
+            datadir.to_string_lossy().yellow()
+        );
 
         let datasets: HashMap<_, _> = WalkDir::new(&datadir)
             .into_iter()

@@ -31,13 +31,16 @@ async fn main() -> anyhow::Result<()> {
     info!("𓃢   DARS v{}", VERSION);
 
     let config = config::load_config_with_args()?;
-    let data = Arc::new(data::Datasets::new_with_datadir(config.root_url.clone(), config.data).await?);
+    let data =
+        Arc::new(data::Datasets::new_with_datadir(config.root_url.clone(), config.data).await?);
     let dars = data::filters::datasets(data).with(warp::log::custom(data::request_log));
 
     info!(
         "Listening on {} {}",
         format!("http://{}", config.address).yellow(),
-        config.root_url.map(|r| format!("({})", r.blue()))
+        config
+            .root_url
+            .map(|r| format!("({})", r.blue()))
             .unwrap_or_else(|| "".to_string())
     );
 

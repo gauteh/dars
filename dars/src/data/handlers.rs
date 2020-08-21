@@ -75,6 +75,7 @@ impl warp::reject::Reject for DodsError {}
 
 pub async fn dods(
     dataset: Arc<DatasetType>,
+    db: sled::Db,
     constraint: Constraint,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match &*dataset {
@@ -100,7 +101,7 @@ pub async fn dods(
                         ConstrainedVariable::Variable(v) |
                             ConstrainedVariable::Structure { variable: _, member: v }
                             => {
-                            let reader = dataset.variable(&v).await?;
+                            let reader = dataset.variable(&v, db.clone()).await?;
 
                             pin_mut!(reader);
 
@@ -113,7 +114,7 @@ pub async fn dods(
                             dimensions,
                         } => {
                             for variable in std::iter::once(variable).chain(dimensions) {
-                                let reader = dataset.variable(&variable).await?;
+                                let reader = dataset.variable(&variable, db.clone()).await?;
 
                                 pin_mut!(reader);
 
@@ -159,7 +160,7 @@ pub async fn dods(
                         ConstrainedVariable::Variable(v) |
                             ConstrainedVariable::Structure { variable: _, member: v }
                             => {
-                            let reader = dataset.variable(&v).await?;
+                            let reader = dataset.variable(&v, db.clone()).await?;
 
                             pin_mut!(reader);
 
@@ -172,7 +173,7 @@ pub async fn dods(
                             dimensions,
                         } => {
                             for variable in std::iter::once(variable).chain(dimensions) {
-                                let reader = dataset.variable(&variable).await?;
+                                let reader = dataset.variable(&variable, db.clone()).await?;
 
                                 pin_mut!(reader);
 

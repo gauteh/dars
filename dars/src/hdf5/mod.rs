@@ -15,7 +15,7 @@ pub(crate) mod dds;
 /// HDF5 dataset source.
 pub struct Hdf5Dataset {
     path: PathBuf,
-    idx: idx::Index<'static>,
+    key: String,
     das: dap2::Das,
     dds: dap2::Dds,
     modified: std::time::SystemTime,
@@ -44,26 +44,18 @@ impl Hdf5Dataset {
         trace!("Building DDS of {:?}..", path);
         let dds = (&hf).into();
 
-        let idx = if let Some(b) = db.get(&key)? {
-            trace!("Loading index db..");
-            flexbuffers::from_slice(&b)?
-        } else {
+        if !db.contains_key(&key)? {
             debug!("Indexing: {:?}..", path);
             let idx = idx::Index::index_file(&hf.0, Some(path))?;
-            use flexbuffers::FlexbufferSerializer as ser;
-            use serde::ser::Serialize;
+            let bts = bincode::serialize(&idx)?;
 
             trace!("Inserting index into db ({})", key);
-            let mut s = ser::new();
-            idx.serialize(&mut s)?;
-            db.insert(&key, s.view())?;
-
-            idx
+            db.insert(&key, bts)?;
         };
 
         Ok(Hdf5Dataset {
             path: path.into(),
-            idx,
+            key,
             das,
             dds,
             modified,
@@ -105,6 +97,7 @@ impl Hdf5Dataset {
     pub async fn variable(
         &self,
         variable: &DdsVariableDetails,
+        db: sled::Db
     ) -> Result<impl Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static, anyhow::Error>
     {
         let modified = std::fs::metadata(&self.path)?.modified()?;
@@ -118,7 +111,13 @@ impl Hdf5Dataset {
             variable.name, variable.indices, variable.counts
         );
 
-        let reader = match self.idx.dataset(&variable.name) {
+        trace!("fetching index from db: {}", self.key);
+        let bts = db.get(&self.key)?.unwrap();
+        let idx = bincode::deserialize::<idx::Index>(&bts)?;
+
+        trace!("creating streamer: {}", variable.name);
+
+        let reader = match idx.dataset(&variable.name) {
             Some(ds) => ds.as_streamer(&self.path),
             None => Err(anyhow!("dataset does not exist")),
         }?;

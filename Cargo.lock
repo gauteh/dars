@@ -305,6 +305,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-stream 0.2.1",
+ "bincode",
  "bytes",
  "colored",
  "dap2",

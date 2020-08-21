@@ -10,7 +10,7 @@ use hidefix::idx;
 /// One member of the NCML dataset.
 pub struct NcmlMember {
     pub path: PathBuf,
-    pub idx: idx::Index<'static>,
+    pub key: String,
     pub modified: std::time::SystemTime,
     pub n: usize,
     pub rank: f64,
@@ -39,26 +39,19 @@ impl NcmlMember {
             .ok_or_else(|| anyhow!("aggregate dimension is empty"))?;
 
         let key = path.to_string_lossy().to_string();
-        let idx = if let Some(b) = db.get(&key)? {
-            trace!("Loading index db..");
-            flexbuffers::from_slice(&b)?
-        } else {
+        if !db.contains_key(&key)? {
             debug!("Indexing: {:?}..", path);
             let idx = idx::Index::index_file(&hf.0, Some(path))?;
-            use flexbuffers::FlexbufferSerializer as ser;
-            use serde::ser::Serialize;
+            let bts = bincode::serialize(&idx)?;
 
             trace!("Inserting index into db ({})", key);
-            let mut s = ser::new();
-            idx.serialize(&mut s)?;
-            db.insert(&key, s.view())?;
-
-            idx
+            db.insert(&key, bts)?;
         };
+
 
         Ok(NcmlMember {
             path: path.into(),
-            idx,
+            key,
             modified,
             n,
             rank,
@@ -68,6 +61,7 @@ impl NcmlMember {
     pub async fn stream(
         &self,
         variable: &str,
+        db: sled::Db,
         indices: &[u64],
         counts: &[u64],
     ) -> Result<impl Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static, anyhow::Error>
@@ -80,7 +74,12 @@ impl NcmlMember {
 
         debug!("streaming: {} [{:?} / {:?}]", variable, indices, counts);
 
-        let reader = match self.idx.dataset(variable) {
+        trace!("fetching index from db: {}", self.key);
+        let bts = db.get(&self.key)?.unwrap();
+        let idx = bincode::deserialize::<idx::Index>(&bts)?;
+        trace!("creating streamer: {}", variable);
+
+        let reader = match idx.dataset(variable) {
             Some(ds) => ds.as_streamer(&self.path),
             None => Err(anyhow!("dataset does not exist")),
         }?;

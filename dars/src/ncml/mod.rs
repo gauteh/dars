@@ -12,6 +12,7 @@ use walkdir::WalkDir;
 use crate::hdf5::HDF5File;
 use dap2::dds::DdsVariableDetails;
 use dap2::dods::xdr_length;
+use hidefix::idx;
 
 mod dds;
 mod member;
@@ -114,7 +115,7 @@ impl NcmlDataset {
         };
 
         debug!("Reading coordinate variable..");
-        let coordinates = CoordinateVariable::from(&members, &dimension)?;
+        let coordinates = CoordinateVariable::from(&members, &dimension, &db)?;
 
         Ok(NcmlDataset {
             path: path.into(),
@@ -217,6 +218,7 @@ impl NcmlDataset {
     pub async fn variable(
         &self,
         variable: &DdsVariableDetails,
+        db: sled::Db,
     ) -> Result<impl Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static, anyhow::Error>
     {
         let modified = std::fs::metadata(&self.path)?.modified()?;
@@ -260,7 +262,7 @@ impl NcmlDataset {
             // Non-aggregated variable, using first member.
             ABC::B(
                 self.members[0]
-                    .stream(&variable.name, indices.as_slice(), counts.as_slice())
+                    .stream(&variable.name, db.clone(), indices.as_slice(), counts.as_slice())
                     .await?,
             )
         } else {
@@ -282,7 +284,7 @@ impl NcmlDataset {
 
                         trace!("First file: {} to {} (mi = {:?}, mc = {:?})", member_start, member_start + m.n as u64, mindices, mcounts);
 
-                        let bytes = m.stream(&var, &mindices, &mcounts).await?;
+                        let bytes = m.stream(&var, db.clone(), &mindices, &mcounts).await?;
                         pin_mut!(bytes);
                         while let Some(b) = bytes.next().await {
                             yield b;
@@ -302,7 +304,7 @@ impl NcmlDataset {
                             mcounts
                         );
 
-                        let bytes = m.stream(&var, &mindices, &mcounts).await?;
+                        let bytes = m.stream(&var, db.clone(), &mindices, &mcounts).await?;
                         pin_mut!(bytes);
                         while let Some(b) = bytes.next().await {
                             yield b;
@@ -354,11 +356,13 @@ pub struct CoordinateVariable {
 }
 
 impl CoordinateVariable {
-    pub fn from(members: &Vec<NcmlMember>, dimension: &str) -> anyhow::Result<CoordinateVariable> {
+    pub fn from(members: &Vec<NcmlMember>, dimension: &str, db: &sled::Db) -> anyhow::Result<CoordinateVariable> {
         ensure!(!members.is_empty(), "no members");
 
-        let dsz = members[0]
-            .idx
+        let bts = db.get(&members[0].key)?.unwrap();
+        let idx = bincode::deserialize::<idx::Index>(&bts)?;
+
+        let dsz = idx
             .dataset(dimension)
             .ok_or_else(|| anyhow!("dimension dataset not found."))?
             .dsize();
@@ -367,8 +371,10 @@ impl CoordinateVariable {
         let mut bytes = BytesMut::with_capacity(n * dsz);
 
         for m in members {
-            let ds = m
-                .idx
+            let bts = db.get(&members[0].key)?.unwrap();
+            let idx = bincode::deserialize::<idx::Index>(&bts)?;
+
+            let ds = idx
                 .dataset(dimension)
                 .ok_or_else(|| anyhow!("dimension dataset not found."))?;
             let reader = ds.as_streamer(&m.path)?;

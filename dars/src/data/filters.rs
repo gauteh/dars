@@ -73,9 +73,10 @@ pub fn dods(
         .and(warp::get())
         .and(
             ends_with(".dods")
-                .and(with_state(state))
+                .and(with_state(state.clone()))
                 .and_then(with_dataset),
         )
+        .and(with_db(state))
         .and(constraint())
         .and_then(handlers::dods)
 }
@@ -96,6 +97,10 @@ pub fn raw(
 
 fn with_state(state: State) -> impl Filter<Extract = (State,), Error = Infallible> + Clone {
     warp::any().map(move || Arc::clone(&state))
+}
+
+fn with_db(state: State) -> impl Filter<Extract = (sled::Db,), Error = Infallible> + Clone {
+    warp::any().map(move || state.db.clone())
 }
 
 fn ends_with(
@@ -128,7 +133,7 @@ async fn with_dataset(
 ) -> Result<Arc<DatasetType>, warp::reject::Rejection> {
     let state = Arc::clone(&state);
 
-    if let Some(dataset) = state.datasets.get(&dataset) {
+    if let Some(dataset) = state.get(&dataset) {
         Ok(Arc::clone(dataset))
     } else {
         debug!("Could not find dataset: {}", dataset);

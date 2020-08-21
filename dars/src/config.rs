@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-use std::net::SocketAddr;
 use std::env;
+use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use getopts::Options;
 use serde::Deserialize;
@@ -10,12 +10,12 @@ pub struct Config {
     pub db: Db,
     pub data: PathBuf,
     pub address: SocketAddr,
-    pub root_url: Option<String>
+    pub root_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Db {
-    pub path: PathBuf
+    pub path: PathBuf,
 }
 
 impl Default for Config {
@@ -24,7 +24,7 @@ impl Default for Config {
             db: Db::default(),
             data: "data/".into(),
             address: "127.0.0.1:8001".parse().unwrap(),
-            root_url: None
+            root_url: None,
         }
     }
 }
@@ -32,7 +32,7 @@ impl Default for Config {
 impl Default for Db {
     fn default() -> Self {
         Db {
-            path: "./dars.db".into()
+            path: "./dars.db".into(),
         }
     }
 }
@@ -102,8 +102,14 @@ If no DATA is specified, "data/" is used."#
         config.data = matches.free[0].clone().into();
     };
 
-    matches.opt_get("a")?.iter().for_each(|a| config.address = *a);
-    matches.opt_get::<String>("root-url")?.iter().for_each(|r| config.root_url = Some((*r).clone()));
+    matches
+        .opt_get("a")?
+        .iter()
+        .for_each(|a| config.address = *a);
+    matches
+        .opt_get::<String>("root-url")?
+        .iter()
+        .for_each(|r| config.root_url = Some((*r).clone()));
 
     Ok(config)
 }

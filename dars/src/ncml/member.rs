@@ -46,6 +46,8 @@ impl NcmlMember {
 
             trace!("Inserting index into db ({})", key);
             db.insert(&key, bts)?;
+        } else {
+            trace!("{} already indexed.", key);
         };
 
 
@@ -108,5 +110,15 @@ mod tests {
 
         let m2 = NcmlMember::open("../data/ncml/feb.nc4", "time", &db).unwrap();
         assert_eq!(m2.rank, 31.);
+    }
+
+    #[test]
+    fn db_key_indexed() {
+        let db = test_db();
+        let m1 = NcmlMember::open("../data/ncml/jan.nc4", "time", &db).unwrap();
+        let m2 = NcmlMember::open("../data/ncml/feb.nc4", "time", &db).unwrap();
+
+        assert!(db.contains_key(&m1.key).unwrap());
+        assert!(db.contains_key(&m2.key).unwrap());
     }
 }

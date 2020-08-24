@@ -16,6 +16,7 @@ pub(crate) mod dds;
 pub struct Hdf5Dataset {
     path: PathBuf,
     key: String,
+    idxkey: String,
     das: dap2::Das,
     dds: dap2::Dds,
     modified: std::time::SystemTime,
@@ -33,10 +34,10 @@ impl Hdf5Dataset {
     pub fn open<P: AsRef<Path>>(path: P, key: String, db: &sled::Db) -> anyhow::Result<Hdf5Dataset> {
         let path = path.as_ref();
 
-        let modified = std::fs::metadata(path)?.modified()?;
+        let modified = std::fs::metadata(&path)?.modified()?;
 
         let _silence = hdf5::silence_errors();
-        let hf = HDF5File(hdf5::File::open(path)?, path.to_path_buf());
+        let hf = HDF5File(hdf5::File::open(&path)?, path.into());
 
         trace!("Building DAS of {:?}..", path);
         let das = (&hf).into();
@@ -44,18 +45,22 @@ impl Hdf5Dataset {
         trace!("Building DDS of {:?}..", path);
         let dds = (&hf).into();
 
-        if !db.contains_key(&key)? {
+        let idxkey = std::fs::canonicalize(path)?.to_string_lossy().to_string();
+        if !db.contains_key(&idxkey)? {
             debug!("Indexing: {:?}..", path);
-            let idx = idx::Index::index_file(&hf.0, Some(path))?;
+            let idx = idx::Index::index_file(&hf.0, Some(&path))?;
             let bts = bincode::serialize(&idx)?;
 
-            trace!("Inserting index into db ({})", key);
-            db.insert(&key, bts)?;
+            trace!("Inserting index into db ({})", idxkey);
+            db.insert(&idxkey, bts)?;
+        } else {
+            trace!("{} already indexed.", idxkey);
         };
 
         Ok(Hdf5Dataset {
             path: path.into(),
             key,
+            idxkey,
             das,
             dds,
             modified,
@@ -111,8 +116,8 @@ impl Hdf5Dataset {
             variable.name, variable.indices, variable.counts
         );
 
-        trace!("fetching index from db: {}", self.key);
-        let bts = db.get(&self.key)?.unwrap();
+        trace!("fetching index from db: {}", self.idxkey);
+        let bts = db.get(&self.idxkey)?.unwrap();
         let idx = bincode::deserialize::<idx::Index>(&bts)?;
 
         trace!("creating streamer: {}", variable.name);
@@ -156,6 +161,12 @@ mod tests {
     use futures::pin_mut;
     use test::Bencher;
     use crate::data::test_db;
+
+    #[test]
+    fn open_coads() {
+        let db = test_db();
+        Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
+    }
 
     #[bench]
     fn coads_stream_sst_struct(b: &mut Bencher) {

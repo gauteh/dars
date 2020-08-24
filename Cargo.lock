@@ -563,7 +563,6 @@ dependencies = [
 [[package]]
 name = "hdf5"
 version = "0.7.0"
-source = "git+https://github.com/gauteh/hdf5-rust?branch=hidefix#30b57e6af51f25d32c9eeacecc8ec3ef94098c02"
 dependencies = [
  "bitflags",
  "hdf5-derive",
@@ -580,7 +579,6 @@ dependencies = [
 [[package]]
 name = "hdf5-derive"
 version = "0.7.0"
-source = "git+https://github.com/gauteh/hdf5-rust?branch=hidefix#30b57e6af51f25d32c9eeacecc8ec3ef94098c02"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -590,7 +588,6 @@ dependencies = [
 [[package]]
 name = "hdf5-src"
 version = "0.7.0"
-source = "git+https://github.com/gauteh/hdf5-rust?branch=hidefix#30b57e6af51f25d32c9eeacecc8ec3ef94098c02"
 dependencies = [
  "cmake",
  "libz-sys",
@@ -599,7 +596,6 @@ dependencies = [
 [[package]]
 name = "hdf5-sys"
 version = "0.7.0"
-source = "git+https://github.com/gauteh/hdf5-rust?branch=hidefix#30b57e6af51f25d32c9eeacecc8ec3ef94098c02"
 dependencies = [
  "hdf5-src",
  "libc",
@@ -615,7 +611,6 @@ dependencies = [
 [[package]]
 name = "hdf5-types"
 version = "0.7.0"
-source = "git+https://github.com/gauteh/hdf5-rust?branch=hidefix#30b57e6af51f25d32c9eeacecc8ec3ef94098c02"
 dependencies = [
  "ascii",
  "libc",
@@ -658,8 +653,7 @@ dependencies = [
 [[package]]
 name = "hidefix"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61901ce8292b816384456f6a52bf314f66001cdf08437d5923fe1b36f0fa647d"
+source = "git+https://github.com/gauteh/hidefix#84c02b7f9aa10b69f813cb12243d1c294c686478"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -866,10 +860,11 @@ dependencies = [
 
 [[package]]
 name = "libloading"
-version = "0.6.2"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cadb8e769f070c45df05c78c7520eb4cd17061d4ab262e43cfc68b4d00ac71c"
+checksum = "2443d8f0478b16759158b2f66d525991a05491138bc05814ef52a250148ef4f9"
 dependencies = [
+ "cfg-if",
  "winapi 0.3.9",
 ]
 
@@ -1691,9 +1686,9 @@ checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 
 [[package]]
 name = "sled"
-version = "0.34.2"
+version = "0.34.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e6a1b592011d7eb727a261d2f80608db11d7f02972c7016e8d4e74e67fe0daf"
+checksum = "fcbf56c35b0c3f9bc208fab35e45c3bc03137d3c1a4a85bdf0b8db69aecffb45"
 dependencies = [
  "crc32fast",
  "crossbeam-epoch",
@@ -1731,9 +1726,9 @@ checksum = "a3ff2f71c82567c565ba4b3009a9350a96a7269eaa4001ebedae926230bc2254"
 
 [[package]]
 name = "syn"
-version = "1.0.38"
+version = "1.0.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e69abc24912995b3038597a7a593be5053eb0fb44f3cc5beec0deb421790c1f4"
+checksum = "891d8d6567fe7c7f8835a3a98af4208f3846fba258c1bc3c31d6e506239f11f9"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1890,9 +1885,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.14"
+version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db63662723c316b43ca36d833707cc93dff82a02ba3d7e354f342682cc8b3545"
+checksum = "4f0e00789804e99b20f12bc7003ca416309d28a6f495d6af58d1e2c2842461b5"
 dependencies = [
  "lazy_static",
 ]
@@ -2180,3 +2175,7 @@ dependencies = [
  "syn",
  "synstructure",
 ]
+
+[[patch.unused]]
+name = "hidefix"
+version = "0.1.1"

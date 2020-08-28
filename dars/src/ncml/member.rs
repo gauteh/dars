@@ -41,7 +41,7 @@ impl NcmlMember {
         let key = path.to_string_lossy().to_string();
         if !db.contains_key(&key)? {
             debug!("Indexing: {:?}..", path);
-            let idx = idx::Index::index_file(&hf.0, Some(path))?;
+            let idx = hdf5::sync::sync(|| idx::Index::index_file(&hf.0, Some(path)))?;
             let bts = bincode::serialize(&idx)?;
 
             trace!("Inserting index into db ({})", key);

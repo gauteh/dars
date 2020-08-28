@@ -34,15 +34,16 @@ version = "*"
 
 # hdf5 repository is patched at workspace level
 [dependencies.hdf5]
-version = "^0.7.0"
+version = "*"
 
 [dependencies.hdf5-sys]
-version = "^0.7.0"
+version = "*"
 features = ["static", "zlib"]
 
 [dependencies.hidefix]
 version = "*"
 git = "https://github.com/gauteh/hidefix"
+features = ["fast-index", "static"]
 
 [dependencies.tokio]
 features = ["full"]
@@ -52,6 +53,3 @@ version = "*"
 features = ["derive"]
 version = "*"
 
-[features]
-default = ["static"]
-static = ["hdf5-sys/static", "hdf5-sys/zlib"]

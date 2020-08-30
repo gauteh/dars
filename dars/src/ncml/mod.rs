@@ -46,7 +46,7 @@ impl fmt::Debug for NcmlDataset {
 }
 
 impl NcmlDataset {
-    pub fn open<P>(path: P, db: sled::Db) -> anyhow::Result<NcmlDataset>
+    pub fn open<P>(path: P, key: String, db: sled::Db) -> anyhow::Result<NcmlDataset>
     where
         P: AsRef<Path>,
     {
@@ -98,20 +98,20 @@ impl NcmlDataset {
         ensure!(members.len() > 0, "no members in aggregate.");
         let members = Arc::new(members);
 
-        trace!("Building DAS..");
-        let das = {
+        let (das, dds) = {
             // DAS should be the same regardless of files, using first member.
-            let path = &members[0].path;
-            let hf = HDF5File(hdf5::File::open(path)?, path.to_path_buf());
-            (&hf).into()
-        };
+            trace!("Building DAS..");
+            let ipath = &members[0].path;
+            let hf = HDF5File(hdf5::File::open(ipath)?, key.clone());
+            let das = (&hf).into();
 
-        trace!("Building DDS..");
-        let dds = {
+            trace!("Building DDS..");
             let ipath = &members[0].path;
             let n = members.iter().map(|m| m.n).sum();
-            dds::NcmlDdsBuilder::new(hdf5::File::open(ipath)?, path.into(), dimension.clone(), n)
-                .into()
+            let dds = dds::NcmlDdsBuilder::new(hdf5::File::open(ipath)?, key, dimension.clone(), n)
+                .into();
+
+            (das, dds)
         };
 
         debug!("Reading coordinate variable..");
@@ -359,8 +359,8 @@ impl CoordinateVariable {
     pub fn from(members: &Vec<NcmlMember>, dimension: &str, db: &sled::Db) -> anyhow::Result<CoordinateVariable> {
         ensure!(!members.is_empty(), "no members");
 
-        trace!("Getting member 0: {}", members[0].key);
-        let bts = db.get(&members[0].key)?.unwrap();
+        trace!("Getting member 0: {}", members[0].idxkey);
+        let bts = db.get(&members[0].idxkey)?.unwrap();
         let idx = bincode::deserialize::<idx::Index>(&bts)?;
 
         let dsz = idx
@@ -372,8 +372,8 @@ impl CoordinateVariable {
         let mut bytes = BytesMut::with_capacity(n * dsz);
 
         for m in members {
-            trace!("Getting member: {}", m.key);
-            let bts = db.get(&m.key)?.unwrap();
+            trace!("Getting member: {}", m.idxkey);
+            let bts = db.get(&m.idxkey)?.unwrap();
             let idx = bincode::deserialize::<idx::Index>(&bts)?;
 
             let ds = idx
@@ -429,7 +429,7 @@ mod tests {
     async fn agg_existing_location() {
         let _ = env_logger::builder().is_test(true).try_init();
         let db = test_db();
-        let ncml = NcmlDataset::open("../data/ncml/aggExisting.ncml", db).unwrap();
+        let ncml = NcmlDataset::open("../data/ncml/aggExisting.ncml", "aggE".into(), db).unwrap();
 
         assert_eq!(ncml.coordinates.bytes.len(), 4 * (31 + 28));
     }
@@ -438,7 +438,7 @@ mod tests {
     async fn agg_existing_scan() {
         let _ = env_logger::builder().is_test(true).try_init();
         let db = test_db();
-        let ncml = NcmlDataset::open("../data/ncml/scan.ncml", db).unwrap();
+        let ncml = NcmlDataset::open("../data/ncml/scan.ncml", "aggE".into(), db).unwrap();
 
         assert_eq!(ncml.coordinates.bytes.len(), 4 * (31 + 28));
     }

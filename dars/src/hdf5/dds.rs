@@ -122,7 +122,7 @@ impl dds::ToDds for &HDF5File {
     }
 
     fn file_name(&self) -> String {
-        self.1.to_string_lossy().to_string()
+        self.1.clone()
     }
 }
 
@@ -184,7 +184,7 @@ mod tests {
         Float64 COADSY[COADSY = 90];
         Float64 COADSX[COADSX = 180];
     } VWND;
-} ../data/coads_climatology.nc4;"#;
+} coads;"#;
 
 
         assert_eq!(hd.dds.all().to_string(), tds);
@@ -202,7 +202,7 @@ mod tests {
         // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds?TIME
         let tds = r#"Dataset {
     Float64 TIME[TIME = 12];
-} ../data/coads_climatology.nc4;"#;
+} coads;"#;
 
         assert_eq!(dds.to_string(), tds);
     }
@@ -219,7 +219,7 @@ mod tests {
         // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds?TIME[0:5]
         let tds = r#"Dataset {
     Float64 TIME[TIME = 6];
-} ../data/coads_climatology.nc4;"#;
+} coads;"#;
 
         assert_eq!(dds.to_string(), tds);
     }
@@ -244,7 +244,7 @@ mod tests {
         Float64 COADSY[COADSY = 90];
         Float64 COADSX[COADSX = 180];
     } SST;
-} ../data/coads_climatology.nc4;"#;
+} coads;"#;
 
         assert_eq!(dds.to_string(), tds);
     }
@@ -263,7 +263,7 @@ mod tests {
     Structure {
         Float32 SST[TIME = 12][COADSY = 90][COADSX = 180];
     } SST;
-} ../data/coads_climatology.nc4;"#;
+} coads;"#;
 
         assert_eq!(dds.to_string(), tds);
         assert_eq!(dds.size(), 4 * 12 * 90 * 180);
@@ -284,7 +284,7 @@ mod tests {
     Structure {
         Float32 SST[TIME = 6][COADSY = 11][COADSX = 11];
     } SST;
-} ../data/coads_climatology.nc4;"#;
+} coads;"#;
 
         assert_eq!(dds.to_string(), tds);
         assert_eq!(dds.size(), 4 * 6 * 11 * 11);
@@ -305,7 +305,7 @@ mod tests {
     Structure {
         Float64 TIME[TIME = 6];
     } SST;
-} ../data/coads_climatology.nc4;"#;
+} coads;"#;
 
         assert_eq!(dds.to_string(), tds);
         assert_eq!(dds.size(), 8 * 6);
@@ -320,7 +320,7 @@ mod tests {
         let res = r#"Dataset {
     Float32 data[x1 = 2];
     Int64 x1[x1 = 2];
-} ../data/h5/dims_1d.h5;"#;
+} 1d;"#;
 
         assert_eq!(hd.dds.all().to_string(), res);
     }
@@ -341,7 +341,7 @@ mod tests {
     } data;
     Int64 x1[x1 = 2];
     Int64 y1[y1 = 3];
-} ../data/h5/dims_2d.h5;"#;
+} 2d;"#;
 
         assert_eq!(hd.dds.all().to_string(), res);
     }

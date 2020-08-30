@@ -1,19 +1,18 @@
 use crate::hdf5::dds as hdf5dds;
 use dap2::dds::{self, Variable};
-use std::path::PathBuf;
 
 pub struct NcmlDdsBuilder {
     file: hdf5::File,
-    path: PathBuf,
+    key: String,
     dimension: String,
     n: usize,
 }
 
 impl NcmlDdsBuilder {
-    pub fn new(file: hdf5::File, path: PathBuf, dimension: String, n: usize) -> NcmlDdsBuilder {
+    pub fn new(file: hdf5::File, key: String, dimension: String, n: usize) -> NcmlDdsBuilder {
         NcmlDdsBuilder {
             file,
-            path,
+            key,
             dimension,
             n,
         }
@@ -55,6 +54,6 @@ impl dds::ToDds for NcmlDdsBuilder {
     }
 
     fn file_name(&self) -> String {
-        self.path.to_string_lossy().to_string()
+        self.key.clone()
     }
 }

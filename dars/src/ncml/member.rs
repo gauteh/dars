@@ -4,13 +4,12 @@ use async_stream::stream;
 use bytes::Bytes;
 use futures::{pin_mut, Stream, StreamExt};
 
-use crate::hdf5::HDF5File;
 use hidefix::idx;
 
 /// One member of the NCML dataset.
 pub struct NcmlMember {
     pub path: PathBuf,
-    pub key: String,
+    pub idxkey: String,
     pub modified: std::time::SystemTime,
     pub n: usize,
     pub rank: f64,
@@ -26,10 +25,10 @@ impl NcmlMember {
 
         let modified = std::fs::metadata(path)?.modified()?;
 
-        let hf = HDF5File(hdf5::File::open(path)?, path.to_path_buf());
+        let hf = hdf5::File::open(path)?;
 
         // Read size of aggregate dimension
-        let agg = hf.0.dataset(dimension)?;
+        let agg = hf.dataset(dimension)?;
         let n = agg.size();
 
         // Read first value of aggregate dimension
@@ -38,22 +37,22 @@ impl NcmlMember {
             .get(0)
             .ok_or_else(|| anyhow!("aggregate dimension is empty"))?;
 
-        let key = path.to_string_lossy().to_string();
-        if !db.contains_key(&key)? {
+        let idxkey = path.to_string_lossy().to_string();
+        if !db.contains_key(&idxkey)? {
             debug!("Indexing: {:?}..", path);
-            let idx = hdf5::sync::sync(|| idx::Index::index_file(&hf.0, Some(path)))?;
+            let idx = hdf5::sync::sync(|| idx::Index::index_file(&hf, Some(path)))?;
             let bts = bincode::serialize(&idx)?;
 
-            trace!("Inserting index into db ({})", key);
-            db.insert(&key, bts)?;
+            trace!("Inserting index into db ({})", idxkey);
+            db.insert(&idxkey, bts)?;
         } else {
-            trace!("{} already indexed.", key);
+            trace!("{} already indexed.", idxkey);
         };
 
 
         Ok(NcmlMember {
             path: path.into(),
-            key,
+            idxkey,
             modified,
             n,
             rank,
@@ -76,8 +75,8 @@ impl NcmlMember {
 
         debug!("streaming: {} [{:?} / {:?}]", variable, indices, counts);
 
-        trace!("fetching index from db: {}", self.key);
-        let bts = db.get(&self.key)?.unwrap();
+        trace!("fetching index from db: {}", self.idxkey);
+        let bts = db.get(&self.idxkey)?.unwrap();
         let idx = bincode::deserialize::<idx::Index>(&bts)?;
         trace!("creating streamer: {}", variable);
 
@@ -118,7 +117,7 @@ mod tests {
         let m1 = NcmlMember::open("../data/ncml/jan.nc4", "time", &db).unwrap();
         let m2 = NcmlMember::open("../data/ncml/feb.nc4", "time", &db).unwrap();
 
-        assert!(db.contains_key(&m1.key).unwrap());
-        assert!(db.contains_key(&m2.key).unwrap());
+        assert!(db.contains_key(&m1.idxkey).unwrap());
+        assert!(db.contains_key(&m2.idxkey).unwrap());
     }
 }

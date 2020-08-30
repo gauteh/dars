@@ -15,7 +15,6 @@ pub(crate) mod dds;
 /// HDF5 dataset source.
 pub struct Hdf5Dataset {
     path: PathBuf,
-    key: String,
     idxkey: String,
     das: dap2::Das,
     dds: dap2::Dds,
@@ -28,7 +27,7 @@ impl fmt::Debug for Hdf5Dataset {
     }
 }
 
-pub struct HDF5File(pub hdf5::File, pub PathBuf);
+pub struct HDF5File(pub hdf5::File, pub String);
 
 impl Hdf5Dataset {
     pub fn open<P: AsRef<Path>>(path: P, key: String, db: &sled::Db) -> anyhow::Result<Hdf5Dataset> {
@@ -37,7 +36,7 @@ impl Hdf5Dataset {
         let modified = std::fs::metadata(&path)?.modified()?;
 
         let _silence = hdf5::silence_errors();
-        let hf = HDF5File(hdf5::File::open(&path)?, path.into());
+        let hf = HDF5File(hdf5::File::open(&path)?, key.clone());
 
         trace!("Building DAS of {:?}..", path);
         let das = (&hf).into();
@@ -60,7 +59,6 @@ impl Hdf5Dataset {
 
         Ok(Hdf5Dataset {
             path: path.into(),
-            key,
             idxkey,
             das,
             dds,

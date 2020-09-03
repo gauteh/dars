@@ -30,6 +30,9 @@ async fn main() -> anyhow::Result<()> {
 
     info!("𓃢   DARS v{}", VERSION);
 
+    #[cfg(debug_assertions)]
+    info!("Debug build");
+
     let config = config::load_config_with_args()?;
     let data =
         Arc::new(data::Datasets::new_with_datadir(config.root_url.clone(), config.data).await?);

@@ -563,6 +563,7 @@ dependencies = [
 [[package]]
 name = "hdf5"
 version = "0.7.0"
+source = "git+https://github.com/gauteh/hdf5-rust?branch=hidefix#39f5028d7e5541b64af2c9c9c0daaa7cceb94a5a"
 dependencies = [
  "bitflags",
  "hdf5-derive",
@@ -579,6 +580,7 @@ dependencies = [
 [[package]]
 name = "hdf5-derive"
 version = "0.7.0"
+source = "git+https://github.com/gauteh/hdf5-rust?branch=hidefix#39f5028d7e5541b64af2c9c9c0daaa7cceb94a5a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -588,6 +590,7 @@ dependencies = [
 [[package]]
 name = "hdf5-src"
 version = "0.7.0"
+source = "git+https://github.com/gauteh/hdf5-rust?branch=hidefix#39f5028d7e5541b64af2c9c9c0daaa7cceb94a5a"
 dependencies = [
  "cmake",
  "libz-sys",
@@ -596,6 +599,7 @@ dependencies = [
 [[package]]
 name = "hdf5-sys"
 version = "0.7.0"
+source = "git+https://github.com/gauteh/hdf5-rust?branch=hidefix#39f5028d7e5541b64af2c9c9c0daaa7cceb94a5a"
 dependencies = [
  "hdf5-src",
  "libc",
@@ -611,6 +615,7 @@ dependencies = [
 [[package]]
 name = "hdf5-types"
 version = "0.7.0"
+source = "git+https://github.com/gauteh/hdf5-rust?branch=hidefix#39f5028d7e5541b64af2c9c9c0daaa7cceb94a5a"
 dependencies = [
  "ascii",
  "libc",
@@ -653,6 +658,7 @@ dependencies = [
 [[package]]
 name = "hidefix"
 version = "0.1.1"
+source = "git+https://github.com/gauteh/hidefix#ee9858d9c1b534e7d063c3bcad491866da8f4422"
 dependencies = [
  "anyhow",
  "async-stream",

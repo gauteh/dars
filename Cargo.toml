@@ -5,12 +5,11 @@ members = ["dars", "dap2"]
 lto = "fat"
 codegen-units = 1
 
-# We need attributes: https://github.com/aldanor/hdf5-rust/pull/65
 [patch.crates-io]
-# hdf5 = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
-# hdf5-sys = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
-hdf5 = { path = "../hdf5-rust" }
-hdf5-sys = { path = "../hdf5-rust/hdf5-sys" }
+hdf5 = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
+hdf5-sys = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
+# hdf5 = { path = "../hdf5-rust" }
+# hdf5-sys = { path = "../hdf5-rust/hdf5-sys" }
 
-[patch.'https://github.com/gauteh/hidefix']
-hidefix = { path = "../hidefix" }
+# [patch.'https://github.com/gauteh/hidefix']
+# hidefix = { path = "../hidefix" }

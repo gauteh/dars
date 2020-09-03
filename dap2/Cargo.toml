@@ -3,8 +3,12 @@ authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
 edition = "2018"
 name = "dap2"
 version = "0.1.0"
+license = "MIT"
+repository = "https://github.com/gauteh/dars"
+description = "OPeNDAP DAP/2 server-side protocol implementation"
+
 [dependencies]
-anyhow = "*"
-itertools = "*"
-log = "*"
-percent-encoding = "*"
+anyhow = "1"
+itertools = "0.9"
+log = "0.4"
+percent-encoding = "2.1"

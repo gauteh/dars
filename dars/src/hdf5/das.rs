@@ -134,8 +134,8 @@ fn fixedascii_attr_value<T: hdf5::types::Array<Item = u8>>(
 #[cfg(test)]
 mod tests {
     use super::super::Hdf5Dataset;
-    use test::Bencher;
     use crate::data::test_db;
+    use test::Bencher;
 
     #[bench]
     fn coads(b: &mut Bencher) {

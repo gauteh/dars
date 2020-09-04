@@ -2,8 +2,10 @@
 //!
 //! DAP constraints consist of variable list and slices [hyperslabs](crate::hyperslab) of those variables.
 //!
-//! See [Constraint::parse] on how to parse a query into variable constraints. Use
-//! [crate::dds::Dds::dds] to constrain the actual variables of a dataset.
+//! See [Constraint::parse] on how to parse a query into variable constraints. A `Constraint` can
+//! be passed to [crate::dds::Dds::dds] of a data-source to constrain the actual variables of a
+//! dataset, returning a [crate::dds::DdsResponse] with [crate::dds::ConstrainedVariable]s that can
+//! be used to stream the variables of a data-source.
 //!
 //! * Strides are not supported.
 //! * Constraints based on variable value is not supported.

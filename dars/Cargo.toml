@@ -3,18 +3,15 @@ authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
 edition = "2018"
 name = "dars"
 version = "0.1.0"
-
 [[bin]]
 name = "dars"
 path = "src/main.rs"
 
-[lib]
-name = "dars"
-path = "src/lib.rs"
-
 [dependencies]
 anyhow = "*"
 async-stream = "*"
+async-trait = "*"
+bincode = "*"
 bytes = "*"
 colored = "*"
 env_logger = "*"
@@ -35,30 +32,34 @@ tokio-util = "*"
 toml = "*"
 walkdir = "*"
 warp = "*"
-bincode = "*"
 
 [dependencies.dap2]
 path = "../dap2"
 version = "*"
 
-# hdf5 repository is patched at workspace level
 [dependencies.hdf5]
 version = "*"
 
 [dependencies.hdf5-sys]
-version = "*"
 features = ["static", "zlib"]
+version = "*"
 
 [dependencies.hidefix]
-version = "*"
-git = "https://github.com/gauteh/hidefix"
 features = ["fast-index", "static"]
+git = "https://github.com/gauteh/hidefix"
+version = "*"
+
+[dependencies.serde]
+features = ["derive"]
+version = "*"
 
 [dependencies.tokio]
 features = ["full"]
 version = "*"
 
-[dependencies.serde]
-features = ["derive"]
+[lib]
+name = "dars"
+path = "src/lib.rs"
+res = ["derive"]
 version = "*"
 

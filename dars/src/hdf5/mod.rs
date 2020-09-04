@@ -1,12 +1,12 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 
-use async_stream::stream;
+use async_trait::async_trait;
 use bytes::Bytes;
-use futures::{pin_mut, Stream, StreamExt};
+use futures::{Stream, StreamExt};
 
 use dap2::dds::DdsVariableDetails;
-use dap2::dods::xdr_length;
 use hidefix::idx;
 
 mod das;
@@ -19,6 +19,7 @@ pub struct Hdf5Dataset {
     das: dap2::Das,
     dds: dap2::Dds,
     modified: std::time::SystemTime,
+    db: sled::Db,
 }
 
 impl fmt::Debug for Hdf5Dataset {
@@ -30,7 +31,11 @@ impl fmt::Debug for Hdf5Dataset {
 pub struct HDF5File(pub hdf5::File, pub String);
 
 impl Hdf5Dataset {
-    pub fn open<P: AsRef<Path>>(path: P, key: String, db: &sled::Db) -> anyhow::Result<Hdf5Dataset> {
+    pub fn open<P: AsRef<Path>>(
+        path: P,
+        key: String,
+        db: &sled::Db,
+    ) -> anyhow::Result<Hdf5Dataset> {
         let path = path.as_ref();
 
         let modified = std::fs::metadata(&path)?.modified()?;
@@ -47,8 +52,7 @@ impl Hdf5Dataset {
         let idxkey = std::fs::canonicalize(path)?.to_string_lossy().to_string();
         if !db.contains_key(&idxkey)? {
             debug!("Indexing: {:?}..", path);
-            let idx = hdf5::sync::sync(||
-                idx::Index::index_file(&hf.0, Some(&path)))?;
+            let idx = hdf5::sync::sync(|| idx::Index::index_file(&hf.0, Some(&path)))?;
             let bts = bincode::serialize(&idx)?;
 
             trace!("Inserting index into db ({})", idxkey);
@@ -63,15 +67,19 @@ impl Hdf5Dataset {
             das,
             dds,
             modified,
+            db: db.clone(),
         })
     }
+}
 
-    pub async fn raw(
+#[async_trait]
+impl dap2::Dap2 for Hdf5Dataset {
+    async fn raw(
         &self,
     ) -> Result<
         (
             u64,
-            impl Stream<Item = Result<hyper::body::Bytes, std::io::Error>>,
+            Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static>>,
         ),
         std::io::Error,
     > {
@@ -85,25 +93,27 @@ impl Hdf5Dataset {
             (
                 sz,
                 codec::FramedRead::new(file, BytesCodec::new())
-                    .map(|r| r.map(|bytes| bytes.freeze())),
+                    .map(|r| r.map(|bytes| bytes.freeze()))
+                    .boxed(),
             )
         })
     }
 
-    pub async fn das(&self) -> &dap2::Das {
+    async fn das(&self) -> &dap2::Das {
         &self.das
     }
 
-    pub async fn dds(&self) -> &dap2::Dds {
+    async fn dds(&self) -> &dap2::Dds {
         &self.dds
     }
 
-    pub async fn variable(
+    async fn variable(
         &self,
         variable: &DdsVariableDetails,
-        db: sled::Db
-    ) -> Result<impl Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static, anyhow::Error>
-    {
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static>>,
+        anyhow::Error,
+    > {
         let modified = std::fs::metadata(&self.path)?.modified()?;
         if modified != self.modified {
             warn!("{:?} has changed on disk", self.path);
@@ -116,7 +126,7 @@ impl Hdf5Dataset {
         );
 
         trace!("fetching index from db: {}", self.idxkey);
-        let bts = db.get(&self.idxkey)?.unwrap();
+        let bts = self.db.get(&self.idxkey)?.unwrap();
         let idx = bincode::deserialize::<idx::Index>(&bts)?;
 
         trace!("creating streamer: {}", variable.name);
@@ -129,37 +139,22 @@ impl Hdf5Dataset {
         let indices: Vec<u64> = variable.indices.iter().map(|c| *c as u64).collect();
         let counts: Vec<u64> = variable.counts.iter().map(|c| *c as u64).collect();
 
-        let length = if !variable.is_scalar() {
-            Some(Bytes::from(Vec::from(xdr_length(variable.len() as u32))))
-        } else {
-            None
-        };
-
-        let bytes = reader.stream(Some(indices.as_slice()), Some(counts.as_slice()));
-
-        Ok(stream! {
-            if let Some(length) = length {
-                yield Ok(length);
-            }
-
-            pin_mut!(bytes);
-
-            while let Some(b) = bytes.next().await {
-                yield b;
-            }
-        })
+        Ok(reader
+            .stream(Some(indices.as_slice()), Some(counts.as_slice()))
+            .boxed())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data::test_db;
     use dap2::constraint::Constraint;
     use dap2::dds::ConstrainedVariable;
+    use dap2::Dap2;
     use futures::executor::{block_on, block_on_stream};
     use futures::pin_mut;
     use test::Bencher;
-    use crate::data::test_db;
 
     #[test]
     fn open_coads() {
@@ -182,8 +177,7 @@ mod tests {
         } = &dds.variables[0]
         {
             b.iter(|| {
-                let db = db.clone();
-                let reader = block_on(hd.variable(&member, db)).unwrap();
+                let reader = block_on(hd.variable(&member)).unwrap();
                 pin_mut!(reader);
                 block_on_stream(reader).for_each(drop);
             });

@@ -3,9 +3,18 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::{hdf5, ncml};
 use colored::Colorize;
 use walkdir::WalkDir;
+use async_trait::async_trait;
+use bytes::Bytes;
+use futures::Stream;
+use std::pin::Pin;
+
+use dap2::das::Das;
+use dap2::dds::{self, Dds};
+use dap2::Dap2;
+use crate::{hdf5, ncml};
+
 
 /// The map of datasets.
 pub struct Datasets {
@@ -29,7 +38,7 @@ impl Datasets {
         Datasets {
             datasets: HashMap::default(),
             url: None,
-            db: super::test_db()
+            db: super::test_db(),
         }
     }
 
@@ -122,4 +131,57 @@ impl Datasets {
 pub enum DatasetType {
     HDF5(hdf5::Hdf5Dataset),
     NCML(ncml::NcmlDataset),
+}
+
+#[async_trait]
+impl Dap2 for DatasetType {
+    async fn das(&self) -> &Das {
+        use DatasetType::*;
+
+        match self {
+            HDF5(ds) => ds.das().await,
+            NCML(ds) => ds.das().await,
+        }
+    }
+
+    async fn dds(&self) -> &Dds {
+        use DatasetType::*;
+
+        match self {
+            HDF5(ds) => ds.dds().await,
+            NCML(ds) => ds.dds().await,
+        }
+    }
+
+    async fn variable(
+        &self,
+        variable: &dds::DdsVariableDetails,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static>>,
+        anyhow::Error,
+    > {
+        use DatasetType::*;
+
+        match self {
+            HDF5(ds) => ds.variable(variable).await,
+            NCML(ds) => ds.variable(variable).await,
+        }
+    }
+
+    async fn raw(
+        &self,
+    ) -> Result<
+        (
+            u64,
+            Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static>>,
+        ),
+        std::io::Error,
+    > {
+        use DatasetType::*;
+
+        match self {
+            HDF5(ds) => ds.raw().await,
+            NCML(ds) => ds.raw().await,
+        }
+    }
 }

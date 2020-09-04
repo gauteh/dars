@@ -9,14 +9,14 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 #[macro_use]
 extern crate log;
 
-use std::sync::Arc;
 use colored::Colorize;
 use env_logger::Env;
+use std::sync::Arc;
 use warp::Filter;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-use dars::{data, config};
+use dars::{config, data};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

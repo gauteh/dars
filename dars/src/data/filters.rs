@@ -76,7 +76,6 @@ pub fn dods(
                 .and(with_state(state.clone()))
                 .and_then(with_dataset),
         )
-        .and(with_db(state))
         .and(constraint())
         .and_then(handlers::dods)
 }
@@ -97,10 +96,6 @@ pub fn raw(
 
 fn with_state(state: State) -> impl Filter<Extract = (State,), Error = Infallible> + Clone {
     warp::any().map(move || Arc::clone(&state))
-}
-
-fn with_db(state: State) -> impl Filter<Extract = (sled::Db,), Error = Infallible> + Clone {
-    warp::any().map(move || state.db.clone())
 }
 
 fn ends_with(

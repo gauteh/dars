@@ -1,9 +1,11 @@
 use std::cmp::min;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::Arc;
 
 use async_stream::stream;
+use async_trait::async_trait;
 use bytes::{Bytes, BytesMut};
 use futures::{executor::block_on_stream, pin_mut, Stream, StreamExt};
 use roxmltree::Node;
@@ -11,7 +13,6 @@ use walkdir::WalkDir;
 
 use crate::hdf5::HDF5File;
 use dap2::dds::DdsVariableDetails;
-use dap2::dods::xdr_length;
 use hidefix::idx;
 
 mod dds;
@@ -37,6 +38,7 @@ pub struct NcmlDataset {
     coordinates: CoordinateVariable,
     modified: std::time::SystemTime,
     members: Arc<Vec<NcmlMember>>,
+    db: sled::Db,
 }
 
 impl fmt::Debug for NcmlDataset {
@@ -125,6 +127,7 @@ impl NcmlDataset {
             coordinates,
             modified,
             members,
+            db: db.clone(),
         })
     }
 
@@ -206,23 +209,26 @@ impl NcmlDataset {
             .collect::<Result<Vec<Vec<_>>, _>>()
             .map(|vecs| vecs.into_iter().flatten().collect())
     }
+}
 
-    pub async fn das(&self) -> &dap2::Das {
+#[async_trait]
+impl dap2::Dap2 for NcmlDataset {
+    async fn das(&self) -> &dap2::Das {
         &self.das
     }
 
-    pub async fn dds(&self) -> &dap2::Dds {
+    async fn dds(&self) -> &dap2::Dds {
         &self.dds
     }
 
-    pub async fn variable(
+    async fn variable(
         &self,
         variable: &DdsVariableDetails,
-        db: sled::Db,
-    ) -> Result<impl Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static, anyhow::Error>
-    {
-        let modified = std::fs::metadata(&self.path)?.modified()?;
-        if modified != self.modified {
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static>>,
+        anyhow::Error,
+    > {
+        if self.modified != std::fs::metadata(&self.path)?.modified()? {
             warn!("{:?} has changed on disk", self.path);
             return Err(anyhow!("{:?} has changed on disk", self.path));
         }
@@ -235,24 +241,13 @@ impl NcmlDataset {
         let indices: Vec<u64> = variable.indices.iter().map(|c| *c as u64).collect();
         let counts: Vec<u64> = variable.counts.iter().map(|c| *c as u64).collect();
 
-        let length = if !variable.is_scalar() {
-            Some(Bytes::from(Vec::from(xdr_length(variable.len() as u32))))
-        } else {
-            None
-        };
+        let db = self.db.clone();
 
-        enum ABC<A, B, C> {
-            A(A),
-            B(B),
-            C(C),
-        };
-
-        let bytes = if variable.name == self.dimension {
+        Ok(if variable.name == self.dimension {
             // Coordinate dimension (aggregation variable).
-            ABC::A(
-                self.coordinates
-                    .stream(indices.as_slice(), counts.as_slice())?,
-            )
+            self.coordinates
+                .stream(indices.as_slice(), counts.as_slice())?
+                .boxed()
         } else if variable
             .dimensions
             .get(0)
@@ -260,17 +255,16 @@ impl NcmlDataset {
             .unwrap_or(true)
         {
             // Non-aggregated variable, using first member.
-            ABC::B(
-                self.members[0]
-                    .stream(&variable.name, db.clone(), indices.as_slice(), counts.as_slice())
-                    .await?,
-            )
+            self.members[0]
+                .stream(&variable.name, db, indices.as_slice(), counts.as_slice())
+                .await?
+                .boxed()
         } else {
             // Aggregated variable
             let members = Arc::clone(&self.members);
             let var = variable.name.clone();
 
-            ABC::C(stream! {
+            (stream! {
                 trace!("streaming aggregated variable");
                 let mut member_start = 0;
 
@@ -315,35 +309,20 @@ impl NcmlDataset {
 
                     member_start += m.n as u64;
                 }
-            })
-        };
-
-        Ok(stream! {
-            if let Some(length) = length {
-                yield Ok(length);
-            }
-
-            match bytes {
-                ABC::A(bytes) => {
-                    pin_mut!(bytes);
-                    while let Some(b) = bytes.next().await {
-                        yield b;
-                    }
-                },
-                ABC::B(bytes) => {
-                    pin_mut!(bytes);
-                    while let Some(b) = bytes.next().await {
-                        yield b;
-                    }
-                },
-                ABC::C(bytes) => {
-                    pin_mut!(bytes);
-                    while let Some(b) = bytes.next().await {
-                        yield b;
-                    }
-                },
-            }
+            }).boxed()
         })
+    }
+
+    async fn raw(
+        &self,
+    ) -> Result<
+        (
+            u64,
+            Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static>>,
+        ),
+        std::io::Error,
+    > {
+        Err(std::io::Error::from(std::io::ErrorKind::UnexpectedEof))
     }
 }
 
@@ -356,7 +335,11 @@ pub struct CoordinateVariable {
 }
 
 impl CoordinateVariable {
-    pub fn from(members: &Vec<NcmlMember>, dimension: &str, db: &sled::Db) -> anyhow::Result<CoordinateVariable> {
+    pub fn from(
+        members: &Vec<NcmlMember>,
+        dimension: &str,
+        db: &sled::Db,
+    ) -> anyhow::Result<CoordinateVariable> {
         ensure!(!members.is_empty(), "no members");
 
         trace!("Getting member 0: {}", members[0].idxkey);

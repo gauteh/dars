@@ -20,6 +20,11 @@ extern crate log;
 #[macro_use]
 extern crate anyhow;
 
+use async_trait::async_trait;
+use bytes::Bytes;
+use futures::Stream;
+use std::pin::Pin;
+
 pub mod constraint;
 pub mod das;
 pub mod dds;
@@ -29,3 +34,71 @@ pub mod hyperslab;
 pub use constraint::Constraint;
 pub use das::Das;
 pub use dds::Dds;
+pub use dods::Dods;
+
+/// The `Dap2` trait defines the necessary methods for serving a data-source (containing many
+/// variables, or `dataset`s in `HDF5` terms) over the `DAP2` protocol. Additionally the
+/// [dods::Dods] trait which is implemented for sources implementing this trait handles the
+/// streaming a DODS response of several constrained variables.
+#[async_trait]
+pub trait Dap2 {
+    /// Return a reference to a DAS structure for a data-source.
+    async fn das(&self) -> &Das;
+
+    /// Return a reference to a DDS structure for a data-source.
+    async fn dds(&self) -> &Dds;
+
+    /// Stream the bytes of the variable in `XDR` (_big-endian_) format.
+    async fn variable(
+        &self,
+        variable: &dds::DdsVariableDetails,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static>>,
+        anyhow::Error,
+    >;
+
+    /// Stream the raw file (if supported). Should return a tuple with the content-length and a
+    /// stream of [Bytes].
+    async fn raw(
+        &self,
+    ) -> Result<
+        (
+            u64,
+            Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static>>,
+        ),
+        std::io::Error,
+    >;
+}
+
+#[async_trait]
+impl<T: Send + Sync + Dap2> Dap2 for std::sync::Arc<T> {
+    async fn das(&self) -> &Das {
+        T::das(self).await
+    }
+
+    async fn dds(&self) -> &Dds {
+        T::dds(self).await
+    }
+
+    async fn variable(
+        &self,
+        variable: &dds::DdsVariableDetails,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static>>,
+        anyhow::Error,
+    > {
+        T::variable(self, variable).await
+    }
+
+    async fn raw(
+        &self,
+    ) -> Result<
+        (
+            u64,
+            Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static>>,
+        ),
+        std::io::Error,
+    > {
+        T::raw(self).await
+    }
+}

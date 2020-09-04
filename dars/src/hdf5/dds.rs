@@ -65,12 +65,8 @@ pub(crate) fn hdf5_dimensions(m: &str, dataset: &hdf5::Dataset) -> Vec<String> {
                 for i in 0..len {
                     let r = rdata.offset(i as isize);
                     let p = (*r).p;
-                    let dset = hs::h5r::H5Rdereference2(
-                        id,
-                        hs::h5p::H5P_DEFAULT,
-                        hs::h5r::H5R_OBJECT1,
-                        p,
-                        );
+                    let dset =
+                        hs::h5r::H5Rdereference2(id, hs::h5p::H5P_DEFAULT, hs::h5r::H5R_OBJECT1, p);
 
                     let sz = 1 + hs::h5i::H5Iget_name(dset, std::ptr::null_mut(), 0);
                     let sz: usize = sz.try_into().unwrap();
@@ -92,7 +88,8 @@ pub(crate) fn hdf5_dimensions(m: &str, dataset: &hdf5::Dataset) -> Vec<String> {
                 hs::h5t::H5Tclose(tid);
 
                 dims
-            }})
+            }
+        })
     } else {
         vec![m.to_string()]
     }
@@ -129,9 +126,9 @@ impl dds::ToDds for &HDF5File {
 #[cfg(test)]
 mod tests {
     use super::super::Hdf5Dataset;
+    use crate::data::test_db;
     use dap2::constraint::Constraint;
     use test::Bencher;
-    use crate::data::test_db;
 
     #[bench]
     fn coads(b: &mut Bencher) {
@@ -185,7 +182,6 @@ mod tests {
         Float64 COADSX[COADSX = 180];
     } VWND;
 } coads;"#;
-
 
         assert_eq!(hd.dds.all().to_string(), tds);
     }

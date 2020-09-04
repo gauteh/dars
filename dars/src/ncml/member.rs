@@ -49,7 +49,6 @@ impl NcmlMember {
             trace!("{} already indexed.", idxkey);
         };
 
-
         Ok(NcmlMember {
             path: path.into(),
             idxkey,

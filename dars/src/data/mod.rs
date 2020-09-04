@@ -46,15 +46,25 @@ pub fn test_state() -> State {
     data.datasets.insert(
         "coads_climatology.nc4".to_string(),
         Arc::new(DatasetType::HDF5(
-                hdf5::Hdf5Dataset::open("../data/coads_climatology.nc4", "nested/coads_climatology.nc4".into(), &data.db).unwrap(),
-                )),
-                );
+            hdf5::Hdf5Dataset::open(
+                "../data/coads_climatology.nc4",
+                "nested/coads_climatology.nc4".into(),
+                &data.db,
+            )
+            .unwrap(),
+        )),
+    );
     data.datasets.insert(
         "nested/coads_climatology.nc4".to_string(),
         Arc::new(DatasetType::HDF5(
-                hdf5::Hdf5Dataset::open("../data/coads_climatology.nc4", "nested/coads_climatology.nc4".into(), &data.db).unwrap(),
-                )),
-                );
+            hdf5::Hdf5Dataset::open(
+                "../data/coads_climatology.nc4",
+                "nested/coads_climatology.nc4".into(),
+                &data.db,
+            )
+            .unwrap(),
+        )),
+    );
     Arc::new(data)
 }
 
@@ -66,4 +76,3 @@ pub fn test_db() -> sled::Db {
         .open()
         .unwrap()
 }
-

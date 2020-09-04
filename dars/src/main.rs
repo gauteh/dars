@@ -8,26 +8,19 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate anyhow;
 
 use std::sync::Arc;
-
 use colored::Colorize;
 use env_logger::Env;
 use warp::Filter;
 
-mod config;
-mod data;
-mod hdf5;
-mod ncml;
-
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+use dars::{data, config};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::from_env(Env::default().default_filter_or("dars=info")).init();
-
     info!("𓃢   DARS v{}", VERSION);
 
     #[cfg(debug_assertions)]

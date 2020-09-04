@@ -3,6 +3,15 @@ authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
 edition = "2018"
 name = "dars"
 version = "0.1.0"
+
+[[bin]]
+name = "dars"
+path = "src/main.rs"
+
+[lib]
+name = "dars"
+path = "src/lib.rs"
+
 [dependencies]
 anyhow = "*"
 async-stream = "*"

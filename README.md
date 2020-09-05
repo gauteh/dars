@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/gauteh/dars.svg?branch=master)](https://travis-ci.org/gauteh/dars)
+[![Docker Automated build](https://img.shields.io/docker/automated/gauteh/dars)](https://hub.docker.com/repository/docker/gauteh/dars)
 
 # 𓃢   DARS
 
@@ -34,6 +35,8 @@ $ cargo install --path dars
 A list of datasets and DAP URLs can be queried at: `http://localhost:8001/data/` (use `curl -Haccept:application/json http://localhost:8001/data/` to JSON). Use e.g. `ncdump -h http://..` to explore the datasets.
 
 ## Docker
+
+Use [gauteh/dars](https://hub.docker.com/repository/docker/gauteh/dars) or build yourself:
 
 ```sh
 $ docker build -t dars .

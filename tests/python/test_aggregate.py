@@ -21,7 +21,7 @@ def test_aggregate_slice_offset_t(dars, data):
   d = Dataset(dars + "ncml/aggExisting.ncml")
   ap = d['P'][3:40,:,:]
 
-  d = Dataset(data + "ncml/jan.nc")
+  d = Dataset(data + "ncml/jan.nc4")
   dp = d['P'][3:,:,:]
 
   np.testing.assert_array_equal(ap[:31-3,:,:], dp[:,:,:])

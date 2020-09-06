@@ -37,6 +37,11 @@ warp = "*"
 path = "../dap2"
 version = "*"
 
+[dependencies.dars-catalog]
+path = "../dars-catalog"
+version = "*"
+optional = true
+
 [dependencies.hdf5]
 version = "*"
 
@@ -63,3 +68,5 @@ path = "src/lib.rs"
 res = ["derive"]
 version = "*"
 
+[features]
+catalog = ["dars-catalog"]

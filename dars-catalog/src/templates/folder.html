@@ -1,0 +1,49 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>dars: {{ title }}</title>
+        <!-- Google Fonts -->
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
+
+        <!-- CSS Reset -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css">
+
+        <!-- Milligram CSS -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.css">
+    <style>
+        body {
+            margin-left: 24px;
+            margin-right: 24px;
+        }
+    </style>
+    </head>
+    <body>
+        <p>
+            <h1>𓃢  DARS DAP server</h1>
+            <h2>{{ title }}</h2>
+        </p>
+
+        <table>
+            <tr>
+                <td>📂 <a href="../">..</a></td>
+            </tr>
+            {% for f in folders -%}
+            <tr>
+                <td>📂 <a href="./{{ f }}">{{ f }}</a></td>
+            </tr>
+            {%- endfor %}
+
+            {% for d in datasets -%}
+            <tr>
+                <td>🖫 <a href="./{{ d }}">{{ d }}</a></td>
+            </tr>
+            {%- endfor %}
+        </table>
+
+        <div>
+            <a href="https://github.com/gauteh/dars">github</a>
+        </div>
+
+    </body>
+</html>
+

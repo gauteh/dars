@@ -10,6 +10,7 @@ hyper = "*"
 tera = "*"
 anyhow = "*"
 lazy_static = "*"
+rust-embed = "*"
 
 [dev-dependencies]
 futures = "*"

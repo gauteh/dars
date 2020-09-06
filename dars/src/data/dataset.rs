@@ -23,6 +23,13 @@ pub struct Datasets {
     pub db: sled::Db,
 }
 
+#[cfg(feature = "catalog")]
+impl dars_catalog::Catalog for Datasets {
+    fn paths<'a>(&'a self) -> Box<dyn Iterator<Item = &str> + 'a> {
+        Box::new(self.datasets.keys().map(|s| s.as_str()))
+    }
+}
+
 impl Datasets {
     pub fn get<Q>(&self, key: &Q) -> Option<&Arc<DatasetType>>
     where

@@ -6,7 +6,7 @@ use warp::Filter;
 use crate::handlers;
 use crate::Catalog;
 
-pub fn catalog<T: Catalog>(
+pub fn catalog<T: Catalog + Clone>(
     root: String,
     tera: Arc<Tera>,
     catalog: T,
@@ -14,7 +14,7 @@ pub fn catalog<T: Catalog>(
     folder(root, tera, catalog)
 }
 
-fn folder<T: Catalog>(
+fn folder<T: Catalog + Clone>(
     root: String,
     tera: Arc<Tera>,
     catalog: T,
@@ -29,31 +29,47 @@ fn folder<T: Catalog>(
 }
 
 /// Return the elements of the folder, if the path represents a folder.
-fn elements<T: Catalog>(
+fn elements<T: Catalog + Clone>(
     catalog: T,
-) -> impl Filter<Extract = (Vec<String>,), Error = warp::reject::Rejection> + Clone {
-    warp::path::tail().and_then(move |tail: warp::filters::path::Tail| {
-        let catalog = catalog.clone();
-        async move {
-            let tail = tail.as_str();
-            let paths = catalog
-                .paths()
-                .filter_map(|p| {
-                    if p.starts_with(tail) {
-                        Some(String::from(p))
-                    } else {
-                        None
+) -> impl Filter<Extract = (String, (Vec<String>, Vec<String>)), Error = warp::reject::Rejection> + Clone {
+    warp::path::peek()
+        .map(|p: warp::filters::path::Peek| p.as_str().to_string())
+        .and(
+            warp::path::tail().and_then(move |tail: warp::filters::path::Tail| {
+                let catalog = catalog.clone();
+                async move {
+                    let mut tail = tail.as_str().to_string();
+                    if tail.len() > 0 && !tail.ends_with('/') {
+                        tail.push('/');
                     }
-                })
-                .collect::<Vec<String>>();
 
-            if paths.len() == 0 || (paths.len() == 1 && paths[0] == tail) {
-                Err(warp::reject())
-            } else {
-                Ok(paths)
-            }
-        }
-    })
+                    let (folders, mut paths) = catalog
+                        .paths()
+                        .filter_map(|p| {
+                            if p.starts_with(&tail) {
+                                Some(String::from(p))
+                            } else {
+                                None
+                            }
+                        })
+                        .partition::<Vec<String>, _>(|p| p[tail.len()..].contains('/'));
+
+                    paths.sort();
+
+                    // remove trailing names + make unique
+                    let mut folders = folders.iter().map(|p|
+                        p[..p.find('/').unwrap()].to_string()).collect::<Vec<String>>();
+                    folders.sort();
+                    folders.dedup();
+
+                    if paths.len() == 0 || (paths.len() == 1 && paths[0] == tail) {
+                        Err(warp::reject())
+                    } else {
+                        Ok((folders, paths))
+                    }
+                }
+            }),
+        )
 }
 
 fn with_root(root: String) -> impl Filter<Extract = (String,), Error = Infallible> + Clone {
@@ -74,7 +90,10 @@ mod tests {
             block_on(
                 warp::test::request()
                     .path("/path1/")
-                    .filter(&elements(catalog))).unwrap(),
-            ["path1/hula.nc", "path1/hula2.nc"]);
+                    .filter(&elements(catalog))
+            )
+            .unwrap().1,
+            ["path1/hula.nc", "path1/hula2.nc"]
+        );
     }
 }

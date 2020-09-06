@@ -1,0 +1,16 @@
+[package]
+authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
+edition = "2018"
+name = "dars-catalog"
+version = "0.1.0"
+
+[dependencies]
+warp = "*"
+hyper = "*"
+tera = "*"
+anyhow = "*"
+lazy_static = "*"
+
+[dev-dependencies]
+futures = "*"
+

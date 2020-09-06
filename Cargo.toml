@@ -1,5 +1,5 @@
 [workspace]
-members = ["dars", "dap2"]
+members = ["dars", "dap2", "dars-catalog"]
 
 [profile.release]
 lto = "fat"

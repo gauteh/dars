@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/gauteh/dars.svg?branch=master)](https://travis-ci.org/gauteh/dars)
-[![Docker Automated build](https://img.shields.io/docker/automated/gauteh/dars)](https://hub.docker.com/repository/docker/gauteh/dars)
+[![Docker Automated build](https://img.shields.io/docker/cloud/automated/gauteh/dars)](https://hub.docker.com/r/gauteh/dars)
 
 # 𓃢   DARS
 

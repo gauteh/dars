@@ -107,8 +107,8 @@ mod tests {
                     .path("/path1/")
                     .filter(&elements(catalog))
             )
-            .unwrap().1,
-            ["path1/hula.nc", "path1/hula2.nc"]
+            .unwrap().1.1,
+            ["hula.nc", "hula2.nc"]
         );
     }
 }

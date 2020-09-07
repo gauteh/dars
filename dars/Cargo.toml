@@ -3,6 +3,7 @@ authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
 edition = "2018"
 name = "dars"
 version = "0.1.0"
+
 [[bin]]
 name = "dars"
 path = "src/main.rs"
@@ -50,7 +51,7 @@ features = ["static", "zlib"]
 version = "*"
 
 [dependencies.hidefix]
-features = ["fast-index", "static"]
+features = ["static"]
 git = "https://github.com/gauteh/hidefix"
 version = "*"
 
@@ -65,8 +66,9 @@ version = "*"
 [lib]
 name = "dars"
 path = "src/lib.rs"
-res = ["derive"]
-version = "*"
 
 [features]
+default = ["catalog", "fast-index"]
 catalog = ["dars-catalog"]
+fast-index = ["hidefix/fast-index"]
+

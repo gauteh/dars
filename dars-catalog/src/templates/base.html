@@ -1,0 +1,55 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>dars: {{ title }}</title>
+        <!-- Google Fonts -->
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
+
+        <!-- CSS Reset -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css">
+
+        <!-- Milligram CSS -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.css">
+    <style>
+        body {
+            margin-left: auto;
+            margin-right: auto;
+            max-width: 900px;
+        }
+
+        .detail-col {
+            width: 1%;
+            whitespace: nowrap;
+            padding: 0.5rem !important;
+        }
+
+        .name-col {
+            width: 100%;
+        }
+
+        .explore {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .button {
+            margin: 0px !important;
+            padding: 0 1.0rem !important;
+        }
+    </style>
+    </head>
+    <body>
+        {% block content %}
+        {% endblock content %}
+        <hr>
+        <div>
+            𓃢  The <a href="https://github.com/gauteh/dars">DARS</a> minimal <a href="https://www.opendap.org/">OPeNDAP</a> server
+            <a href="https://github.com/gauteh/dars/blob/master/LICENSE"><img style="vertical-align: middle" src="https://img.shields.io/github/license/gauteh/dars.svg"></a>
+            <a href="https://github.com/gauteh/dars"><img style="vertical-align: middle" alt="GitHub" src="https://img.shields.io/badge/github-𓃢 %20dars-blue"></a>
+        </div>
+
+    </body>
+</html>
+
+

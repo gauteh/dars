@@ -12,6 +12,10 @@ anyhow = "*"
 lazy_static = "*"
 rust-embed = "*"
 
+[dependencies.serde]
+features = ["derive"]
+version = "*"
+
 [dev-dependencies]
 futures = "*"
 

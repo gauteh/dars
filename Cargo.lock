@@ -355,6 +355,7 @@ dependencies = [
  "hyper",
  "lazy_static",
  "rust-embed",
+ "serde",
  "tera",
  "warp",
 ]

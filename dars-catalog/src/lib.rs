@@ -20,7 +20,7 @@ pub fn catalog<T: Catalog + Clone>(
     lazy_static! {
         static ref TERA: Arc<Tera> = {
             let mut tera = Tera::default();
-            for t in Templates::iter() {
+            for t in &["base.html", "folder.html", "index.html"] {
                 let template = Templates::get(&t).unwrap();
                 let template = std::str::from_utf8(&template).unwrap();
                 tera.add_raw_template(&t, &template).unwrap();

@@ -1,49 +1,26 @@
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <title>dars: {{ title }}</title>
-        <!-- Google Fonts -->
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
+{% extends "base.html" %}
+{% block content %}
+<p>
+    <h1><a href="{{ root }}/">𓃢 </a> <a href="{{ root}}/data/">data/</a>{{ title }}</h1>
+</p>
+<hr />
 
-        <!-- CSS Reset -->
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css">
+<table>
+    {% for f in folders -%}
+    <tr>
+        <td colspan="5">📂 <a href="{{ f.path }}">{{ f.display }}/</a></td>
+    </tr>
+    {%- endfor %}
 
-        <!-- Milligram CSS -->
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.css">
-    <style>
-        body {
-            margin-left: 24px;
-            margin-right: 24px;
-        }
-    </style>
-    </head>
-    <body>
-        <p>
-            <h1>𓃢  DARS DAP server</h1>
-            <h2>{{ title }}</h2>
-        </p>
-
-        <table>
-            <tr>
-                <td>📂 <a href="../">..</a></td>
-            </tr>
-            {% for f in folders -%}
-            <tr>
-                <td>📂 <a href="./{{ f }}">{{ f }}</a></td>
-            </tr>
-            {%- endfor %}
-
-            {% for d in datasets -%}
-            <tr>
-                <td>🖫 <a href="./{{ d }}">{{ d }}</a></td>
-            </tr>
-            {%- endfor %}
-        </table>
-
-        <div>
-            <a href="https://github.com/gauteh/dars">github</a>
-        </div>
-
-    </body>
-</html>
+    {% for d in datasets -%}
+    <tr>
+        <td>🖫 <a href="{{ d.path }}">{{ d.display }}</a></td>
+        <td class="detail-col"><a class="button" href="{{ d.path }}">DAP/2</a></td>
+        <td class="detail-col"><a class="button button-outline" href="{{ d.path }}.das">DAS</a></td>
+        <td class="detail-col"><a class="button button-outline" href="{{ d.path }}.dds">DDS</a></td>
+        <td class="detail-col"><a class="button button-outline" href="{{ d.path }}">RAW</a></td>
+    </tr>
+    {%- endfor %}
+</table>
+{% endblock content %}
 

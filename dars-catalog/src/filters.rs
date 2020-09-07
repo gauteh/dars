@@ -11,7 +11,21 @@ pub fn catalog<T: Catalog + Clone>(
     tera: Arc<Tera>,
     catalog: T,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    folder(root, tera, catalog)
+    index(root.clone(), tera.clone(), catalog.clone())
+        .or(folder(root, tera, catalog))
+}
+
+fn index<T: Catalog + Clone>(
+    root: String,
+    tera: Arc<Tera>,
+    catalog: T,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path::end()
+        .and(warp::get())
+        .and(with_root(root))
+        .map(move |r| (r, Arc::clone(&tera), catalog.clone()))
+        .untuple_one()
+        .and_then(handlers::index)
 }
 
 fn folder<T: Catalog + Clone>(
@@ -47,21 +61,22 @@ fn elements<T: Catalog + Clone>(
                         .paths()
                         .filter_map(|p| {
                             if p.starts_with(&tail) {
-                                Some(String::from(p))
+                                Some(String::from(&p[tail.len()..]))
                             } else {
                                 None
                             }
                         })
-                        .partition::<Vec<String>, _>(|p| p[tail.len()..].contains('/'));
+                        .partition::<Vec<String>, _>(|p| p.contains('/'));
 
                     paths.sort();
 
-                    // remove trailing names + make unique
+                    // Remove trailing names + make unique
                     let mut folders = folders.iter().map(|p|
-                        p[..p.find('/').unwrap()].to_string()).collect::<Vec<String>>();
+                        p[..(1+p[1..].find('/').unwrap())].to_string()).collect::<Vec<String>>();
                     folders.sort();
                     folders.dedup();
 
+                    // No such path or matches exact data source
                     if paths.len() == 0 || (paths.len() == 1 && paths[0] == tail) {
                         Err(warp::reject())
                     } else {

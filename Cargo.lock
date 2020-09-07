@@ -297,7 +297,7 @@ dependencies = [
 
 [[package]]
 name = "dap2"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -776,8 +776,9 @@ dependencies = [
 
 [[package]]
 name = "hidefix"
-version = "0.1.1"
-source = "git+https://github.com/gauteh/hidefix#db2fd5f8d2f9c98ab363fcda290a89d74b36dd5f"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8cab4568e6707f6eab49d08d5cf3ee3d057f1dcb9f27df458099b958489271fb"
 dependencies = [
  "anyhow",
  "async-stream",

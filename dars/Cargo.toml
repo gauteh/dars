@@ -55,8 +55,7 @@ version = "*"
 
 [dependencies.hidefix]
 features = ["static"]
-git = "https://github.com/gauteh/hidefix"
-version = "*"
+version = "0.2"
 
 [dependencies.serde]
 features = ["derive"]

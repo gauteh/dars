@@ -5,6 +5,8 @@
 
 DARS is an *asynchronous* _DAP/2_ server written in Rust aimed at being *fast* and *lightweight*. It supports a subset of the [OPeNDAP protocol](https://opendap.github.io/documentation/UserGuideComprehensive.html). It aims to only serve the `DAP` protocol, not common services like a catalog or a WMS.
 
+See a live demo at: [http://dars.vetsj.com](http://dars.vetsj.com).
+
 ## OPeNDAP server implementation and file formats
 
 Variable and hyperslab [constraints](https://opendap.github.io/documentation/UserGuideComprehensive.html#Constraint_Expressions), _except strides_, are implemented. File formats based on `HDF5` are supported:
@@ -32,11 +34,11 @@ or install with:
 $ cargo install --path dars
 ```
 
-A list of datasets and DAP URLs can be queried at: `http://localhost:8001/data/` (use `curl -Haccept:application/json http://localhost:8001/data/` to JSON). Use e.g. `ncdump -h http://..` to explore the datasets.
+A list of datasets and DAP URLs can be queried at: `http://localhost:8001/data/` (use `curl -Haccept:application/json http://localhost:8001/data/` to get JSON). Use e.g. `ncdump -h http://..` to explore the datasets.
 
 ## Docker
 
-Use [gauteh/dars](https://hub.docker.com/repository/docker/gauteh/dars) or build yourself:
+Use [gauteh/dars](https://hub.docker.com/r/gauteh/dars) or build yourself:
 
 ```sh
 $ docker build -t dars .

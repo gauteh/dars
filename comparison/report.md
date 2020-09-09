@@ -9,9 +9,10 @@ csl: https://www.zotero.org/styles/the-journal-of-the-acoustical-society-of-amer
 
 # Benchmark comparison of Dars with Thredds and Hyrax
 
-The three servers are started in docker containers on the same machine (at the
-same time). The tests are run on each server sequentially. Since each test does
-the same request multiple times we are measuring a warmed-up system.
+The three servers are started in docker containers on the same machine (but not
+at the same time). All the tests are run on each server sequentially, giving
+the server some time to calm down between test. Since each test does the same
+request multiple times we are measuring a warmed-up system.
 
 ## Criteria
 
@@ -23,70 +24,59 @@ These are the criteria the servers are compared on:
 
 The acceptable level of requests per seconds, or the number of requests per
 seconds a server can deliver without exhausting resources or encountering
-errors will be very different. It will therefore probably be necessary to
-compare latency histograms under different loads.
+errors will be very different. This makes it difficult to compare latency
+between servers, and the first benchmarks will try to determine maximum
+requests per seconds.
 
 ## Cases
 
 The cases that will be compared are:
 
   * Fetch metadata (`.das` and `.dds`) for a dataset.
-  * Fetch a small slice
-  * Fetch a large slice
+  * Fetch a small slice through an entire _large_ dataset (40 kb)
+  * Fetch the entire large dataset (464 mb)
+  * Fetch an entire smaller dataset (759 kb)
 
-The dataset variables are shuffled and compressed using zlib DEFLATE (gzip).
+The large dataset is chunked, shuffled and compressed using zlib DEFLATE
+(gzip), while the small dataset is chunked, but uncompressed.
 
-## Measuring
+# Requests per second
 
-First the
-The latency and maximum (acceptable) request-per-seconds will be measured using `wrk2`. The system resource usage will be monitored using `docker stats`.
+Ideally the latency at a given load (requests per second) should be shown. The
+higher percentiles are the most interesting. However, the servers perform very
+differently and latency is difficult to compare at the same number of requests
+per seconds. First we therefore try to compare the maximum number of requests
+per second. `wrk` is used to make as many requests as possible over _20
+seconds_ with _10 concurrent_ connections and _2 threads_. The resource usage
+is monitored using `docker stats`.
 
-# Experiment
+![Requests per second](rps_meta.png)
 
-## Before starting
+![Requests per second](rps_data.png)
 
-Idle servers show:
+Note that `Thredds` experiences frequent `Out of memory`-errors during the
+large dataset test. The requests had to be limited to 2 requests per second
+(using `wrk2`), this still caused OOM-errors in the server log, but apparently
+none that caused bad HTTP status codes.
+
+## Resource usage
+
+The test machine has 8 CPUs (max. 800% utilization) and about 31Gb memory. As
+the tests above were run the CPU utilization and memory was read off `docker
+stats`. They should be read with care. Especially memory is unreliable since
+the allocator, and garbage collector, might release memory back to the system
+at it's leisure. Memory might also appear high until some other program
+requests more.
 
 |           | CPU      | Memory    | PIDs  |
 | :-------- | -------: | --------: | ----: |
 | Thredds   | 0.1%     | 1.47GB    | 45    |
 | Hyrax     | 0.1%     | 345MB     | 50    |
 | Dars      | 0.02%    | 62MB      | 16    |
+: CPU and memory load when server is idle
 
 
-## Request per seconds
+![CPU and memory load during metadata tests](load_meta.png)
 
-Server load:
-
-das
-
-|         | CPU | Memory | PIDs |
-| --      | --  | ---    | --   |
-| Dars    | 150 | 80mb   | 16   |
-| Thredds | 550 | 2.2gb  | 47   |
-| Hyrax   | 250 | 750mb  |      |
-
-dds
-
-|         | CPU | Memory | PIDs |
-| --      | --  | ---    | --   |
-| Dars    | 380 | 53mb   | 16   |
-| Thredds | 650 | 2.2gb  | 47   |
-| Hyrax   | 250 | 650    | 69   |
-
-dods small
-
-|         | CPU | Memory | PIDs |
-| --      | --  | ---    | --   |
-| Dars    | 760 | 80mb   | 16   |
-| Thredds | 730 | 3gb    | 48   |
-| Hyrax   | 650 | 730mb  | 69   |
-
-dods big
-
-|         | CPU | Memory | PIDs |
-| --      | --  | ---    | --   |
-| Dars    | 690 | 1.1gb  | 16   |
-| Thredds | 500 | 5.2gb  | 48   |
-| Hyrax   | 792 | 8gb    | 62   |
+![CPU and memory load during data loads](load_data.png)
 

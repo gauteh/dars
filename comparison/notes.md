@@ -21,6 +21,4 @@ Cases:
   * all servers in docker containers
   * (it would be nice to do a test scenario with several consequent urls simulating a data fetch, and also measure cold-start time)
 
-## URLs
-
 

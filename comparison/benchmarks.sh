@@ -9,6 +9,7 @@ hyrax="http://localhost:8003/opendap/"
 das_1="meps_det_vc_2_5km_latest.nc.das"
 dds_1="meps_det_vc_2_5km_latest.nc.dds"
 dods_1="meps_det_vc_2_5km_latest.nc.dods"
+dods_2="coads_climatology.nc4.dods?SST.SST"
 
 function uriencode { jq -nr --arg v "$1" '$v|@uri'; }
 
@@ -18,10 +19,23 @@ small_slice="x_wind_ml.x_wind_ml[1:10][0][0][0:1000]"
 big_slice=$(uriencode "${big_slice}")
 small_slice=$(uriencode "${small_slice}")
 
-# curl "${hyrax}${dods_1}?${small_slice}"
-# curl "${dars}${dods_1}?${small_slice}"
+function parse_wrk() {
+  # read in
+  in="$(</dev/stdin)"
 
-echo "Simple benchmarks (requests/sec using wrk)"
+  # Check for errors
+  echo "${in}" | grep 'Non-2xx' > /dev/null && echo "-1" && return 1
+
+  echo "${in}" | grep 'Requests/sec' | awk '{print $2}'
+}
+
+function parse_ac() {
+  jq '.requests.average'
+}
+
+tool="wrk"
+
+echo "Simple benchmarks (requests/sec using ${tool})"
 mkdir -p out
 
 #### DAS
@@ -30,26 +44,26 @@ if [[ "$1" == "das" || "$1" == "all" ]]; then
 
   if [[ "$2" == "dars" || "$2" == "all" ]]; then
     echo -n "dars: "
-    wrk -d 20 "${dars}${das_1}" | tee out/dars_das_1.wrk | grep 'Requests/sec' | awk '{print $2}' | tee -a out/das_1.rps
+    $tool -d 20 "${dars}${das_1}" | tee out/dars_das_1.wrk | parse_wrk
   fi
 
   if [[ "$2" == "thredds" || "$2" == "all" ]]; then
     echo -n "thredds: "
     sleep 2
-    wrk -d 20 "${thredds}${das_1}" | tee out/thredds_das_1.wrk | grep 'Requests/sec' | awk '{print $2}' | tee -a out/das_1.rps
+    $tool -d 20 "${thredds}${das_1}" | tee out/thredds_das_1.wrk | parse_wrk
   fi
 
   if [[ "$2" == "hyrax" || "$2" == "all" ]]; then
     echo -n "hyrax: "
     sleep 2
-    wrk -d 20 "${hyrax}${das_1}" | tee out/hyrax_das_1.wrk | grep 'Requests/sec' | awk '{print $2}' | tee -a out/das_1.rps
+    $tool -d 20 "${hyrax}${das_1}" | tee out/hyrax_das_1.wrk | parse_wrk
   fi
 
   # collect results
-  echo > out/das_1.rps
-  grep 'Requests/sec' out/dars_das_1.wrk | awk '{print $2}' >> -a out/das_1.rps
-  grep 'Requests/sec' out/thredas_das_1.wrk | awk '{print $2}' >> -a out/das_1.rps
-  grep 'Requests/sec' out/hyrax_das_1.wrk | awk '{print $2}' >> -a out/das_1.rps
+  : > out/das_1.rps
+  cat out/dars_das_1.wrk | parse_wrk >> out/das_1.rps
+  cat out/thredds_das_1.wrk | parse_wrk >> out/das_1.rps
+  cat out/hyrax_das_1.wrk | parse_wrk >> out/das_1.rps
 fi
 
 #### DDS
@@ -59,86 +73,117 @@ if [[ "$1" == "dds" || "$1" == "all" ]]; then
   if [[ "$2" == "dars" || "$2" == "all" ]]; then
     echo -n "dars: "
     sleep 2
-    wrk -d 20 "${dars}${dds_1}" | tee out/dars_dds_1.wrk | grep 'Requests/sec' | awk '{print $2}'
+    $tool -d 20 "${dars}${dds_1}" | tee out/dars_dds_1.wrk | parse_wrk
   fi
 
   if [[ "$2" == "thredds" || "$2" == "all" ]]; then
     echo -n "thredds: "
     sleep 2
-    wrk -d 20 "${thredds}${dds_1}" | tee out/thredds_dds_1.wrk | grep 'Requests/sec' | awk '{print $2}'
+    $tool -d 20 "${thredds}${dds_1}" | tee out/thredds_dds_1.wrk | parse_wrk
   fi
 
   if [[ "$2" == "hyrax" || "$2" == "all" ]]; then
     echo -n "hyrax: "
     sleep 2
-    wrk -d 20 "${hyrax}${dds_1}" | tee out/hyrax_dds_1.wrk | grep 'Requests/sec' | awk '{print $2}'
+    $tool -d 20 "${hyrax}${dds_1}" | tee out/hyrax_dds_1.wrk | parse_wrk
   fi
 
   # collect results
-  echo > out/dds_1.rps
-  grep 'Requests/sec' out/dars_dds_1.wrk | awk '{print $2}' >> -a out/dds_1.rps
-  grep 'Requests/sec' out/thredds_dds_1.wrk | awk '{print $2}' >> -a out/dds_1.rps
-  grep 'Requests/sec' out/hyrax_dds_1.wrk | awk '{print $2}' >> -a out/dds_1.rps
+  : > out/dds_1.rps
+  cat out/dars_dds_1.wrk | parse_wrk >> out/dds_1.rps
+  cat out/thredds_dds_1.wrk | parse_wrk >> out/dds_1.rps
+  cat out/hyrax_dds_1.wrk | parse_wrk >> out/dds_1.rps
 fi
 
 #### Small slice
-if [[ "$1" == "dods1" || "$1" == "all" ]]; then
+if [[ "$1" == "dods1s" || "$1" == "all" ]]; then
   dods="${dods_1}?${small_slice}"
   echo "DODS(small): ${dods}"
 
   if [[ "$2" == "dars" || "$2" == "all" ]]; then
     echo -n "dars: "
     sleep 2
-    wrk -d 20 "${dars}${dods}" | tee out/dars_dods_1_small.wrk | grep 'Requests/sec' | awk '{print $2}'
+    $tool -d 20 "${dars}${dods}" | tee out/dars_dods_1_small.wrk | parse_wrk
   fi
 
   if [[ "$2" == "thredds" || "$2" == "all" ]]; then
     echo -n "thredds: "
     sleep 2
-    wrk -d 20 "${thredds}${dods}" | tee out/thredds_dods_1_small.wrk | grep 'Requests/sec' | awk '{print $2}'
+    $tool -d 20 "${thredds}${dods}" | tee out/thredds_dods_1_small.wrk | parse_wrk
   fi
 
   if [[ "$2" == "hyrax" || "$2" == "all" ]]; then
     echo -n "hyrax: "
     sleep 2
-    wrk -d 20 "${hyrax}${dods}" | tee out/hyrax_dods_1_small.wrk | grep 'Requests/sec' | awk '{print $2}'
+    $tool -d 20 "${hyrax}${dods}" | tee out/hyrax_dods_1_small.wrk | parse_wrk
   fi
 
   # collect results
-  echo > out/dods_1_small.rps
-  grep 'Requests/sec' out/dars_dods_1_small.wrk | awk '{print $2}' >> -a out/dods_1_small.rps
-  grep 'Requests/sec' out/thredds_dods_1_small.wrk | awk '{print $2}' >> -a out/dods_1_small.rps
-  grep 'Requests/sec' out/hyrax_dods_1_small.wrk | awk '{print $2}' >> -a out/dods_1_small.rps
+  : > out/dods_1_small.rps
+  cat out/dars_dods_1_small.wrk | parse_wrk >> out/dods_1_small.rps
+  cat out/thredds_dods_1_small.wrk | parse_wrk >> out/dods_1_small.rps
+  cat out/hyrax_dods_1_small.wrk | parse_wrk >> out/dods_1_small.rps
 fi
 
 #### Big slice
-if [[ "$1" == "dods2" || "$1" == "all" ]]; then
+if [[ "$1" == "dods1b" || "$1" == "all" ]]; then
   dods="${dods_1}?${big_slice}"
   echo "DODS(big): ${dods}"
 
   if [[ "$2" == "dars" || "$2" == "all" ]]; then
     echo -n "dars: "
     sleep 2
-    wrk -d 60 "${dars}${dods}" | tee out/dars_dods_1_big.wrk | grep 'Requests/sec' | awk '{print $2}'
+    $tool -d 60 --timeout 60 "${dars}${dods}" | tee out/dars_dods_1_big.wrk | parse_wrk
   fi
 
   if [[ "$2" == "thredds" || "$2" == "all" ]]; then
     echo -n "thredds: "
     sleep 2
-    wrk -d 60 "${thredds}${dods}" | tee out/thredds_dods_1_big.wrk | grep 'Requests/sec' | awk '{print $2}'
+    ## using wrk2 to limit requests
+    wrk2 -d 60 --timeout 60 -R 2 "${thredds}${dods}" | tee out/thredds_dods_1_big.wrk | parse_wrk
   fi
 
   if [[ "$2" == "hyrax" || "$2" == "all" ]]; then
     echo -n "hyrax: "
     sleep 2
-    wrk -d 60 "${hyrax}${dods}" | tee out/hyrax_dods_1_big.wrk | grep 'Requests/sec' | awk '{print $2}'
+    $tool -d 60 --timeout 60 "${hyrax}${dods}" | tee out/hyrax_dods_1_big.wrk | parse_wrk
   fi
 
   # collect results
-  echo > out/dods_1_big.rps
-  grep 'Requests/sec' out/dars_dods_1_big.wrk | awk '{print $2}' >> out/dods_1_big.rps
-  grep 'Requests/sec' out/thredds_dods_1_big.wrk | awk '{print $2}' >> -a out/dods_1_big.rps
-  grep 'Requests/sec' out/hyrax_dods_1_big.wrk | awk '{print $2}' >> -a out/dods_1_big.rps
+  : > out/dods_1_big.rps
+  cat out/dars_dods_1_big.wrk | parse_wrk  >> out/dods_1_big.rps
+  cat out/thredds_dods_1_big.wrk | parse_wrk >> out/dods_1_big.rps
+  cat out/hyrax_dods_1_big.wrk | parse_wrk  >> out/dods_1_big.rps
+fi
+
+#### DODS2
+if [[ "$1" == "dods2" || "$1" == "all" ]]; then
+  dods="${dods_2}"
+  echo "DODS2(medium): ${dods}"
+
+  if [[ "$2" == "dars" || "$2" == "all" ]]; then
+    echo -n "dars: "
+    sleep 2
+    $tool -d 20 "${dars}${dods}" | tee out/dars_dods_2.wrk | parse_wrk
+  fi
+
+  if [[ "$2" == "thredds" || "$2" == "all" ]]; then
+    echo -n "thredds: "
+    sleep 2
+    $tool -d 20 "${thredds}${dods}" | tee out/thredds_dods_2.wrk | parse_wrk
+  fi
+
+  if [[ "$2" == "hyrax" || "$2" == "all" ]]; then
+    echo -n "hyrax: "
+    sleep 2
+    $tool -d 20 "${hyrax}${dods}" | tee out/hyrax_dods_2.wrk | parse_wrk
+  fi
+
+  # collect results
+  : > out/dods_2.rps
+  cat out/dars_dods_2.wrk | parse_wrk >> out/dods_2.rps
+  cat out/thredds_dods_2.wrk | parse_wrk >> out/dods_2.rps
+  cat out/hyrax_dods_2.wrk | parse_wrk >> out/dods_2.rps
 fi
 
 # wrk "${dars}${dods_1}?${small_slice}"

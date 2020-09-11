@@ -11,7 +11,8 @@ pub fn catalog<T: Catalog + Clone>(
     tera: Arc<Tera>,
     catalog: T,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    index(root.clone(), tera.clone(), catalog.clone())
+    index_json(catalog.clone())
+        .or(index(root.clone(), tera.clone(), catalog.clone()))
         .or(folder(root, tera, catalog))
 }
 
@@ -26,6 +27,18 @@ fn index<T: Catalog + Clone>(
         .map(move |r| (r, Arc::clone(&tera), catalog.clone()))
         .untuple_one()
         .and_then(handlers::index)
+}
+
+fn index_json<T: Catalog + Clone>(catalog: T)
+-> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("data")
+        .and(warp::get())
+        .and(warp::header::exact_ignore_case(
+            "accept",
+            "application/json",
+        ))
+        .map(move || catalog.clone())
+        .and_then(handlers::index_json)
 }
 
 fn folder<T: Catalog + Clone>(

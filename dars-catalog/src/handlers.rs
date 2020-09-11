@@ -35,6 +35,12 @@ pub async fn index<T: Catalog + Clone>(
         })
 }
 
+pub async fn index_json<T: Catalog + Clone>(catalog: T) -> Result<impl warp::Reply, std::convert::Infallible> {
+    Ok(warp::reply::json(
+        &catalog.paths().collect::<Vec<&str>>(),
+    ))
+}
+
 pub async fn folder(
     root: String,
     tera: Arc<Tera>,

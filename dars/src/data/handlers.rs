@@ -5,27 +5,12 @@ use std::sync::Arc;
 use warp::reply::Reply;
 
 use dap2::{Constraint, Dap2, Dods};
+use super::DatasetType;
 
-use super::{DatasetType, State};
+#[cfg(not(feature = "catalog"))]
+use super::State;
 
-pub async fn list_datasets(state: State) -> Result<impl warp::Reply, Infallible> {
-    Ok(warp::http::Response::builder()
-        .header("Content-Type", "text/html")
-        .body(Body::from(
-        format!(
-        "Index of datasets:<br/><br/>{}",
-        state
-            .datasets
-            .keys()
-            .map(|s|
-                format!("   {} [<a href=\"/data/{}\">dap</a>][<a href=\"/data/{}\">raw</a>] ([<a href=\"/data/{}.das\">das</a>][<a href=\"/data/{}.dds\">dds</a>][<a href=\"/data/{}.dods\">dods</a>])<br />",
-                s, s, s, s, s, s)
-            )
-            .collect::<Vec<String>>()
-            .join("\n")
-    ))))
-}
-
+#[cfg(not(feature = "catalog"))]
 pub async fn list_datasets_json(state: State) -> Result<impl warp::Reply, Infallible> {
     Ok(warp::reply::json(
         &state.datasets.keys().map(|s| &**s).collect::<Vec<&str>>(),

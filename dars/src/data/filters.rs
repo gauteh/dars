@@ -15,13 +15,28 @@ pub fn datasets(
     state: State,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     // TODO: Include recover filter to catch errors without falling through to raw
-    dataset_list(state.clone())
-        .or(das(state.clone()))
+
+    let dap = das(state.clone())
         .or(dds(state.clone()))
         .or(dods(state.clone()))
-        .or(raw(state.clone()))
+        .or(raw(state.clone()));
+
+    {
+        // If catalog is disabled datasets can be queried in JSON
+        #[cfg(not(feature = "catalog"))]
+        {
+            dataset_list(state.clone())
+                .or(dap)
+        }
+
+        #[cfg(feature = "catalog")]
+        {
+            dap
+        }
+    }
 }
 
+#[cfg(not(feature = "catalog"))]
 pub fn dataset_list(
     state: State,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -33,10 +48,6 @@ pub fn dataset_list(
             "application/json",
         ))
         .and_then(handlers::list_datasets_json)
-        .or(warp::path!("data")
-            .and(warp::get())
-            .and(with_state(state))
-            .and_then(handlers::list_datasets))
 }
 
 pub fn das(

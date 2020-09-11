@@ -63,6 +63,7 @@ pub(crate) mod tests {
                     "path1/hula2.nc",
                     "path1/sub/hula3.nc",
                     "path2/bula.nc",
+                    "path3/path4/foo.nc",
                 ]
                 .iter()
                 .map(|s| s.to_string())

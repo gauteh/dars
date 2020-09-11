@@ -42,7 +42,7 @@ fn folder<T: Catalog + Clone>(
         .and_then(handlers::folder)
 }
 
-/// Return the elements of the folder, if the path represents a folder.
+/// Return the path, the folders in the path and the elements in the path, if the path is a folder.
 fn elements<T: Catalog + Clone>(
     catalog: T,
 ) -> impl Filter<Extract = (String, (Vec<String>, Vec<String>)), Error = warp::reject::Rejection> + Clone {
@@ -77,7 +77,7 @@ fn elements<T: Catalog + Clone>(
                     folders.dedup();
 
                     // No such path or matches exact data source
-                    if paths.len() == 0 || (paths.len() == 1 && paths[0] == tail) {
+                    if (folders.len() == 0 && paths.len() == 0) || (folders.len() == 0 && paths.len() == 1 && paths[0] == tail) {
                         Err(warp::reject())
                     } else {
                         Ok((folders, paths))
@@ -100,15 +100,40 @@ mod tests {
     #[test]
     fn elements_subpath() {
         let catalog = TestCatalog::test();
+        let path1 = block_on(
+            warp::test::request()
+            .path("/path1/")
+            .filter(&elements(catalog))
+        ).unwrap();
+
+        assert_eq!(
+            path1.0,
+            "path1/"
+        );
+
+        assert_eq!(
+            path1.1.0,
+            ["sub"]
+        );
+
+        assert_eq!(
+            path1.1.1,
+            ["hula.nc", "hula2.nc"]
+        );
+    }
+
+    #[test]
+    fn elements_only_folder_in_path() {
+        let catalog = TestCatalog::test();
 
         assert_eq!(
             block_on(
                 warp::test::request()
-                    .path("/path1/")
+                    .path("/path3/")
                     .filter(&elements(catalog))
             )
-            .unwrap().1.1,
-            ["hula.nc", "hula2.nc"]
+            .unwrap().1.0,
+            ["path4"]
         );
     }
 }

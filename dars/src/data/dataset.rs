@@ -3,18 +3,17 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use colored::Colorize;
-use walkdir::WalkDir;
 use async_trait::async_trait;
 use bytes::Bytes;
+use colored::Colorize;
 use futures::Stream;
 use std::pin::Pin;
+use walkdir::WalkDir;
 
+use crate::{hdf5, ncml};
 use dap2::das::Das;
 use dap2::dds::{self, Dds};
 use dap2::Dap2;
-use crate::{hdf5, ncml};
-
 
 /// The map of datasets.
 pub struct Datasets {

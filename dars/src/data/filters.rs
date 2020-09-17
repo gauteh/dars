@@ -25,8 +25,7 @@ pub fn datasets(
         // If catalog is disabled datasets can be queried in JSON
         #[cfg(not(feature = "catalog"))]
         {
-            dataset_list(state.clone())
-                .or(dap)
+            dataset_list(state.clone()).or(dap)
         }
 
         #[cfg(feature = "catalog")]

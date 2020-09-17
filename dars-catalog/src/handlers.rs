@@ -1,14 +1,14 @@
+use crate::Catalog;
 use hyper::Body;
+use serde::Serialize;
 use std::sync::Arc;
 use tera::Tera;
 use warp::Reply;
-use serde::Serialize;
-use crate::Catalog;
 
 #[derive(Serialize)]
 struct Element {
     path: String,
-    display: String
+    display: String,
 }
 
 pub async fn index<T: Catalog + Clone>(
@@ -35,10 +35,10 @@ pub async fn index<T: Catalog + Clone>(
         })
 }
 
-pub async fn index_json<T: Catalog + Clone>(catalog: T) -> Result<impl warp::Reply, std::convert::Infallible> {
-    Ok(warp::reply::json(
-        &catalog.paths().collect::<Vec<&str>>(),
-    ))
+pub async fn index_json<T: Catalog + Clone>(
+    catalog: T,
+) -> Result<impl warp::Reply, std::convert::Infallible> {
+    Ok(warp::reply::json(&catalog.paths().collect::<Vec<&str>>()))
 }
 
 pub async fn folder(
@@ -52,25 +52,41 @@ pub async fn folder(
     ctx.insert("title", &folder);
     ctx.insert("root", &root);
 
-    let folders = elements.0.iter().map(|e| {
-        Element {
-            path: format!("{}/data/{}{}", root,
-                      if folder.is_empty() { "".to_string() } else {
-                          format!("{}/", folder) },
-                          e),
-            display: e.to_string()
-        }
-    }).collect::<Vec<_>>();
+    let folders = elements
+        .0
+        .iter()
+        .map(|e| Element {
+            path: format!(
+                "{}/data/{}{}",
+                root,
+                if folder.is_empty() {
+                    "".to_string()
+                } else {
+                    format!("{}/", folder)
+                },
+                e
+            ),
+            display: e.to_string(),
+        })
+        .collect::<Vec<_>>();
 
-    let datasets = elements.1.iter().map(|e| {
-        Element {
-            path: format!("{}/data/{}{}", root,
-                      if folder.is_empty() { "".to_string() } else {
-                          format!("{}/", folder) },
-                          e),
-            display: e.to_string()
-        }
-    }).collect::<Vec<_>>();
+    let datasets = elements
+        .1
+        .iter()
+        .map(|e| Element {
+            path: format!(
+                "{}/data/{}{}",
+                root,
+                if folder.is_empty() {
+                    "".to_string()
+                } else {
+                    format!("{}/", folder)
+                },
+                e
+            ),
+            display: e.to_string(),
+        })
+        .collect::<Vec<_>>();
 
     ctx.insert("folders", &folders);
     ctx.insert("datasets", &datasets);

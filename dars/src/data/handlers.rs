@@ -4,8 +4,8 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use warp::reply::Reply;
 
-use dap2::{Constraint, Dap2, Dods};
 use super::DatasetType;
+use dap2::{Constraint, Dap2, Dods};
 
 #[cfg(not(feature = "catalog"))]
 use super::State;

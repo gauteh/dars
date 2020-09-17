@@ -61,10 +61,17 @@ impl das::ToDas for &HDF5File {
 
 fn h5attr_to_das(n: &str, a: hdf5::Attribute) -> das::Attribute {
     use das::AttrValue::*;
-    use hdf5::types::IntSize;
     use hdf5::types::TypeDescriptor as h5t;
+    use hdf5::types::{FloatSize, IntSize};
 
-    if n == "DIMENSION_LIST" || n == "REFERENCE_LIST" {
+    if n == "DIMENSION_LIST"
+        || n == "REFERENCE_LIST"
+        || n == "_NCProperties"
+        || n == "_nc3_strict"
+        || n == "_Netcdf4Dimid"
+        || n == "CLASS"
+        || n == "NAME"
+    {
         das::Attribute {
             name: n.to_string(),
             value: Ignored("Dimension metadata".into()),
@@ -76,6 +83,8 @@ fn h5attr_to_das(n: &str, a: hdf5::Attribute) -> das::Attribute {
                 match dtype {
                     h5t::Integer(IntSize::U2) => Short(a.read_scalar().unwrap()),
                     h5t::Integer(IntSize::U4) => Int(a.read_scalar().unwrap()),
+                    h5t::Float(FloatSize::U4) => Float(a.read_scalar().unwrap()),
+                    h5t::Float(FloatSize::U8) => Double(a.read_scalar().unwrap()),
                     h5t::FixedAscii(_) => Str(fixedascii_to_string(&*a).unwrap()),
                     dtype => Unimplemented(format!("(scalar) {:?}", dtype)),
                 }
@@ -83,6 +92,8 @@ fn h5attr_to_das(n: &str, a: hdf5::Attribute) -> das::Attribute {
                 match dtype {
                     h5t::Integer(IntSize::U2) => Shorts(a.read_raw().unwrap()),
                     h5t::Integer(IntSize::U4) => Ints(a.read_raw().unwrap()),
+                    h5t::Float(FloatSize::U4) => Floats(a.read_raw().unwrap()),
+                    h5t::Float(FloatSize::U8) => Doubles(a.read_raw().unwrap()),
                     dtype => Unimplemented(format!("(vector) {:?}", dtype)),
                 }
             },
@@ -145,5 +156,63 @@ mod tests {
         b.iter(|| hd.das.to_string());
 
         println!("DAS:\n{}", hd.das);
+    }
+
+    #[test]
+    fn coads_das() {
+        let db = test_db();
+        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
+
+        // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.das
+        // re-ordered fields and removed unlimited dimension TIME.
+        let tds = r#"Attributes {
+    NC_GLOBAL {
+        String history "FERRET V4.30 (debug/no GUI) 15-Aug-96";
+    }
+    AIRT {
+        Float32 _FillValue -1.0E34;
+        String history "From coads_climatology";
+        String long_name "AIR TEMPERATURE";
+        Float32 missing_value -1.0E34;
+        String units "DEG C";
+    }
+    COADSX {
+        String modulo " ";
+        String point_spacing "even";
+        String units "degrees_east";
+    }
+    COADSY {
+        String point_spacing "even";
+        String units "degrees_north";
+    }
+    SST {
+        Float32 _FillValue -1.0E34;
+        String history "From coads_climatology";
+        String long_name "SEA SURFACE TEMPERATURE";
+        Float32 missing_value -1.0E34;
+        String units "Deg C";
+    }
+    TIME {
+        String modulo " ";
+        String time_origin "1-JAN-0000 00:00:00";
+        String units "hour since 0000-01-01 00:00:00";
+    }
+    UWND {
+        Float32 _FillValue -1.0E34;
+        String history "From coads_climatology";
+        String long_name "ZONAL WIND";
+        Float32 missing_value -1.0E34;
+        String units "M/S";
+    }
+    VWND {
+        Float32 _FillValue -1.0E34;
+        String history "From coads_climatology";
+        String long_name "MERIDIONAL WIND";
+        Float32 missing_value -1.0E34;
+        String units "M/S";
+    }
+}"#;
+
+        assert_eq!(tds, hd.das.to_string());
     }
 }

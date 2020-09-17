@@ -35,7 +35,8 @@ async fn main() -> anyhow::Result<()> {
     let dars = data::filters::datasets(data.clone()).with(warp::log::custom(data::request_log));
 
     #[cfg(feature = "catalog")]
-    let dars = dars_catalog::catalog(config.root_url.clone().unwrap_or_else(|| "".into()), data)?.or(dars);
+    let dars =
+        dars_catalog::catalog(config.root_url.clone().unwrap_or_else(|| "".into()), data)?.or(dars);
 
     info!(
         "Listening on {} {}",

@@ -4,7 +4,7 @@
 //! fields.
 //!
 //! DAS responses are static once constructed from a source.
-use std::fmt;
+use std::fmt::{self, Write};
 
 /// DAS (Data Attribute Structure)
 pub struct Das(pub String);
@@ -22,8 +22,12 @@ pub enum AttrValue {
     Floats(Vec<f32>),
     Double(f64),
     Doubles(Vec<f64>),
+    Ushort(u16),
+    Ushorts(Vec<u16>),
     Short(i16),
     Shorts(Vec<i16>),
+    Uint(u32),
+    Uints(Vec<u32>),
     Int(i32),
     Ints(Vec<i32>),
     Uchar(u8),
@@ -46,8 +50,72 @@ pub trait ToDas {
     fn variable_attributes(&self, variable: &str) -> Box<dyn Iterator<Item = Attribute>>;
 }
 
-const INDENT: usize = 4;
+impl fmt::Display for Attribute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use AttrValue::*;
 
+        match &self.value {
+            Str(s) => write!(f, "String {} \"{}\";", self.name, s.escape_default()),
+
+            Float(v) => write!(f, "Float32 {} {:+.1E};", self.name, v),
+
+            Floats(v) => write!(
+                f,
+                "Float32 {} {};",
+                self.name,
+                v.iter()
+                    .map(|f| format!("{:+.1E}", f))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+
+            Double(v) => write!(f, "Float64 {} {:+.1E};", self.name, v),
+
+            Doubles(v) => write!(
+                f,
+                "Float64 {} {};",
+                self.name,
+                v.iter()
+                    .map(|f| format!("{:+.1E}", f))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+
+            Short(v) => write!(f, "Int16 {} {};", self.name, v),
+
+            Int(v) => write!(f, "Int32 {} {};", self.name, v),
+
+            Ints(v) => write!(
+                f,
+                "Int32 {} {};",
+                self.name,
+                v.iter()
+                    .map(|f| format!("{}", f))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+
+            Uchar(n) => write!(f, "Byte {} {};", self.name, n),
+
+            Ignored(n) => {
+                debug!("Ignored (hidden) DAS field: {:?}: {:?}", self.name, n);
+                write!(f, "")
+            }
+
+            Unimplemented(v) => {
+                debug!("Unimplemented attribute: {:?}: {:?}", self.name, v);
+                write!(f, "")
+            }
+
+            v => {
+                debug!("Unimplemented DAS field: {:?}: {:?}", self.name, v);
+                write!(f, "")
+            }
+        }
+    }
+}
+
+// Tedious to use TryFrom because of: https://github.com/rust-lang/rust/issues/50133
 impl<T> From<T> for Das
 where
     T: ToDas,
@@ -56,27 +124,32 @@ where
         let mut das: String = "Attributes {\n".to_string();
 
         if dataset.has_global_attributes() {
-            das.push_str(&format!("{}NC_GLOBAL {{\n", " ".repeat(INDENT)));
-            das.push_str(
-                &dataset
-                    .global_attributes()
-                    .map(|a| format!("{}{}\n", " ".repeat(INDENT), Das::format_attr(a)))
-                    .collect::<String>(),
-            );
-            das.push_str(&format!("{}}}\n", " ".repeat(INDENT)));
+            writeln!(das, "{:4}NC_GLOBAL {{", "").unwrap();
+
+            for a in dataset
+                .global_attributes()
+                .filter(|a| !matches!(a.value, AttrValue::Unimplemented(_) | AttrValue::Ignored(_)))
+            {
+                writeln!(das, "{:8}{}", "", a).unwrap();
+            }
+
+            writeln!(das, "{:4}}}", "").unwrap();
         }
 
         for var in dataset.variables() {
-            das.push_str(&format!("    {} {{\n", var));
-            das.push_str(
-                &dataset
-                    .variable_attributes(&var)
-                    .map(|a| format!("{}{}\n", " ".repeat(INDENT), Das::format_attr(a)))
-                    .collect::<String>(),
-            );
-            das.push_str("    }\n");
+            writeln!(das, "{:4}{} {{", "", var).unwrap();
+
+            for a in dataset
+                .variable_attributes(&var)
+                .filter(|a| !matches!(a.value, AttrValue::Unimplemented(_) | AttrValue::Ignored(_)))
+            {
+                writeln!(das, "{:8}{}", "", a).unwrap();
+            }
+
+            writeln!(das, "    }}").unwrap();
         }
-        das.push_str("}");
+
+        write!(das, "}}").unwrap();
 
         Das(das)
     }
@@ -89,66 +162,6 @@ impl fmt::Display for Das {
 }
 
 impl Das {
-    fn format_attr(a: Attribute) -> String {
-        use AttrValue::*;
-
-        match a.value {
-            Str(s) => format!(
-                "{}String {} \"{}\";",
-                " ".repeat(INDENT),
-                a.name,
-                s.escape_default()
-            ),
-            Float(f) => format!("{}Float32 {} {:+E};", " ".repeat(INDENT), a.name, f),
-            Floats(f) => format!(
-                "{}Float32 {} {};",
-                " ".repeat(INDENT),
-                a.name,
-                f.iter()
-                    .map(|f| format!("{:+E}", f))
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            ),
-            Double(f) => format!("{}Float64 {} {:+E};", " ".repeat(INDENT), a.name, f),
-            Doubles(f) => format!(
-                "{}Float64 {} {};",
-                " ".repeat(INDENT),
-                a.name,
-                f.iter()
-                    .map(|f| format!("{:+E}", f))
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            ),
-            Short(f) => format!("{}Int16 {} {};", " ".repeat(INDENT), a.name, f),
-            Int(f) => format!("{}Int32 {} {};", " ".repeat(INDENT), a.name, f),
-            Ints(f) => format!(
-                "{}Int32 {} {};",
-                " ".repeat(INDENT),
-                a.name,
-                f.iter()
-                    .map(|f| format!("{}", f))
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            ),
-            Uchar(n) => format!("{}Byte {} {};", " ".repeat(INDENT), a.name, n),
-
-            Ignored(n) => {
-                debug!("Ignored (hidden) DAS field: {:?}: {:?}", a.name, n);
-                "".to_string()
-            }
-
-            Unimplemented(v) => {
-                debug!("Unimplemented attribute: {:?}: {:?}", a.name, v);
-                "".to_string()
-            }
-
-            v => {
-                debug!("Unimplemented DAS field: {:?}: {:?}", a.name, v);
-                "".to_string()
-            }
-        }
-    }
-
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }

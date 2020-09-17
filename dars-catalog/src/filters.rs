@@ -29,8 +29,9 @@ fn index<T: Catalog + Clone>(
         .and_then(handlers::index)
 }
 
-fn index_json<T: Catalog + Clone>(catalog: T)
--> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn index_json<T: Catalog + Clone>(
+    catalog: T,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("data")
         .and(warp::get())
         .and(warp::header::exact_ignore_case(
@@ -58,7 +59,8 @@ fn folder<T: Catalog + Clone>(
 /// Return the path, the folders in the path and the elements in the path, if the path is a folder.
 fn elements<T: Catalog + Clone>(
     catalog: T,
-) -> impl Filter<Extract = (String, (Vec<String>, Vec<String>)), Error = warp::reject::Rejection> + Clone {
+) -> impl Filter<Extract = (String, (Vec<String>, Vec<String>)), Error = warp::reject::Rejection> + Clone
+{
     warp::path::peek()
         .map(|p: warp::filters::path::Peek| p.as_str().to_string())
         .and(
@@ -84,13 +86,17 @@ fn elements<T: Catalog + Clone>(
                     paths.sort();
 
                     // Remove trailing names + make unique
-                    let mut folders = folders.iter().map(|p|
-                        p[..(1+p[1..].find('/').unwrap())].to_string()).collect::<Vec<String>>();
+                    let mut folders = folders
+                        .iter()
+                        .map(|p| p[..(1 + p[1..].find('/').unwrap())].to_string())
+                        .collect::<Vec<String>>();
                     folders.sort();
                     folders.dedup();
 
                     // No such path or matches exact data source
-                    if (folders.len() == 0 && paths.len() == 0) || (folders.len() == 0 && paths.len() == 1 && paths[0] == tail) {
+                    if (folders.len() == 0 && paths.len() == 0)
+                        || (folders.len() == 0 && paths.len() == 1 && paths[0] == tail)
+                    {
                         Err(warp::reject())
                     } else {
                         Ok((folders, paths))
@@ -115,14 +121,12 @@ mod tests {
         let catalog = TestCatalog::test();
         let path1 = block_on(
             warp::test::request()
-            .path("/path1/")
-            .filter(&elements(catalog))
-        ).unwrap();
+                .path("/path1/")
+                .filter(&elements(catalog)),
+        )
+        .unwrap();
 
-        assert_eq!(
-            path1.0,
-            "path1/"
-        );
+        assert_eq!(path1.0, "path1/");
 
         assert_eq!(
             path1.1.0,

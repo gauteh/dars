@@ -183,14 +183,13 @@ pub(crate) mod tests {
     fn get_json() {
         let f = catalog("http://localhost:8001".into(), TestCatalog::test()).unwrap();
 
-        let r =
-            block_on(
-                warp::test::request()
+        let r = block_on(
+            warp::test::request()
                 .method("GET")
                 .header("accept", "application/json")
                 .path("/data/")
-                .reply(&f)
-            );
+                .reply(&f),
+        );
 
         assert_eq!(r.status(), 200);
         assert_eq!(r.headers().get("Content-Type").unwrap(), "application/json");

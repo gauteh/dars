@@ -67,10 +67,12 @@ pub(crate) fn hdf5_dimensions(m: &str, dataset: &hdf5::Dataset) -> Vec<String> {
                     let p = (*r).p;
 
                     #[cfg(feature = "fast-index")]
-                    let dset = hs::h5r::H5Rdereference2(id, hs::h5p::H5P_DEFAULT, hs::h5r::H5R_OBJECT1, p);
+                    let dset =
+                        hs::h5r::H5Rdereference2(id, hs::h5p::H5P_DEFAULT, hs::h5r::H5R_OBJECT1, p);
 
                     #[cfg(not(feature = "fast-index"))]
-                    let dset = hs::h5r::H5Rdereference2(id, hs::h5p::H5P_DEFAULT, hs::h5r::H5R_OBJECT, p);
+                    let dset =
+                        hs::h5r::H5Rdereference2(id, hs::h5p::H5P_DEFAULT, hs::h5r::H5R_OBJECT, p);
 
                     let sz = 1 + hs::h5i::H5Iget_name(dset, std::ptr::null_mut(), 0);
                     let sz: usize = sz.try_into().unwrap();

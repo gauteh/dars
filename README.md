@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/gauteh/dars.svg?branch=master)](https://travis-ci.org/gauteh/dars)
 [![Docker Automated build](https://img.shields.io/docker/cloud/automated/gauteh/dars)](https://hub.docker.com/r/gauteh/dars)
-[![Rust nightly](https://img.shields.io/badge/rust-nightly-blue)](https://rust-lang.github.io/rustup/installation/other.html)
+[![Rust nightly](https://img.shields.io/badge/rustc-nightly-orange)](https://rust-lang.github.io/rustup/installation/other.html)
 
 # 𓃢   DARS
 

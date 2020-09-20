@@ -2,7 +2,7 @@ use futures::stream::TryStreamExt;
 use hyper::Body;
 use std::convert::Infallible;
 use std::sync::Arc;
-use warp::reply::Reply;
+use warp::{reply::Reply, http::Response, http::StatusCode};
 
 use super::DatasetType;
 use dap2::{Constraint, Dap2, Dods};
@@ -18,7 +18,7 @@ pub async fn list_datasets_json(state: State) -> Result<impl warp::Reply, Infall
 }
 
 pub async fn das(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallible> {
-    Ok(dataset.das().await.0.clone())
+    Ok(Response::builder().body(Body::from(dataset.das().await.bytes())))
 }
 
 pub async fn dds(
@@ -50,7 +50,7 @@ pub async fn dods(
         Err(warp::reject::custom(DodsError))
     })?;
 
-    Ok(warp::http::Response::builder()
+    Ok(Response::builder()
         .header("Content-Type", "application/octet-stream")
         .header("Content-Description", "dods-data")
         .header("Content-Length", content_length)
@@ -67,15 +67,15 @@ pub async fn raw(dataset: Arc<DatasetType>) -> Result<impl warp::Reply, Infallib
             .raw()
             .await
             .map(|(sz, s)| {
-                warp::http::Response::builder()
+                Response::builder()
                     .header("Content-Type", "application/octet-stream")
                     .header("Content-Disposition", "attachment")
                     .header("XDODS-Server", "dars")
                     .header("Content-Length", sz)
                     .body(Body::wrap_stream(s))
             })
-            .or_else(|_| Ok(Ok(warp::http::StatusCode::NOT_FOUND.into_response()))),
-        _ => Ok(Ok(warp::http::StatusCode::NOT_FOUND.into_response())),
+            .or_else(|_| Ok(Ok(StatusCode::NOT_FOUND.into_response()))),
+        _ => Ok(Ok(StatusCode::NOT_FOUND.into_response())),
     }
 }
 

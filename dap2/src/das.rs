@@ -5,9 +5,10 @@
 //!
 //! DAS responses are static once constructed from a source.
 use std::fmt::{self, Write};
+use bytes::Bytes;
 
 /// DAS (Data Attribute Structure)
-pub struct Das(pub String);
+pub struct Das(Bytes);
 
 #[derive(Debug)]
 pub struct Attribute {
@@ -151,18 +152,22 @@ where
 
         write!(das, "}}").unwrap();
 
-        Das(das)
+        Das(Bytes::from(das))
     }
 }
 
 impl fmt::Display for Das {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(&self.as_str())
     }
 }
 
 impl Das {
-    pub fn as_str(&self) -> &str {
-        self.0.as_str()
+    pub fn bytes(&self) -> Bytes {
+        self.0.clone()
+    }
+
+    pub fn as_str(&self) -> std::borrow::Cow<'_, str> {
+        String::from_utf8_lossy(&self.0)
     }
 }

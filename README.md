@@ -4,6 +4,8 @@
 
 # 𓃢   DARS
 
+<img src="https://raw.githubusercontent.com/gauteh/dars/master/dars.png" width="100%">
+
 DARS is an *asynchronous* _DAP/2_ server written in Rust aimed at being *fast* and *lightweight*. It supports a subset of the [OPeNDAP protocol](https://opendap.github.io/documentation/UserGuideComprehensive.html). It aims to only serve the `DAP` protocol, not common services like a catalog or a WMS.
 
 See below for [installation instructions](#installation-and-basic-usage).

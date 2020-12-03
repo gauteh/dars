@@ -85,7 +85,7 @@ fn h5attr_to_das(n: &str, a: hdf5::Attribute) -> das::Attribute {
                     h5t::Integer(IntSize::U4) => Int(a.read_scalar().unwrap()),
                     h5t::Float(FloatSize::U4) => Float(a.read_scalar().unwrap()),
                     h5t::Float(FloatSize::U8) => Double(a.read_scalar().unwrap()),
-                    h5t::FixedAscii(_) => Str(fixedascii_to_string(&*a).unwrap()),
+                    h5t::FixedAscii(n) => { fixedascii_to_string(&*a).map(|s| Str(s)).unwrap_or_else(|_| Unimplemented(format!("(fixed ascii) unsupported: {:?}", n))) },
                     dtype => Unimplemented(format!("(scalar) {:?}", dtype)),
                 }
             } else {

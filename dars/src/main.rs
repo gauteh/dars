@@ -23,7 +23,7 @@ use dars_catalog;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    env_logger::from_env(Env::default().default_filter_or("dars=info")).init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("dars=info")).init();
     info!("𓃢   DARS v{}", VERSION);
 
     #[cfg(debug_assertions)]

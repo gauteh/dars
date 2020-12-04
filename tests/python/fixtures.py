@@ -11,7 +11,7 @@ def tds():
 
 @pytest.fixture
 def hyrax():
-  return "http://localhost:8003/opendap/"
+  return "http://localhost:8080/opendap/"
 
 @pytest.fixture
 def data():

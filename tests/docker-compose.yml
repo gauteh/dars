@@ -3,23 +3,39 @@ version: '3'
 services:
   thredds:
     image: "unidata/thredds-docker:4.6.14"
-    ports:
-      - "8002:8080"
+    network_mode: "host"
     volumes:
       - ./thredds/server.xml:/usr/local/tomcat/conf/server.xml:ro
       - ../data:/usr/local/tomcat/webapps/thredds/WEB-INF/altContent/startup/public/testdata/data:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '6'
+        reservations:
+          cpus: '6'
 
   hyrax:
     image: "opendap/hyrax:latest"
-    ports:
-      - "8003:8080"
+    network_mode: "host"
     volumes:
       - ../data:/usr/share/hyrax
+    deploy:
+      resources:
+        limits:
+          cpus: '6'
+        reservations:
+          cpus: '6'
 
   dars:
     build: ..
-    ports:
-      - "8001:80"
+    network_mode: "host"
+    command: ["-a", "0.0.0.0:8001", "/data/"]
     volumes:
       - ../data:/data:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '6'
+        reservations:
+          cpus: '6'
 

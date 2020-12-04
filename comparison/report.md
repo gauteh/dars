@@ -12,7 +12,10 @@ csl: https://www.zotero.org/styles/the-journal-of-the-acoustical-society-of-amer
 The three servers are started in docker containers on the same machine (but not
 at the same time). All the tests are run on each server sequentially, giving
 the server some time to calm down between test. Since each test does the same
-request multiple times we are measuring a warmed-up system.
+request multiple times we are measuring a warmed-up system. The servers are run
+with maximum 6 cpus, leaving 2 for the benchmarking tool on the same machine
+(not reserving cores for each will result in worse overall performance).
+Network is run in host-mode.
 
 ## Criteria
 

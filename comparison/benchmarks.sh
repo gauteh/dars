@@ -4,7 +4,7 @@ set -ep
 
 dars="http://localhost:8001/data/"
 thredds="http://localhost:8002/thredds/dodsC/test/data/"
-hyrax="http://localhost:8003/opendap/"
+hyrax="http://localhost:8080/opendap/"
 
 das_1="meps_det_vc_2_5km_latest.nc.das"
 dds_1="meps_det_vc_2_5km_latest.nc.dds"

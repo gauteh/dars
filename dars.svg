@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg8"
+   inkscape:version="0.92.3 (2405546, 2018-03-11)"
+   sodipodi:docname="dars.svg"
+   inkscape:export-filename="/home/gauteh/dev/dars/dars.png"
+   inkscape:export-xdpi="25.400002"
+   inkscape:export-ydpi="25.400002">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="1.4"
+     inkscape:cx="425.99739"
+     inkscape:cy="666.14077"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:snap-text-baseline="false"
+     inkscape:window-width="1916"
+     inkscape:window-height="1027"
+     inkscape:window-x="1920"
+     inkscape:window-y="24"
+     inkscape:window-maximized="0" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       id="rect3713"
+       width="500"
+       height="7.748508"
+       x="15.024555"
+       y="96.200493"
+       style="stroke-width:0.50841939"
+       inkscape:export-xdpi="59.825092"
+       inkscape:export-ydpi="59.825092" />
+    <rect
+       id="rect3713-3"
+       width="500"
+       height="7.748508"
+       x="15.024555"
+       y="103.94865"
+       style="fill:#666666;stroke-width:0.50841939" />
+    <rect
+       id="rect3713-3-6"
+       width="500"
+       height="7.748508"
+       x="15.024555"
+       y="111.69715"
+       style="stroke-width:0.50841939" />
+    <rect
+       id="rect3713-3-7"
+       width="500"
+       height="7.748508"
+       x="15.024555"
+       y="119.44566"
+       style="fill:#cccccc;stroke-width:0.50841939"
+       inkscape:export-xdpi="59.825092"
+       inkscape:export-ydpi="59.825092" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:7.05555556px;line-height:1.25;font-family:Terminus;-inkscape-font-specification:'Terminus, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332;"
+       x="15.270237"
+       y="118.29286"
+       id="text3753"><tspan
+         sodipodi:role="line"
+         id="tspan3751"
+         x="15.270237"
+         y="118.29286"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:7.05555556px;font-family:Terminus;-inkscape-font-specification:'Terminus, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr;text-anchor:start;fill:#ffffff;stroke-width:0.26458332;">dars</tspan></text>
+  </g>
+</svg>

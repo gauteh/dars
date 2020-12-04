@@ -8,6 +8,8 @@ codegen-units = 1
 [patch.crates-io]
 hdf5 = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
 hdf5-sys = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
+# hidefix = { git = "https://github.com/gauteh/hidefix" }
+hidefix = { path = "../hidefix" }
 # hdf5 = { path = "../hdf5-rust" }
 # hdf5-sys = { path = "../hdf5-rust/hdf5-sys" }
 

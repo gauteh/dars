@@ -8,7 +8,7 @@ ADD data /data
 WORKDIR /work
 ADD . .
 
-# E.g. RUSTFLAGS=--target-cpu=native for optimizing build for host CPU.
+# E.g. "RUSTFLAGS=-C target-cpu=native" for optimizing build for host CPU.
 ARG RUSTFLAGS
 ENV RUSTFLAGS=${RUSTFLAGS:-}
 

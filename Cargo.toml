@@ -8,10 +8,13 @@ codegen-units = 1
 [patch.crates-io]
 hdf5 = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
 hdf5-sys = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
-# hidefix = { git = "https://github.com/gauteh/hidefix" }
-hidefix = { path = "../hidefix" }
+hidefix = { git = "https://github.com/gauteh/hidefix", branch = "tokio-03" }
+# hidefix = { path = "../hidefix" }
 # hdf5 = { path = "../hdf5-rust" }
 # hdf5-sys = { path = "../hdf5-rust/hdf5-sys" }
 
 # [patch.'https://github.com/gauteh/hidefix']
 # hidefix = { path = "../hidefix" }
+
+warp = { git = "https://github.com/aknuds1/warp", branch = "chore/upgrade-tokio" }
+hyper = { git = "https://github.com/hyperium/hyper.git", rev = "1ba2a141a6f8736446ff4a0111df347c0dc66f6c" }

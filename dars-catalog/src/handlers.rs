@@ -1,5 +1,5 @@
 use crate::Catalog;
-use hyper::Body;
+use warp::hyper::Body;
 use serde::Serialize;
 use std::sync::Arc;
 use tera::Tera;

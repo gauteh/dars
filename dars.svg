@@ -28,16 +28,16 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.4"
-     inkscape:cx="425.99739"
-     inkscape:cy="666.14077"
+     inkscape:zoom="0.7"
+     inkscape:cx="706.50116"
+     inkscape:cy="663.37332"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
      inkscape:snap-text-baseline="false"
      inkscape:window-width="1916"
      inkscape:window-height="1027"
-     inkscape:window-x="1920"
+     inkscape:window-x="0"
      inkscape:window-y="24"
      inkscape:window-maximized="0" />
   <metadata
@@ -58,46 +58,52 @@
      id="layer1">
     <rect
        id="rect3713"
-       width="500"
+       width="318"
        height="7.748508"
        x="15.024555"
        y="96.200493"
-       style="stroke-width:0.50841939"
-       inkscape:export-xdpi="59.825092"
-       inkscape:export-ydpi="59.825092" />
+       style="stroke-width:0.40546247"
+       inkscape:export-xdpi="81.952187"
+       inkscape:export-ydpi="81.952187" />
     <rect
        id="rect3713-3"
-       width="500"
+       width="318"
        height="7.748508"
        x="15.024555"
        y="103.94865"
-       style="fill:#666666;stroke-width:0.50841939" />
+       style="fill:#666666;stroke-width:0.40546247"
+       inkscape:export-xdpi="81.952187"
+       inkscape:export-ydpi="81.952187" />
     <rect
        id="rect3713-3-6"
-       width="500"
+       width="318"
        height="7.748508"
        x="15.024555"
        y="111.69715"
-       style="stroke-width:0.50841939" />
+       style="stroke-width:0.40546247"
+       inkscape:export-xdpi="81.952187"
+       inkscape:export-ydpi="81.952187" />
     <rect
        id="rect3713-3-7"
-       width="500"
+       width="318"
        height="7.748508"
        x="15.024555"
        y="119.44566"
-       style="fill:#cccccc;stroke-width:0.50841939"
-       inkscape:export-xdpi="59.825092"
-       inkscape:export-ydpi="59.825092" />
+       style="fill:#666666;fill-opacity:1;stroke-width:0.40546247"
+       inkscape:export-xdpi="81.952187"
+       inkscape:export-ydpi="81.952187" />
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:7.05555556px;line-height:1.25;font-family:Terminus;-inkscape-font-specification:'Terminus, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332;"
-       x="15.270237"
-       y="118.29286"
-       id="text3753"><tspan
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:7.05555534px;line-height:1.25;font-family:Terminus;-inkscape-font-specification:'Terminus, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+       x="17.386904"
+       y="117.76369"
+       id="text3753"
+       inkscape:export-xdpi="81.952187"
+       inkscape:export-ydpi="81.952187"><tspan
          sodipodi:role="line"
          id="tspan3751"
-         x="15.270237"
-         y="118.29286"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:7.05555556px;font-family:Terminus;-inkscape-font-specification:'Terminus, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr;text-anchor:start;fill:#ffffff;stroke-width:0.26458332;">dars</tspan></text>
+         x="17.386904"
+         y="117.76369"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:7.05555534px;font-family:Terminus;-inkscape-font-specification:'Terminus, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;stroke-width:0.26458332">dars</tspan></text>
   </g>
 </svg>

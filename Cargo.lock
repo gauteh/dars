@@ -411,9 +411,9 @@ checksum = "e88a8acf291dafb59c2d96e8f59828f3838bb1a70398823ade51a84de6a6deed"
 
 [[package]]
 name = "flexbuffers"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8faa23dcebb1eee3923ea6df2aef354157645f05237c7a379ca0e39b0f9d937"
+checksum = "3556c7e0d5b671814709229de0b91aa1e6dff7844df6102cd6b7ec6c3a46a187"
 dependencies = [
  "bitflags",
  "byteorder",
@@ -599,9 +599,9 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4060f4657be78b8e766215b02b18a2e862d83745545de804638e2b545e81aee6"
+checksum = "c9495705279e7140bf035dde1f6e750c162df8b625267cd52cc44e0b156732c8"
 dependencies = [
  "cfg-if 1.0.0",
  "libc",
@@ -758,8 +758,8 @@ dependencies = [
 
 [[package]]
 name = "hidefix"
-version = "0.3.0"
-source = "git+https://github.com/gauteh/hidefix?branch=master#5556318d01a2d5762bf58657970a6cfa3a500b62"
+version = "0.4.0"
+source = "git+https://github.com/gauteh/hidefix?branch=master#5464d058b6be2566864b097a03e1111e7fa1351e"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -1505,7 +1505,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c026d7df8b298d90ccbbc5190bd04d85e159eaf5576caeacf8741da93ccbd2e5"
 dependencies = [
- "getrandom 0.2.1",
+ "getrandom 0.2.2",
 ]
 
 [[package]]
@@ -1585,9 +1585,9 @@ dependencies = [
 
 [[package]]
 name = "rust-embed"
-version = "5.8.0"
+version = "5.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abcb6e9589c2b7875dc4cdfecc6289ea75700a52976b52ef4443d7aad46f7397"
+checksum = "2fe1fe6aac5d6bb9e1ffd81002340363272a7648234ec7bdfac5ee202cb65523"
 dependencies = [
  "rust-embed-impl",
  "rust-embed-utils",
@@ -1596,9 +1596,9 @@ dependencies = [
 
 [[package]]
 name = "rust-embed-impl"
-version = "5.8.0"
+version = "5.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebc6a6c2785d73d8f0157d10a40223bbf0210f18aecb261d39b96802f9ccc69d"
+checksum = "3ed91c41c42ef7bf687384439c312e75e0da9c149b0390889b94de3c7d9d9e66"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1651,9 +1651,9 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "serde"
-version = "1.0.119"
+version = "1.0.120"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bdd36f49e35b61d49efd8aa7fc068fd295961fd2286d0b2ee9a4c7a14e99cc3"
+checksum = "166b2349061381baf54a58e4b13c89369feb0ef2eaa57198899e2312aac30aab"
 dependencies = [
  "serde_derive",
 ]
@@ -1669,9 +1669,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.119"
+version = "1.0.120"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "552954ce79a059ddd5fd68c271592374bd15cab2274970380c000118aeffe1cd"
+checksum = "0ca2a8cb5805ce9e3b95435e3765b7b553cecc762d938d409434338386cb5775"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2195,8 +2195,9 @@ dependencies = [
 
 [[package]]
 name = "warp"
-version = "0.2.5"
-source = "git+https://github.com/seanmonstar/warp?branch=master#ffefea08050ffe8022d3391f4bd5e5ab4e95d7c9"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3dafd0aac2818a94a34df0df1100a7356c493d8ede4393875fd0b5c51bb6bc80"
 dependencies = [
  "bytes",
  "futures",

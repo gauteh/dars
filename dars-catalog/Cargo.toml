@@ -8,7 +8,7 @@ description = "Catalog for dars-dap"
 version = "0.1.0"
 
 [dependencies]
-warp = "0.2.5"
+warp = "0.3"
 tera = "1.5.0"
 anyhow = "1.0.35"
 lazy_static = "1.4.0"

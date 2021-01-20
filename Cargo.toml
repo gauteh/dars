@@ -17,4 +17,3 @@ hidefix = { git = "https://github.com/gauteh/hidefix", branch = "master" }
 # [patch.'https://github.com/gauteh/hidefix']
 # hidefix = { path = "../hidefix" }
 
-warp = { git = "https://github.com/seanmonstar/warp", branch = "master" }

@@ -84,6 +84,16 @@ impl fmt::Display for Attribute {
 
             Short(v) => write!(f, "Int16 {} {};", self.name, v),
 
+            Shorts(v) => write!(
+                f,
+                "Int16 {} {};",
+                self.name,
+                v.iter()
+                    .map(|f| format!("{}", f))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+
             Int(v) => write!(f, "Int32 {} {};", self.name, v),
 
             Ints(v) => write!(

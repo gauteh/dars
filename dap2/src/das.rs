@@ -162,6 +162,8 @@ where
 
         write!(das, "}}").unwrap();
 
+        trace!("Generated DAS: {}", das);
+
         Das(Bytes::from(das))
     }
 }

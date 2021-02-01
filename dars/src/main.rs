@@ -30,8 +30,12 @@ async fn main() -> anyhow::Result<()> {
     info!("Debug build");
 
     let config = config::load_config_with_args()?;
+
+    info!("Opening sled db: {}..", config.db.path.to_string_lossy().yellow());
+    let db = sled::open(config.db.path)?;
+
     let data =
-        Arc::new(data::Datasets::new_with_datadir(config.root_url.clone(), config.data).await?);
+        Arc::new(data::Datasets::new_with_datadir(config.root_url.clone(), config.data, db).await?);
     let dars = data::filters::datasets(data.clone()).with(warp::log::custom(data::request_log));
 
     #[cfg(feature = "catalog")]

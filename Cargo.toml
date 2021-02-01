@@ -2,8 +2,8 @@
 members = ["dars", "dap2", "dars-catalog"]
 
 [profile.release]
-lto = "fat"
-codegen-units = 1
+#lto = "fat"
+#codegen-units = 1
 
 [patch.crates-io]
 hdf5 = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }

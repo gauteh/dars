@@ -6,7 +6,7 @@
 //! ## XDR encoding
 //!
 //! [XDR encoded](https://en.wikipedia.org/wiki/External_Data_Representation) data are always
-//! big-endian. The smallest size is 4 bytes, so data is padded to this. Strings or opaque types
+//! big-endian. The smallest size is 4 bytes, so data must be padded to this. Strings or opaque types
 //! are padded to be divisible by 4 bytes.
 //!
 //! ### Length
@@ -17,9 +17,9 @@
 //!
 //! ### XDR types
 //!
-//! * Byte
-//! * Int16
-//! * UInt16
+//! * Byte   -> cast to ??
+//! * Int16  -> cast to Int32
+//! * UInt16 -> cast to UInt32
 //! * Int32
 //! * UInt32
 //! * Float32

@@ -51,10 +51,8 @@ impl Datasets {
     pub async fn new_with_datadir(
         url: Option<String>,
         datadir: PathBuf,
+        db: sled::Db,
     ) -> anyhow::Result<Datasets> {
-        info!("Opening sled db: {}..", "dars.db".yellow());
-        let db = sled::open("dars.db")?;
-
         info!(
             "Scanning {} for datasets..",
             datadir.to_string_lossy().yellow()

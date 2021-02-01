@@ -408,7 +408,7 @@ mod tests {
     use super::*;
     use crate::data::test_db;
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn agg_existing_location() {
         let _ = env_logger::builder().is_test(true).try_init();
         let db = test_db();
@@ -417,7 +417,7 @@ mod tests {
         assert_eq!(ncml.coordinates.bytes.len(), 4 * (31 + 28));
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn agg_existing_scan() {
         let _ = env_logger::builder().is_test(true).try_init();
         let db = test_db();

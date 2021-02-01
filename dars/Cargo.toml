@@ -61,6 +61,10 @@ version = "1.0.118"
 features = ["full"]
 version = "1"
 
+[dev-dependencies]
+reqwest = "*"
+hexyl = "*"
+
 [lib]
 name = "dars"
 path = "src/lib.rs"

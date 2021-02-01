@@ -128,15 +128,9 @@ mod tests {
 
         assert_eq!(path1.0, "path1/");
 
-        assert_eq!(
-            path1.1.0,
-            ["sub"]
-        );
+        assert_eq!(path1.1 .0, ["sub"]);
 
-        assert_eq!(
-            path1.1.1,
-            ["hula.nc", "hula2.nc"]
-        );
+        assert_eq!(path1.1 .1, ["hula.nc", "hula2.nc"]);
     }
 
     #[test]
@@ -149,7 +143,9 @@ mod tests {
                     .path("/path3/")
                     .filter(&elements(catalog))
             )
-            .unwrap().1.0,
+            .unwrap()
+            .1
+             .0,
             ["path4"]
         );
     }

@@ -1,31 +1,38 @@
+use dars::{config, data};
 use std::convert::TryInto;
 use std::sync::Arc;
 use warp::Filter;
-use dars::{config, data};
 
 pub const TDS_UNI: &'static str = "https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/";
 pub const TDS_MET: &'static str = "https://thredds.met.no/thredds/dodsC/";
 pub const TDS_LCL: &'static str = "http://localhost:8002/thredds/dodsC/test/data/";
 
 pub fn test_log() {
-    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("dap2=debug,dars=debug")).is_test(true).try_init();
+    let _ = env_logger::Builder::from_env(
+        env_logger::Env::default().default_filter_or("dap2=debug,dars=debug"),
+    )
+    .is_test(true)
+    .try_init();
 }
 
 /// Set up a test-server.
-pub async fn dars_test() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+pub async fn dars_test() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone
+{
     let config = config::Config::default();
-    let db = sled::Config::default()
-        .temporary(true)
-        .open()
-        .unwrap();
-    let data =
-        Arc::new(data::Datasets::new_with_datadir(config.root_url.clone(), "../data/".into(), db).await.unwrap());
+    let db = sled::Config::default().temporary(true).open().unwrap();
+    let data = Arc::new(
+        data::Datasets::new_with_datadir(config.root_url.clone(), "../data/".into(), db)
+            .await
+            .unwrap(),
+    );
     data::filters::datasets(data.clone()).with(warp::log::custom(data::request_log))
 }
 
 // https://stackoverflow.com/questions/35901547/how-can-i-find-a-subsequence-in-a-u8-slice
 fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    haystack.windows(needle.len()).position(|window| window == needle)
+    haystack
+        .windows(needle.len())
+        .position(|window| window == needle)
 }
 
 /// Split DODS response in DDS and data.
@@ -50,7 +57,8 @@ pub fn print_split_dods(b: &[u8]) -> (&[u8], &[u8]) {
     let s = std::io::stdout();
     let mut s = s.lock();
     let mut p = Printer::new(&mut s, true, hexyl::BorderStyle::Unicode, true);
-    p.print_all(dods).expect("Could not write DODS hex to stdout");
+    p.print_all(dods)
+        .expect("Could not write DODS hex to stdout");
 
     (dds, dods)
 }

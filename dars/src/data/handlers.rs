@@ -1,7 +1,7 @@
 use futures::stream::TryStreamExt;
 use std::convert::Infallible;
 use std::sync::Arc;
-use warp::{hyper::Body, reply::Reply, http::Response, http::StatusCode};
+use warp::{http::Response, http::StatusCode, hyper::Body, reply::Reply};
 
 use super::DatasetType;
 use dap2::{Constraint, Dap2, Dods};

@@ -77,6 +77,19 @@ impl VarType {
             Unimplemented => panic!("Tried to get size of unimplemented variable"),
         }
     }
+
+    pub fn xdr_size(&self) -> usize {
+        use VarType::*;
+
+        match self {
+            Byte => 1, // Should this be 4?
+            String(n) => *n,
+            UInt16 | Int16 => 4, // Upcast from 2 to 4.
+            Float32 | UInt32 | Int32 => 4,
+            Float64 | UInt64 | Int64 => 8,
+            Unimplemented => panic!("Tried to get size of unimplemented variable"),
+        }
+    }
 }
 
 impl fmt::Display for VarType {
@@ -459,9 +472,9 @@ impl DdsVariableDetails {
         self.size * self.vartype.size()
     }
 
-    /// Size of variable with XDR header in bytes.
+    /// Size of variable serialized with XDR and with XDR header, in bytes.
     pub fn dods_size(&self) -> usize {
-        self.size() + if self.is_scalar() { 0 } else { 8 }
+        self.size * self.vartype.xdr_size() + if self.is_scalar() { 0 } else { 8 }
     }
 }
 

@@ -31,7 +31,10 @@ async fn main() -> anyhow::Result<()> {
 
     let config = config::load_config_with_args()?;
 
-    info!("Opening sled db: {}..", config.db.path.to_string_lossy().yellow());
+    info!(
+        "Opening sled db: {}..",
+        config.db.path.to_string_lossy().yellow()
+    );
     let db = sled::open(config.db.path)?;
 
     let data =

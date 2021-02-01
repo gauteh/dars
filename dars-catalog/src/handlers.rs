@@ -1,8 +1,8 @@
 use crate::Catalog;
-use warp::hyper::Body;
 use serde::Serialize;
 use std::sync::Arc;
 use tera::Tera;
+use warp::hyper::Body;
 use warp::Reply;
 
 #[derive(Serialize)]

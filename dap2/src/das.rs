@@ -4,8 +4,8 @@
 //! fields.
 //!
 //! DAS responses are static once constructed from a source.
-use std::fmt::{self, Write};
 use bytes::Bytes;
+use std::fmt::{self, Write};
 
 /// DAS (Data Attribute Structure)
 pub struct Das(Bytes);

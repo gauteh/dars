@@ -14,7 +14,12 @@ async fn coads_subset() {
     assert_eq!(dods.status(), 200);
     let (_, d1) = split_dods(dods.body());
 
-    let tds = reqwest::get(&format!("{}/coads_climatology.nc.dods?SST.SST[0][0:80][7]", TDS_UNI)).await.unwrap();
+    let tds = reqwest::get(&format!(
+        "{}/coads_climatology.nc.dods?SST.SST[0][0:80][7]",
+        TDS_UNI
+    ))
+    .await
+    .unwrap();
     assert_eq!(tds.status(), 200);
     let tdods = tds.bytes().await.unwrap();
     let (_, d2) = split_dods(&tdods);
@@ -35,7 +40,9 @@ async fn coads_full_sst() {
     assert_eq!(dods.status(), 200);
     let (_, d1) = split_dods(dods.body());
 
-    let tds = reqwest::get(&format!("{}/coads_climatology.nc.dods?SST", TDS_UNI)).await.unwrap();
+    let tds = reqwest::get(&format!("{}/coads_climatology.nc.dods?SST", TDS_UNI))
+        .await
+        .unwrap();
     assert_eq!(tds.status(), 200);
     let tdods = tds.bytes().await.unwrap();
     let (_, d2) = split_dods(&tdods);

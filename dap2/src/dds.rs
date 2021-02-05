@@ -442,6 +442,7 @@ impl Dds {
 
 /// The details about a single variable in a DDS response. All information needed to stream the
 /// variable data.
+#[derive(Clone)]
 pub struct DdsVariableDetails {
     pub name: String,
     pub vartype: VarType,

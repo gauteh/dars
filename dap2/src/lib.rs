@@ -22,7 +22,7 @@ extern crate anyhow;
 
 use async_trait::async_trait;
 use bytes::Bytes;
-use futures::Stream;
+use futures::{Stream, StreamExt, TryStreamExt};
 use std::pin::Pin;
 
 pub mod constraint;
@@ -41,21 +41,12 @@ pub use dods::Dods;
 /// [dods::Dods] trait which is implemented for sources implementing this trait handles the
 /// streaming a DODS response of several constrained variables.
 #[async_trait]
-pub trait Dap2 {
+pub trait Dap2: DodsXdr {
     /// Return a reference to a DAS structure for a data-source.
     async fn das(&self) -> &Das;
 
     /// Return a reference to a DDS structure for a data-source.
     async fn dds(&self) -> &Dds;
-
-    /// Stream the bytes of the variable in `XDR` (_big-endian_) format.
-    async fn variable(
-        &self,
-        variable: &dds::DdsVariableDetails,
-    ) -> Result<
-        Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static>>,
-        anyhow::Error,
-    >;
 
     /// Stream the raw file (if supported). Should return a tuple with the content-length and a
     /// stream of [Bytes].
@@ -70,24 +61,73 @@ pub trait Dap2 {
     >;
 }
 
+/// Helper trait for sources that do not provide XDR serialized bytes. Prefer to implement
+/// [DodsXdr]. The bytes returned by this trait must be in native format.
 #[async_trait]
-impl<T: Send + Sync + Dap2> Dap2 for std::sync::Arc<T> {
-    async fn das(&self) -> &Das {
-        T::das(self).await
-    }
-
-    async fn dds(&self) -> &Dds {
-        T::dds(self).await
-    }
-
+pub trait DodsVariable {
+    /// Stream the bytes of the variable in native format.
     async fn variable(
         &self,
         variable: &dds::DdsVariableDetails,
     ) -> Result<
         Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static>>,
         anyhow::Error,
+    >;
+}
+
+/// Data source which provides XDR serialized bytes.
+#[async_trait]
+pub trait DodsXdr {
+    /// Stream the bytes of the variable in serialized with the `XDR` format. See [crate::dods].
+    async fn variable_xdr(
+        &self,
+        variable: &dds::DdsVariableDetails,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static>>,
+        anyhow::Error,
+    >;
+}
+
+// This implementation assumes that the bytes are provided in native format.
+#[async_trait]
+impl<T: Send + Sync + DodsVariable> DodsXdr for T {
+    async fn variable_xdr(
+        &self,
+        variable: &dds::DdsVariableDetails,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static>>,
+        anyhow::Error,
     > {
-        T::variable(self, variable).await
+        let variable = variable.clone();
+
+        self.variable(&variable).await.map(move |s| {
+            s.map_ok(move |b| dods::xdr::xdr_serialize(&variable, b))
+                .boxed()
+        })
+    }
+}
+
+#[async_trait]
+impl<T: Send + Sync + DodsXdr> DodsXdr for std::sync::Arc<T> {
+    async fn variable_xdr(
+        &self,
+        variable: &dds::DdsVariableDetails,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static>>,
+        anyhow::Error,
+    > {
+        T::variable_xdr(self, variable).await
+    }
+}
+
+#[async_trait]
+impl<T: Send + Sync + Dap2 + DodsXdr> Dap2 for std::sync::Arc<T> {
+    async fn das(&self) -> &Das {
+        T::das(self).await
+    }
+
+    async fn dds(&self) -> &Dds {
+        T::dds(self).await
     }
 
     async fn raw(

@@ -37,98 +37,15 @@
 //! is sent null-terminated.
 use bytes::Bytes;
 use futures::{pin_mut, Stream, StreamExt};
-use std::mem;
 use std::pin::Pin;
 
 use async_stream::stream;
 use async_trait::async_trait;
 
-use crate::{
-    dds::{ConstrainedVariable, DdsVariableDetails, VarType},
-    Constraint,
-};
+pub mod xdr;
+use xdr::xdr_length;
 
-/// XDR encoded length.
-pub fn xdr_length(len: u32) -> [u8; 8] {
-    let len = len.to_be();
-    let x: [u32; 2] = [len, len];
-
-    unsafe { mem::transmute(x) }
-}
-
-/// Upcast 16-bit datatypes to 32-bit datatypes. Non 16-bit variables are passed through as-is.
-fn xdr_upcast<S: Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static>(
-    v: DdsVariableDetails,
-    s: S,
-) -> impl Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static {
-    use VarType::*;
-
-    stream! {
-        pin_mut!(s);
-
-        // TODO: * Check performance of casting.
-        //       * Move common code to templated function over Pod's
-        //       * Use either byte-slice-cast or bytemuck.
-
-        match v.vartype {
-            UInt16 => {
-                while let Some(b) = s.next().await {
-                    match b {
-                        Ok(b) => {
-                            let b: &[u8] = &*b;
-                            let u: &[u16] = bytemuck::cast_slice(b);
-
-                            let mut n: Vec<u8> = Vec::with_capacity(u.len() * 4);
-                            unsafe { n.set_len(u.len() * 4); }
-                            let nn: &mut [u32] = bytemuck::cast_slice_mut(&mut n);
-
-                            for (s, d) in u.iter().zip(nn.iter_mut()) {
-                                if cfg!(target_endian = "big") {
-                                    *d = *s as u32;
-                                } else {
-                                    *d = (s.swap_bytes() as u32).swap_bytes();
-                                }
-                            }
-
-                            yield Ok(Bytes::from(n));
-                        },
-                        e => yield e
-                    }
-                }
-            },
-            Int16 => {
-                while let Some(b) = s.next().await {
-                    match b {
-                        Ok(b) => {
-                            let b: &[u8] = &*b;
-                            let u: &[i16] = bytemuck::cast_slice(b);
-
-                            let mut n: Vec<u8> = Vec::with_capacity(u.len() * 4);
-                            unsafe { n.set_len(u.len() * 4); }
-                            let nn: &mut [i32] = bytemuck::cast_slice_mut(&mut n);
-
-                            for (s, d) in u.iter().zip(nn.iter_mut()) {
-                                if cfg!(target_endian = "big") {
-                                    *d = *s as i32;
-                                } else {
-                                    *d = (s.swap_bytes() as i32).swap_bytes();
-                                }
-                            }
-
-                            yield Ok(Bytes::from(n));
-                        },
-                        e => yield e
-                    }
-                }
-            },
-            _ =>  {
-                while let Some(b) = s.next().await {
-                    yield b;
-                }
-            }
-        }
-    }
-}
+use crate::{dds::ConstrainedVariable, Constraint};
 
 /// A `DODS` response streaming the [DDS](crate::dds::Dds) header and the (possibly) constrained
 /// variable data.
@@ -167,8 +84,7 @@ pub trait Dods: crate::Dap2 + Send + Sync + Clone + 'static {
                             yield Ok(Bytes::from(Vec::from(xdr_length(v.len() as u32))));
                         }
 
-                        let reader = slf.variable(&v).await?;
-                        let reader = xdr_upcast(v, reader);
+                        let reader = slf.variable_xdr(&v).await?;
 
                         pin_mut!(reader);
 
@@ -185,8 +101,7 @@ pub trait Dods: crate::Dap2 + Send + Sync + Clone + 'static {
                                 yield Ok(Bytes::from(Vec::from(xdr_length(variable.len() as u32))));
                             }
 
-                            let reader = slf.variable(&variable).await?;
-                            let reader = xdr_upcast(variable, reader);
+                            let reader = slf.variable_xdr(&variable).await?;
 
                             pin_mut!(reader);
 
@@ -202,16 +117,3 @@ pub trait Dods: crate::Dap2 + Send + Sync + Clone + 'static {
 }
 
 impl<T: crate::Dap2 + Send + Sync + Clone + 'static> Dods for T {}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn length() {
-        let x: u32 = 2;
-        let b = xdr_length(x);
-
-        assert_eq!(b, [0u8, 0, 0, 2, 0, 0, 0, 2]);
-    }
-}

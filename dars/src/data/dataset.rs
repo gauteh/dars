@@ -157,21 +157,6 @@ impl Dap2 for DatasetType {
         }
     }
 
-    async fn variable(
-        &self,
-        variable: &dds::DdsVariableDetails,
-    ) -> Result<
-        Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static>>,
-        anyhow::Error,
-    > {
-        use DatasetType::*;
-
-        match self {
-            HDF5(ds) => ds.variable(variable).await,
-            NCML(ds) => ds.variable(variable).await,
-        }
-    }
-
     async fn raw(
         &self,
     ) -> Result<
@@ -188,4 +173,23 @@ impl Dap2 for DatasetType {
             NCML(ds) => ds.raw().await,
         }
     }
+}
+
+#[async_trait]
+impl dap2::DodsXdr for DatasetType {
+    async fn variable_xdr(
+        &self,
+        variable: &dds::DdsVariableDetails,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static>>,
+        anyhow::Error,
+    > {
+        use DatasetType::*;
+
+        match self {
+            HDF5(ds) => ds.variable_xdr(variable).await,
+            NCML(ds) => ds.variable_xdr(variable).await,
+        }
+    }
+
 }

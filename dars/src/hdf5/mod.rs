@@ -106,8 +106,11 @@ impl dap2::Dap2 for Hdf5Dataset {
     async fn dds(&self) -> &dap2::Dds {
         &self.dds
     }
+}
 
-    async fn variable(
+#[async_trait]
+impl dap2::DodsXdr for Hdf5Dataset {
+    async fn variable_xdr(
         &self,
         variable: &DdsVariableDetails,
     ) -> Result<
@@ -140,7 +143,7 @@ impl dap2::Dap2 for Hdf5Dataset {
         let counts: Vec<u64> = variable.counts.iter().map(|c| *c as u64).collect();
 
         Ok(reader
-            .stream(Some(indices.as_slice()), Some(counts.as_slice()))
+            .stream_xdr(Some(indices.as_slice()), Some(counts.as_slice()))
             .boxed())
     }
 }
@@ -151,7 +154,7 @@ mod tests {
     use crate::data::test_db;
     use dap2::constraint::Constraint;
     use dap2::dds::ConstrainedVariable;
-    use dap2::Dap2;
+    use dap2::DodsXdr;
     use futures::executor::{block_on, block_on_stream};
     use futures::pin_mut;
     use test::Bencher;
@@ -177,7 +180,7 @@ mod tests {
         } = &dds.variables[0]
         {
             b.iter(|| {
-                let reader = block_on(hd.variable(&member)).unwrap();
+                let reader = block_on(hd.variable_xdr(&member)).unwrap();
                 pin_mut!(reader);
                 block_on_stream(reader).for_each(drop);
             });

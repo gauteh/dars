@@ -221,7 +221,22 @@ impl dap2::Dap2 for NcmlDataset {
         &self.dds
     }
 
-    async fn variable(
+    async fn raw(
+        &self,
+    ) -> Result<
+        (
+            u64,
+            Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static>>,
+        ),
+        std::io::Error,
+    > {
+        Err(std::io::Error::from(std::io::ErrorKind::UnexpectedEof))
+    }
+}
+
+#[async_trait]
+impl dap2::DodsXdr for NcmlDataset {
+    async fn variable_xdr(
         &self,
         variable: &DdsVariableDetails,
     ) -> Result<
@@ -246,7 +261,7 @@ impl dap2::Dap2 for NcmlDataset {
         Ok(if variable.name == self.dimension {
             // Coordinate dimension (aggregation variable).
             self.coordinates
-                .stream(indices.as_slice(), counts.as_slice())?
+                .stream_xdr(indices.as_slice(), counts.as_slice())?
                 .boxed()
         } else if variable
             .dimensions
@@ -256,7 +271,7 @@ impl dap2::Dap2 for NcmlDataset {
         {
             // Non-aggregated variable, using first member.
             self.members[0]
-                .stream(&variable.name, db, indices.as_slice(), counts.as_slice())
+                .stream_xdr(&variable.name, db, indices.as_slice(), counts.as_slice())
                 .await?
                 .boxed()
         } else {
@@ -278,7 +293,7 @@ impl dap2::Dap2 for NcmlDataset {
 
                         trace!("First file: {} to {} (mi = {:?}, mc = {:?})", member_start, member_start + m.n as u64, mindices, mcounts);
 
-                        let bytes = m.stream(&var, db.clone(), &mindices, &mcounts).await?;
+                        let bytes = m.stream_xdr(&var, db.clone(), &mindices, &mcounts).await?;
                         pin_mut!(bytes);
                         while let Some(b) = bytes.next().await {
                             yield b;
@@ -298,7 +313,7 @@ impl dap2::Dap2 for NcmlDataset {
                             mcounts
                         );
 
-                        let bytes = m.stream(&var, db.clone(), &mindices, &mcounts).await?;
+                        let bytes = m.stream_xdr(&var, db.clone(), &mindices, &mcounts).await?;
                         pin_mut!(bytes);
                         while let Some(b) = bytes.next().await {
                             yield b;
@@ -311,18 +326,6 @@ impl dap2::Dap2 for NcmlDataset {
                 }
             }).boxed()
         })
-    }
-
-    async fn raw(
-        &self,
-    ) -> Result<
-        (
-            u64,
-            Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static>>,
-        ),
-        std::io::Error,
-    > {
-        Err(std::io::Error::from(std::io::ErrorKind::UnexpectedEof))
     }
 }
 
@@ -346,10 +349,11 @@ impl CoordinateVariable {
         let bts = db.get(&members[0].idxkey)?.unwrap();
         let idx = bincode::deserialize::<idx::Index>(&bts)?;
 
-        let dsz = idx
+        let ds = idx
             .dataset(dimension)
-            .ok_or_else(|| anyhow!("dimension dataset not found."))?
-            .dsize();
+            .ok_or_else(|| anyhow!("dimension dataset not found."))?;
+        let dsz = ds.dsize() * hidefix::filters::xdr::xdr_factor(ds.dtype());
+
         let n: usize = members.iter().map(|m| m.n).sum();
 
         let mut bytes = BytesMut::with_capacity(n * dsz);
@@ -363,7 +367,7 @@ impl CoordinateVariable {
                 .dataset(dimension)
                 .ok_or_else(|| anyhow!("dimension dataset not found."))?;
             let reader = ds.as_streamer(&m.path)?;
-            let reader = reader.stream(None, None);
+            let reader = reader.stream_xdr(None, None);
 
             pin_mut!(reader);
 
@@ -384,7 +388,7 @@ impl CoordinateVariable {
         })
     }
 
-    pub fn stream(
+    pub fn stream_xdr(
         &self,
         indices: &[u64],
         counts: &[u64],
@@ -394,6 +398,7 @@ impl CoordinateVariable {
             indices.len() == 1 && counts.len() == 1,
             "coordinate dimension is always 1 dimension"
         );
+
         let start = indices[0] as usize * self.dsz;
         let end = (indices[0] + counts[0]) as usize * self.dsz;
         ensure!(end <= self.bytes.len(), "slab out of range");

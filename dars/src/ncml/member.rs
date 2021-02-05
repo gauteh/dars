@@ -58,7 +58,7 @@ impl NcmlMember {
         })
     }
 
-    pub async fn stream(
+    pub async fn stream_xdr(
         &self,
         variable: &str,
         db: sled::Db,
@@ -83,7 +83,7 @@ impl NcmlMember {
             Some(ds) => ds.as_streamer(&self.path),
             None => Err(anyhow!("dataset does not exist")),
         }?;
-        let bytes = reader.stream(Some(indices), Some(counts));
+        let bytes = reader.stream_xdr(Some(indices), Some(counts));
 
         Ok(stream! {
             pin_mut!(bytes);

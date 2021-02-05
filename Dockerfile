@@ -3,10 +3,10 @@ FROM rustlang/rust:nightly
 RUN apt-get -y update
 RUN apt-get -y install cmake
 
-ADD data /data
-
 WORKDIR /work
 ADD . .
+
+RUN ln -s /work/data /data
 
 # E.g. "RUSTFLAGS=-C target-cpu=native" for optimizing build for host CPU.
 ARG RUSTFLAGS

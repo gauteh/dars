@@ -4,11 +4,11 @@ from netCDF4 import Dataset
 
 # local = '/lustre/storeA/project/fou/hi/legacy-ocean/thredds/SVIM/1960/ocean_avg_19600101.nc4'
 # local = '/home/gauteh/dev/dars/data/met/ocean_avg_19600101.nc4'
-local = 'https://thredds.met.no/thredds/dodsC/nansen-legacy-ocean/SVIM/1960/ocean_avg_19600101.nc4'
+tds = 'https://thredds.met.no/thredds/dodsC/nansen-legacy-ocean/SVIM/1960/ocean_avg_19600101.nc4'
 dars = 'http://localhost:8001/data/met/svim.ncml'
 
 def test_coordinate_vars():
-  lcl = Dataset(local)
+  lcl = Dataset(tds)
   drs = Dataset(dars)
 
   tm = lcl['ocean_time'][:]
@@ -29,7 +29,7 @@ def test_coordinate_vars():
         print('%s not in variables' % v)
 
 def test_temp():
-  lcl = Dataset(local)
+  lcl = Dataset(tds)
   drs = Dataset(dars)
 
   for oti in range(4, 7):

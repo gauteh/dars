@@ -14,9 +14,11 @@ dods_2="coads_climatology.nc4.dods?SST.SST"
 function uriencode { jq -nr --arg v "$1" '$v|@uri'; }
 
 big_slice="x_wind_ml.x_wind_ml[1:66][0:64][0][0:28386]"
+medium_slice="x_wind_ml.x_wind_ml[1:66][0:10][0][0:10000]"
 small_slice="x_wind_ml.x_wind_ml[1:10][0][0][0:1000]"
 
 big_slice=$(uriencode "${big_slice}")
+medium_slice=$(uriencode "${medium_slice}")
 small_slice=$(uriencode "${small_slice}")
 
 function parse_wrk() {
@@ -33,7 +35,7 @@ function parse_ac() {
   jq '.requests.average'
 }
 
-tool="wrk"
+tool="wrk --latency"
 
 echo "Simple benchmarks (requests/sec using ${tool})"
 mkdir -p out
@@ -123,6 +125,36 @@ if [[ "$1" == "dods1s" || "$1" == "all" ]]; then
   cat out/dars_dods_1_small.wrk | parse_wrk >> out/dods_1_small.rps
   cat out/thredds_dods_1_small.wrk | parse_wrk >> out/dods_1_small.rps
   cat out/hyrax_dods_1_small.wrk | parse_wrk >> out/dods_1_small.rps
+fi
+
+#### Medium slice
+if [[ "$1" == "dods1m" || "$1" == "all" ]]; then
+  dods="${dods_1}?${medium_slice}"
+  echo "DODS(medium): ${dods}"
+
+  if [[ "$2" == "dars" || "$2" == "all" ]]; then
+    echo -n "dars: "
+    sleep 2
+    $tool -d 20 "${dars}${dods}" | tee out/dars_dods_1_medium.wrk | parse_wrk
+  fi
+
+  if [[ "$2" == "thredds" || "$2" == "all" ]]; then
+    echo -n "thredds: "
+    sleep 2
+    $tool -d 20 "${thredds}${dods}" | tee out/thredds_dods_1_medium.wrk | parse_wrk
+  fi
+
+  if [[ "$2" == "hyrax" || "$2" == "all" ]]; then
+    echo -n "hyrax: "
+    sleep 2
+    $tool -d 20 "${hyrax}${dods}" | tee out/hyrax_dods_1_medium.wrk | parse_wrk
+  fi
+
+  # collect results
+  : > out/dods_1_medium.rps
+  cat out/dars_dods_1_medium.wrk | parse_wrk >> out/dods_1_medium.rps
+  cat out/thredds_dods_1_medium.wrk | parse_wrk >> out/dods_1_medium.rps
+  cat out/hyrax_dods_1_medium.wrk | parse_wrk >> out/dods_1_medium.rps
 fi
 
 #### Big slice

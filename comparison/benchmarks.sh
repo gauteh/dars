@@ -14,7 +14,7 @@ dods_2="coads_climatology.nc4.dods?SST.SST"
 function uriencode { jq -nr --arg v "$1" '$v|@uri'; }
 
 big_slice="x_wind_ml.x_wind_ml[1:66][0:64][0][0:28386]"
-medium_slice="x_wind_ml.x_wind_ml[1:66][0:10][0][0:10000]"
+medium_slice="x_wind_ml.x_wind_ml[0:1][0:64][0][0:28386]"
 small_slice="x_wind_ml.x_wind_ml[1:10][0][0][0:1000]"
 
 big_slice=$(uriencode "${big_slice}")

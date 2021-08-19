@@ -16,6 +16,7 @@ for l in latencies:
   with open(l) as f:
     data = f.readlines()
 
+  print(data)
   start = 0
   for ll in data:
     if 'Value   Perce' in ll:

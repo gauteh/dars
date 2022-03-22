@@ -858,6 +858,7 @@ dependencies = [
 [[package]]
 name = "hidefix"
 version = "0.5.2"
+source = "git+https://github.com/gauteh/hidefix#97a6acaeb731a0cf874a25d4f7d89cbe09ef84e7"
 dependencies = [
  "anyhow",
  "async-stream",

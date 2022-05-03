@@ -61,16 +61,13 @@ pub fn xdr_serialize(v: &DdsVariableDetails, b: Bytes) -> Bytes {
             }
 
             Bytes::from(n)
-        },
-
-        Float32 | UInt32 | Int32 |
-        Float64 | UInt64 | Int64 => {
-            unimplemented!("need to swap to big endinaness");
-        },
-
-        _ => {
-            b
         }
+
+        Float32 | UInt32 | Int32 | Float64 | UInt64 | Int64 => {
+            unimplemented!("need to swap to big endinaness");
+        }
+
+        _ => b,
     }
 }
 

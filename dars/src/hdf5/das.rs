@@ -140,9 +140,7 @@ fn fixedascii_to_string(c: &hdf5::Container) -> Result<String, anyhow::Error> {
     }
 }
 
-fn fixedascii_attr_value<const N: usize>(
-    c: &hdf5::Container,
-) -> Result<String, anyhow::Error> {
+fn fixedascii_attr_value<const N: usize>(c: &hdf5::Container) -> Result<String, anyhow::Error> {
     Ok(c.read_scalar::<hdf5::types::FixedAscii<N>>()?
         .as_str()
         .to_owned())

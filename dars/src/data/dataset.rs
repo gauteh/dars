@@ -191,5 +191,4 @@ impl dap2::DodsXdr for DatasetType {
             NCML(ds) => ds.variable_xdr(variable).await,
         }
     }
-
 }

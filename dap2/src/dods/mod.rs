@@ -68,7 +68,11 @@ pub trait Dods: crate::Dap2 + Send + Sync + Clone + 'static {
         let dds = self.dds().await.dds(&constraint)?;
         let dds_bytes = Bytes::from(dds.to_string());
         let content_length = (dds.dods_size() + dds_bytes.len() + 8) as u64;
-        debug!("dods length: {} b / {} mb", content_length, content_length / 1024 / 1024);
+        debug!(
+            "dods length: {} b / {} mb",
+            content_length,
+            content_length / 1024 / 1024
+        );
 
         let slf = self.clone();
 

@@ -4,11 +4,11 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 
-use rayon::prelude::*;
 use async_stream::stream;
 use async_trait::async_trait;
 use bytes::{Bytes, BytesMut};
 use futures::{executor::block_on_stream, pin_mut, Stream, StreamExt, TryStreamExt};
+use rayon::prelude::*;
 use roxmltree::Node;
 use walkdir::WalkDir;
 

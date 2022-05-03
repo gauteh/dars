@@ -26,41 +26,31 @@ pub fn xdr_serialize(v: &DdsVariableDetails, b: Bytes) -> Bytes {
             let b: &[u8] = &*b;
             let u: &[u16] = bytemuck::cast_slice(b);
 
-            let mut n: Vec<u8> = Vec::with_capacity(u.len() * 4);
-            unsafe {
-                n.set_len(u.len() * 4);
-            }
-            let nn: &mut [u32] = bytemuck::cast_slice_mut(&mut n);
-
-            for (s, d) in u.iter().zip(nn.iter_mut()) {
-                if cfg!(target_endian = "big") {
-                    *d = *s as u32;
-                } else {
-                    *d = (s.swap_bytes() as u32).swap_bytes();
-                }
-            }
-
-            Bytes::from(n)
+            u.iter()
+                .flat_map(|&s| {
+                    if cfg!(target_endian = "big") {
+                        s as u32
+                    } else {
+                        (s.swap_bytes() as u32).swap_bytes()
+                    }
+                    .to_ne_bytes()
+                })
+                .collect()
         }
         Int16 => {
             let b: &[u8] = &*b;
             let u: &[i16] = bytemuck::cast_slice(b);
 
-            let mut n: Vec<u8> = Vec::with_capacity(u.len() * 4);
-            unsafe {
-                n.set_len(u.len() * 4);
-            }
-            let nn: &mut [i32] = bytemuck::cast_slice_mut(&mut n);
-
-            for (s, d) in u.iter().zip(nn.iter_mut()) {
-                if cfg!(target_endian = "big") {
-                    *d = *s as i32;
-                } else {
-                    *d = (s.swap_bytes() as i32).swap_bytes();
-                }
-            }
-
-            Bytes::from(n)
+            u.iter()
+                .flat_map(|&s| {
+                    if cfg!(target_endian = "big") {
+                        s as i32
+                    } else {
+                        (s.swap_bytes() as i32).swap_bytes()
+                    }
+                    .to_ne_bytes()
+                })
+                .collect()
         }
 
         Float32 | UInt32 | Int32 | Float64 | UInt64 | Int64 => {

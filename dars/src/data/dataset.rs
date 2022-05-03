@@ -64,7 +64,7 @@ impl Datasets {
                 entry
                     .file_name()
                     .to_str()
-                    .map(|s| entry.depth() == 0 || !s.starts_with("."))
+                    .map(|s| entry.depth() == 0 || !s.starts_with('.'))
                     .unwrap_or(false)
             })
             .filter_map(|e| e.ok())
@@ -83,7 +83,7 @@ impl Datasets {
                 }
             })
             .filter_map(|path| {
-                let key = if datadir.to_string_lossy().ends_with("/") {
+                let key = if datadir.to_string_lossy().ends_with('/') {
                     path.strip_prefix(&datadir).ok()?.to_string_lossy()
                 } else {
                     path.to_string_lossy()

@@ -44,9 +44,9 @@ pub async fn dods(
     constraint: Constraint,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let dataset = Arc::clone(&dataset);
-    let (content_length, body) = dataset.dods(constraint).await.or_else(|e| {
+    let (content_length, body) = dataset.dods(constraint).await.map_err(|e| {
         error!("Error constructing DODS response: {:?}", e);
-        Err(warp::reject::custom(DodsError))
+        warp::reject::custom(DodsError)
     })?;
 
     Ok(Response::builder()

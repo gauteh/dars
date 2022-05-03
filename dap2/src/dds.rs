@@ -131,8 +131,7 @@ where
                 var.position = i;
 
                 (var.name.clone(), var)
-            })
-            .collect::<Vec<_>>();
+            });
 
         Dds {
             variables: variables.into_iter().collect(),
@@ -146,7 +145,7 @@ impl Dds {
     fn counts(slab: &Option<Vec<Vec<usize>>>) -> Option<Vec<usize>> {
         slab.as_ref().map(|slab| {
             slab.iter()
-                .map(|v| hyperslab::count_slab(&v))
+                .map(|v| hyperslab::count_slab(v))
                 .collect::<Vec<usize>>()
         })
     }
@@ -376,8 +375,8 @@ impl Dds {
                                                 .zip(counts.iter().cloned())
                                                 .collect(),
                                             size: counts.iter().product(),
-                                            indices: indices,
-                                            counts: counts,
+                                            indices,
+                                            counts,
                                         }))
                                     }
                                 })
@@ -414,8 +413,8 @@ impl Dds {
                                             .zip(counts.iter().cloned())
                                             .collect(),
                                         size: counts.iter().product(),
-                                        indices: indices,
-                                        counts: counts,
+                                        indices,
+                                        counts,
                                     },
                                 })
                             }),
@@ -464,6 +463,7 @@ impl DdsVariableDetails {
     }
 
     /// Number of elements in array.
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.size
     }
@@ -536,7 +536,7 @@ impl ConstrainedVariable {
             Structure {
                 variable: v,
                 member: _,
-            } => &v,
+            } => v,
             Grid {
                 variable,
                 dimensions: _,
@@ -571,28 +571,28 @@ impl fmt::Display for ConstrainedVariable {
                 variable,
                 dimensions,
             } => {
-                write!(f, "{}Grid {{\n", " ".repeat(INDENT))?;
-                write!(f, "{} ARRAY:\n", " ".repeat(INDENT))?;
+                writeln!(f, "{}Grid {{", " ".repeat(INDENT))?;
+                writeln!(f, "{} ARRAY:", " ".repeat(INDENT))?;
 
                 write!(f, "{}", " ".repeat(2 * INDENT))?;
                 variable.fmt(f)?;
-                write!(f, "\n")?;
+                writeln!(f)?;
 
-                write!(f, "{} MAPS:\n", " ".repeat(INDENT))?;
+                writeln!(f, "{} MAPS:", " ".repeat(INDENT))?;
                 for d in dimensions {
                     write!(f, "{}", " ".repeat(2 * INDENT))?;
                     d.fmt(f)?;
-                    write!(f, "\n")?;
+                    writeln!(f)?;
                 }
 
                 write!(f, "{}}} {};", " ".repeat(INDENT), variable.name)
             }
 
             Structure { variable, member } => {
-                write!(f, "{}Structure {{\n", " ".repeat(INDENT))?;
+                writeln!(f, "{}Structure {{", " ".repeat(INDENT))?;
                 write!(f, "{}", " ".repeat(2 * INDENT))?;
                 member.fmt(f)?;
-                write!(f, "\n")?;
+                writeln!(f)?;
                 write!(f, "{}}} {};", " ".repeat(INDENT), variable)
             }
         }
@@ -620,10 +620,10 @@ impl DdsResponse {
 
 impl fmt::Display for DdsResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Dataset {{\n")?;
+        writeln!(f, "Dataset {{")?;
         for c in &self.variables {
             c.fmt(f)?;
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
         write!(f, "}} {};", self.file_name)
     }

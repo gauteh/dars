@@ -19,7 +19,7 @@ pub fn datasets(
     let dap = das(state.clone())
         .or(dds(state.clone()))
         .or(dods(state.clone()))
-        .or(raw(state.clone()));
+        .or(raw(state));
 
     {
         // If catalog is disabled datasets can be queried in JSON
@@ -83,7 +83,7 @@ pub fn dods(
         .and(warp::get())
         .and(
             ends_with(".dods")
-                .and(with_state(state.clone()))
+                .and(with_state(state))
                 .and_then(with_dataset),
         )
         .and(constraint())
@@ -125,7 +125,7 @@ fn ends_with(
 fn constraint() -> impl Filter<Extract = (Constraint,), Error = warp::reject::Rejection> + Clone {
     warp::any()
         .and(warp::query::raw().and_then(move |s: String| async move {
-            Constraint::parse(s.as_str()).or_else(|_| Err(warp::reject::reject()))
+            Constraint::parse(s.as_str()).map_err(|_| warp::reject::reject())
         }))
         .or(warp::any()
             .and_then(|| async move { Ok::<_, warp::reject::Rejection>(Constraint::empty()) }))

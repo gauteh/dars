@@ -41,8 +41,8 @@ pub fn parse_hyperslab(s: &str) -> anyhow::Result<Vec<Vec<usize>>> {
     s.split(']')
         .filter(|slab| !slab.is_empty())
         .map(|slab| {
-            if slab.starts_with('[') {
-                parse_slice(&slab[1..])
+            if let Some(slab) = slab.strip_prefix('[') {
+                parse_slice(slab)
             } else {
                 Err(anyhow!("Missing start bracket"))
             }

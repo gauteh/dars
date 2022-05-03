@@ -63,7 +63,7 @@ pub(crate) fn hdf5_dimensions(m: &str, dataset: &hdf5::Dataset) -> Vec<String> {
                 let rdata = rdata as *mut hs::h5t::hvl_t;
 
                 for i in 0..len {
-                    let r = rdata.offset(i as isize);
+                    let r = rdata.add(i);
                     let p = (*r).p;
 
                     #[cfg(feature = "fast-index")]
@@ -118,7 +118,7 @@ impl dds::ToDds for &HDF5File {
                     m.clone(),
                     hdf5_vartype(&d.dtype().unwrap()),
                     hdf5_dimensions(m, &d),
-                    d.shape().clone(),
+                    d.shape(),
                 )
             })
             .collect()

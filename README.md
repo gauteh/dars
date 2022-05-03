@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/gauteh/dars.svg?branch=master)](https://travis-ci.org/gauteh/dars)
+[![Build Status](https://github.com/gauteh/dars/workflows/CI/badge.svg)](https://github.com/gauteh/dars/actions?query=branch%3Amaster)
 [![Docker Automated build](https://img.shields.io/docker/cloud/automated/gauteh/dars)](https://hub.docker.com/r/gauteh/dars)
 [![Rust nightly](https://img.shields.io/badge/rustc-nightly-orange)](https://rust-lang.github.io/rustup/installation/other.html)
 

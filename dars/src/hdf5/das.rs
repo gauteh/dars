@@ -4,16 +4,16 @@ use super::HDF5File;
 
 impl das::ToDas for &HDF5File {
     fn has_global_attributes(&self) -> bool {
-        self.0.attribute_names().is_ok()
+        self.0.attr_names().is_ok()
     }
 
     fn global_attributes(&self) -> Box<dyn Iterator<Item = das::Attribute>> {
         Box::new(
             self.0
-                .attribute_names()
+                .attr_names()
                 .unwrap()
                 .iter()
-                .map(|n| h5attr_to_das(n, self.0.attribute(n).unwrap()))
+                .map(|n| h5attr_to_das(n, self.0.attr(n).unwrap()))
                 .collect::<Vec<das::Attribute>>()
                 .into_iter(),
         )
@@ -41,7 +41,7 @@ impl das::ToDas for &HDF5File {
             self.0
                 .dataset(variable)
                 .unwrap()
-                .attribute_names()
+                .attr_names()
                 .unwrap()
                 .iter()
                 .filter_map(|n| {
@@ -49,7 +49,7 @@ impl das::ToDas for &HDF5File {
                         self.0
                             .dataset(variable)
                             .unwrap()
-                            .attribute(n)
+                            .attr(n)
                             .map(|a| h5attr_to_das(n, a)),
                     )
                 })
@@ -116,7 +116,7 @@ macro_rules! branch_array_impl {
     ($a:expr, $u:expr, $( $ns:expr ),*) => {
         match $u {
             $(
-                $ns => Some(fixedascii_attr_value::<[u8; $ns]>($a)),
+                $ns => Some(fixedascii_attr_value::<$ns>($a)),
             )*
             _ => None
         }
@@ -140,10 +140,10 @@ fn fixedascii_to_string(c: &hdf5::Container) -> Result<String, anyhow::Error> {
     }
 }
 
-fn fixedascii_attr_value<T: hdf5::types::Array<Item = u8>>(
+fn fixedascii_attr_value<const N: usize>(
     c: &hdf5::Container,
 ) -> Result<String, anyhow::Error> {
-    Ok(c.read_scalar::<hdf5::types::FixedAscii<T>>()?
+    Ok(c.read_scalar::<hdf5::types::FixedAscii<N>>()?
         .as_str()
         .to_owned())
 }
@@ -175,6 +175,20 @@ mod tests {
     NC_GLOBAL {
         String history "FERRET V4.30 (debug/no GUI) 15-Aug-96";
     }
+    COADSY {
+        String point_spacing "even";
+        String units "degrees_north";
+    }
+    COADSX {
+        String modulo " ";
+        String point_spacing "even";
+        String units "degrees_east";
+    }
+    TIME {
+        String modulo " ";
+        String time_origin "1-JAN-0000 00:00:00";
+        String units "hour since 0000-01-01 00:00:00";
+    }
     AIRT {
         Float32 _FillValue -1.0E34;
         String history "From coads_climatology";
@@ -182,14 +196,12 @@ mod tests {
         Float32 missing_value -1.0E34;
         String units "DEG C";
     }
-    COADSX {
-        String modulo " ";
-        String point_spacing "even";
-        String units "degrees_east";
-    }
-    COADSY {
-        String point_spacing "even";
-        String units "degrees_north";
+    UWND {
+        Float32 _FillValue -1.0E34;
+        String history "From coads_climatology";
+        String long_name "ZONAL WIND";
+        Float32 missing_value -1.0E34;
+        String units "M/S";
     }
     SST {
         Float32 _FillValue -1.0E34;
@@ -197,18 +209,6 @@ mod tests {
         String long_name "SEA SURFACE TEMPERATURE";
         Float32 missing_value -1.0E34;
         String units "Deg C";
-    }
-    TIME {
-        String modulo " ";
-        String time_origin "1-JAN-0000 00:00:00";
-        String units "hour since 0000-01-01 00:00:00";
-    }
-    UWND {
-        Float32 _FillValue -1.0E34;
-        String history "From coads_climatology";
-        String long_name "ZONAL WIND";
-        Float32 missing_value -1.0E34;
-        String units "M/S";
     }
     VWND {
         Float32 _FillValue -1.0E34;

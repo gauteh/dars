@@ -44,7 +44,7 @@ pub(crate) fn hdf5_vartype(dtype: &hdf5::Datatype) -> dds::VarType {
 }
 
 pub(crate) fn hdf5_dimensions(m: &str, dataset: &hdf5::Dataset) -> Vec<String> {
-    if let Ok(dim_list) = dataset.attribute("DIMENSION_LIST") {
+    if let Ok(dim_list) = dataset.attr("DIMENSION_LIST") {
         // HDF5 references not yet supported in hdf5-rust:
         // https://github.com/aldanor/hdf5-rust/issues/98
         //

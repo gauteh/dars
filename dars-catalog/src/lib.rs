@@ -22,7 +22,7 @@ pub fn catalog<T: Catalog + Clone>(
             let mut tera = Tera::default();
             for t in &["base.html", "folder.html", "index.html"] {
                 let template = Templates::get(&t).unwrap();
-                let template = std::str::from_utf8(&template).unwrap();
+                let template = std::str::from_utf8(&template.data.as_ref()).unwrap();
                 tera.add_raw_template(&t, &template).unwrap();
             }
             Arc::new(tera)

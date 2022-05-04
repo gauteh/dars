@@ -170,7 +170,7 @@ impl Dds {
             .map(|counts| {
                 counts
                     .iter()
-                    .zip_longest(var.shape.iter().cloned())
+                    .zip_longest(var.shape.iter().copied())
                     .zip(indices)
                     .map(|(e, i)| match e {
                         Left(_) => Err(anyhow!("More counts than dimensions")),
@@ -246,7 +246,7 @@ impl Dds {
                                     .dimensions
                                     .iter()
                                     .cloned()
-                                    .zip(var.shape.iter().cloned())
+                                    .zip(var.shape.iter().copied())
                                     .collect(),
                                 size: var.shape.iter().product(),
                                 indices: vec![0; var.shape.len()],
@@ -280,7 +280,7 @@ impl Dds {
                                 .dimensions
                                 .iter()
                                 .cloned()
-                                .zip(var.shape.iter().cloned())
+                                .zip(var.shape.iter().copied())
                                 .collect(),
                             size: var.shape.iter().product(),
                             indices: vec![0; var.shape.len()],
@@ -309,8 +309,7 @@ impl Dds {
                                 .map(|var| {
                                     ensure!(
                                         slab.as_ref()
-                                            .map(|s| s.iter().all(|i| i.len() < 3))
-                                            .unwrap_or(true),
+                                            .map_or(true, |s| s.iter().all(|i| i.len() < 3)),
                                         "hyperslabs with strides not supported"
                                     );
 
@@ -331,7 +330,7 @@ impl Dds {
                                                     .dimensions
                                                     .iter()
                                                     .cloned()
-                                                    .zip(counts.iter().cloned())
+                                                    .zip(counts.iter().copied())
                                                     .collect(),
                                                 size: counts.iter().product(),
                                                 indices: indices.clone(),
@@ -372,7 +371,7 @@ impl Dds {
                                                 .dimensions
                                                 .iter()
                                                 .cloned()
-                                                .zip(counts.iter().cloned())
+                                                .zip(counts.iter().copied())
                                                 .collect(),
                                             size: counts.iter().product(),
                                             indices,
@@ -393,8 +392,7 @@ impl Dds {
                             .and_then(|(var1, var2)| {
                                 ensure!(
                                     slab.as_ref()
-                                        .map(|s| s.iter().all(|i| i.len() < 3))
-                                        .unwrap_or(true),
+                                        .map_or(true, |s| s.iter().all(|i| i.len() < 3)),
                                     "hyperslabs with strides not supported"
                                 );
 
@@ -410,7 +408,7 @@ impl Dds {
                                             .dimensions
                                             .iter()
                                             .cloned()
-                                            .zip(counts.iter().cloned())
+                                            .zip(counts.iter().copied())
                                             .collect(),
                                         size: counts.iter().product(),
                                         indices,

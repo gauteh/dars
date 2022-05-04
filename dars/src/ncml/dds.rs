@@ -37,11 +37,9 @@ impl dds::ToDds for NcmlDdsBuilder {
                     hdf5dds::hdf5_vartype(&d.dtype().unwrap())
                 );
                 let dimensions = hdf5dds::hdf5_dimensions(m, &d);
-                let mut shape = d.shape().clone();
-                if !dimensions.is_empty() {
-                    if dimensions[0] == self.dimension {
-                        shape[0] = self.n;
-                    }
+                let mut shape = d.shape();
+                if !dimensions.is_empty() && dimensions[0] == self.dimension {
+                    shape[0] = self.n;
                 }
                 Variable::new(
                     m.clone(),

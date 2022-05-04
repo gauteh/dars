@@ -2,9 +2,9 @@
 //!
 //! DAP constraints consist of variable list and slices [hyperslabs](crate::hyperslab) of those variables.
 //!
-//! See [Constraint::parse] on how to parse a query into variable constraints. A `Constraint` can
-//! be passed to [crate::dds::Dds::dds] of a data-source to constrain the actual variables of a
-//! dataset, returning a [crate::dds::DdsResponse] with [crate::dds::ConstrainedVariable]s that can
+//! See [`Constraint::parse`] on how to parse a query into variable constraints. A `Constraint` can
+//! be passed to [`crate::dds::Dds::dds`] of a data-source to constrain the actual variables of a
+//! dataset, returning a [`crate::dds::DdsResponse`] with [`crate::dds::ConstrainedVariable`]s that can
 //! be used to stream the variables of a data-source.
 //!
 //! * Strides are not supported.
@@ -48,37 +48,32 @@ impl Constraint {
         debug!("query: {}", query);
 
         query
-            .split(",")
+            .split(',')
             .map(|var| {
-                if let Some(s) = var.find(".") {
+                if let Some(s) = var.find('.') {
                     let v1 = &var[..s];
                     let v2 = &var[s + 1..];
 
-                    match v2.find("[") {
-                        Some(i) => hyperslab::parse_hyperslab(&v2[i..])
-                            .and_then(|slab| Ok((&v2[..i], Some(slab)))),
+                    match v2.find('[') {
+                        Some(i) => {
+                            hyperslab::parse_hyperslab(&v2[i..]).map(|slab| (&v2[..i], Some(slab)))
+                        }
                         None => Ok((v2, None)),
                     }
-                    .and_then(|(v2, slab)| {
-                        Ok(ConstraintVariable::Structure((
-                            v1.to_string(),
-                            v2.to_string(),
-                            slab,
-                        )))
+                    .map(|(v2, slab)| {
+                        ConstraintVariable::Structure((v1.to_string(), v2.to_string(), slab))
                     })
                 } else {
-                    match var.find("[") {
+                    match var.find('[') {
                         Some(i) => hyperslab::parse_hyperslab(&var[i..])
-                            .and_then(|slab| Ok((&var[..i], Some(slab)))),
+                            .map(|slab| (&var[..i], Some(slab))),
                         None => Ok((var, None)),
                     }
-                    .and_then(|(var, slab)| {
-                        Ok(ConstraintVariable::Variable((var.to_string(), slab)))
-                    })
+                    .map(|(var, slab)| ConstraintVariable::Variable((var.to_string(), slab)))
                 }
             })
             .collect::<anyhow::Result<_>>()
-            .and_then(|variables| Ok(Constraint { variables }))
+            .map(|variables| Constraint { variables })
     }
 
     /// An empty constraints, meaning all variables.

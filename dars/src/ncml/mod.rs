@@ -4,11 +4,11 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 
-use rayon::prelude::*;
 use async_stream::stream;
 use async_trait::async_trait;
 use bytes::{Bytes, BytesMut};
-use futures::{executor::block_on_stream, pin_mut, Stream, StreamExt, TryStreamExt};
+use futures::{executor::block_on_stream, pin_mut, Stream, StreamExt};
+use rayon::prelude::*;
 use roxmltree::Node;
 use walkdir::WalkDir;
 
@@ -98,7 +98,7 @@ impl NcmlDataset {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        ensure!(members.len() > 0, "no members in aggregate.");
+        ensure!(!members.is_empty(), "no members in aggregate.");
         let members = Arc::new(members);
 
         let (das, dds) = {
@@ -128,7 +128,7 @@ impl NcmlDataset {
             coordinates,
             modified,
             members,
-            db: db.clone(),
+            db,
         })
     }
 
@@ -165,33 +165,26 @@ impl NcmlDataset {
                                     .unwrap_or(false)
                             })
                             .filter_map(|entry| {
-                                entry
-                                    .ok()
-                                    .map(|entry| {
-                                        entry
-                                            .metadata()
-                                            .ok()
-                                            .map(|m| {
-                                                if m.is_file()
-                                                    && entry
-                                                        .path()
-                                                        .to_str()
-                                                        .map(|s| {
-                                                            s.ends_with(sf)
-                                                                && !ignore
-                                                                    .map(|i| s.contains(i))
-                                                                    .unwrap_or(false)
-                                                        })
-                                                        .unwrap_or(false)
-                                                {
-                                                    Some(entry.into_path())
-                                                } else {
-                                                    None
-                                                }
-                                            })
-                                            .flatten()
+                                entry.ok().and_then(|entry| {
+                                    entry.metadata().ok().and_then(|m| {
+                                        if m.is_file()
+                                            && entry
+                                                .path()
+                                                .to_str()
+                                                .map(|s| {
+                                                    s.ends_with(sf)
+                                                        && !ignore
+                                                            .map(|i| s.contains(i))
+                                                            .unwrap_or(false)
+                                                })
+                                                .unwrap_or(false)
+                                        {
+                                            Some(entry.into_path())
+                                        } else {
+                                            None
+                                        }
                                     })
-                                    .flatten()
+                                })
                             })
                             .map(|path| {
                                 std::fs::canonicalize(path)

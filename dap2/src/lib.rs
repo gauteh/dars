@@ -4,7 +4,7 @@
 //!
 //! ## Resources
 //!
-//! * [OPeNDAP design documentation](https://www.opendap.org/support/design-documentation)
+//! * [`OPeNDAP` design documentation](https://www.opendap.org/support/design-documentation)
 //! * [The DAP/2 protocol specification](https://www.opendap.org/pdf/ESE-RFC-004v1.2.pdf)
 //! * [libdap](https://opendap.github.io/libdap4/html/)
 //!

@@ -33,7 +33,7 @@ impl NcmlMember {
 
         // Read first value of aggregate dimension
         let rank: f64 = *agg
-            .read_slice_1d::<f64, _>(ndarray::s![0..1])?
+            .read_slice_1d::<f64, _>(0..1)?
             .get(0)
             .ok_or_else(|| anyhow!("aggregate dimension is empty"))?;
 

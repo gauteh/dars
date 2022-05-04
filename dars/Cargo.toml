@@ -33,7 +33,7 @@ tokio-util = { version = "0.7", features = ["codec"] }
 toml = "0.5.7"
 walkdir = "2.3.1"
 warp = "0.3"
-hdf5 = "0.7.1"
+hdf5 = "0.8.1"
 rayon = "1.5.1"
 
 [dependencies.dap2]
@@ -47,7 +47,7 @@ optional = true
 
 [dependencies.hdf5-sys]
 features = ["static", "zlib"]
-version = "0.7.1"
+version = "0.8.1"
 
 [dependencies.hidefix]
 features = ["static"]

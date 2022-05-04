@@ -22,10 +22,10 @@ pub async fn index<T: Catalog + Clone>(
     ctx.insert("title", "");
 
     tera.render("index.html", &ctx)
-        .and_then(|html| {
-            Ok(warp::http::Response::builder()
+        .map(|html| {
+            warp::http::Response::builder()
                 .header("Content-Type", "text/html")
-                .body(Body::from(html)))
+                .body(Body::from(html))
         })
         .or_else(|e| {
             println!("error: {:?}", e);
@@ -92,10 +92,10 @@ pub async fn folder(
     ctx.insert("datasets", &datasets);
 
     tera.render("folder.html", &ctx)
-        .and_then(|html| {
-            Ok(warp::http::Response::builder()
+        .map(|html| {
+            warp::http::Response::builder()
                 .header("Content-Type", "text/html")
-                .body(Body::from(html)))
+                .body(Body::from(html))
         })
         .or_else(|e| {
             println!("error: {:?}", e);

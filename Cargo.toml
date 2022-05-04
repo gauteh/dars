@@ -6,8 +6,9 @@ members = ["dars", "dap2", "dars-catalog"]
 #codegen-units = 1
 
 [patch.crates-io]
-hdf5 = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
-hdf5-sys = { git = "https://github.com/gauteh/hdf5-rust", branch = "hidefix" }
+hdf5 = { git = "https://github.com/mulimoen/hdf5-rust", branch = "feature/chunks-iter" }
+hdf5-sys = { git = "https://github.com/mulimoen/hdf5-rust", branch = "feature/chunks-iter" }
+hdf5-src = { git = "https://github.com/mulimoen/hdf5-rust", branch = "feature/chunks-iter" }
 # hidefix = { git = "https://github.com/gauteh/hidefix", branch = "master" }
 
 # hidefix = { path = "../hidefix" }

@@ -7,20 +7,17 @@ ADD . .
 
 # E.g. "RUSTFLAGS=-C target-cpu=native" for optimizing build for host CPU.
 ARG RUSTFLAGS
-ENV RUSTFLAGS=${RUSTFLAGS:-}
-
 RUN cargo install --path dars
 
 FROM debian:stable-20220418-slim
 WORKDIR /work/
 COPY --from=builder /usr/local/cargo/bin/dars /usr/bin/dars
+ADD ./entrypoint.sh .
 ADD data /data
 
-ARG DARS_PORT
 ENV DARS_PORT=${DARS_PORT:-8001}
 EXPOSE ${DARS_PORT}
-ENV RUST_LOG=info
+ENV RUST_LOG=${RUST_LOG:-info}
 
-ENTRYPOINT [ "dars" ]
-# TODO: MAke entrypoint shell script to expose DARS_PORT
-CMD [ "-a", "0.0.0.0:8001", "/data/" ]
+ENTRYPOINT [ "./entrypoint.sh" ]
+CMD [ "/data/" ]

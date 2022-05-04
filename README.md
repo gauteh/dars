@@ -74,7 +74,7 @@ Use [gauteh/dars](https://hub.docker.com/r/gauteh/dars) or build yourself:
 
 ```sh
 $ docker build -t dars .
-$ docker run -it -p 8001:80 dars
+$ docker run -it -p 8001:8001 dars
 ```
 
 mount your data at `/data`.

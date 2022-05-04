@@ -68,7 +68,7 @@ fn elements<T: Catalog + Clone>(
                 let catalog = catalog.clone();
                 async move {
                     let mut tail = tail.as_str().to_string();
-                    if tail.len() > 0 && !tail.ends_with('/') {
+                    if !tail.is_empty() && !tail.ends_with('/') {
                         tail.push('/');
                     }
 
@@ -94,8 +94,8 @@ fn elements<T: Catalog + Clone>(
                     folders.dedup();
 
                     // No such path or matches exact data source
-                    if (folders.len() == 0 && paths.len() == 0)
-                        || (folders.len() == 0 && paths.len() == 1 && paths[0] == tail)
+                    if (folders.is_empty() && paths.is_empty())
+                        || (folders.is_empty() && paths.len() == 1 && paths[0] == tail)
                     {
                         Err(warp::reject())
                     } else {

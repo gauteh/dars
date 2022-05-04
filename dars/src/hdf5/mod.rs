@@ -40,8 +40,7 @@ impl Hdf5Dataset {
 
         let modified = std::fs::metadata(&path)?.modified()?;
 
-        let _silence = hdf5::silence_errors();
-        let hf = HDF5File(hdf5::File::open(&path)?, key.clone());
+        let hf = HDF5File(hdf5::File::open(&path)?, key);
 
         trace!("Building DAS of {:?}..", path);
         let das = (&hf).into();

@@ -18,9 +18,6 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 use dars::{config, data};
 
-#[cfg(feature = "catalog")]
-use dars_catalog;
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(Env::default().default_filter_or("dars=info")).init();

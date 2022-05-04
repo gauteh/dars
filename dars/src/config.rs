@@ -86,15 +86,13 @@ If no DATA is specified, "data/" is used."#
         info!("reading configuration from: {:?}", f);
         let config = std::fs::read_to_string(f)?;
         toml::from_str(&config)?
+    } else if std::fs::metadata("./dars.toml").is_ok() {
+        info!("reading configuration from default: ./dars.toml");
+        let config = std::fs::read_to_string("./dars.toml")?;
+        toml::from_str(&config)?
     } else {
-        if std::fs::metadata("./dars.toml").is_ok() {
-            info!("reading configuration from default: ./dars.toml");
-            let config = std::fs::read_to_string("./dars.toml")?;
-            toml::from_str(&config)?
-        } else {
-            debug!("using default configuration");
-            Config::default()
-        }
+        debug!("using default configuration");
+        Config::default()
     };
 
     // Override configuration options with arguments

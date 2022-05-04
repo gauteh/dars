@@ -5,7 +5,7 @@
 ///!
 ///! There are some types of datasets that apparently should be ignored.
 use hdf5_sys as hs;
-use libc;
+use hdf5_sys::h5t::hvl_t;
 use std::convert::TryInto;
 
 use dap2::dds::{self, Variable};
@@ -44,7 +44,7 @@ pub(crate) fn hdf5_vartype(dtype: &hdf5::Datatype) -> dds::VarType {
 }
 
 pub(crate) fn hdf5_dimensions(m: &str, dataset: &hdf5::Dataset) -> Vec<String> {
-    if let Ok(dim_list) = dataset.attribute("DIMENSION_LIST") {
+    if let Ok(dim_list) = dataset.attr("DIMENSION_LIST") {
         // HDF5 references not yet supported in hdf5-rust:
         // https://github.com/aldanor/hdf5-rust/issues/98
         //
@@ -58,39 +58,46 @@ pub(crate) fn hdf5_dimensions(m: &str, dataset: &hdf5::Dataset) -> Vec<String> {
             let mut dims = Vec::with_capacity(len);
             unsafe {
                 let tid = hs::h5a::H5Aget_type(id);
-                let rdata = libc::malloc(std::mem::size_of::<hs::h5t::hvl_t>() * len);
-                hs::h5a::H5Aread(id, tid, rdata);
-                let rdata = rdata as *mut hs::h5t::hvl_t;
+                let mut rdata = vec![0_u8; std::mem::size_of::<hvl_t>() * len];
+                hs::h5a::H5Aread(id, tid, rdata.as_mut_ptr().cast());
+                let refs: &[hvl_t] = std::slice::from_raw_parts(rdata.as_ptr().cast(), len);
 
-                for i in 0..len {
-                    let r = rdata.offset(i as isize);
-                    let p = (*r).p;
-
+                for &r in refs {
                     #[cfg(feature = "fast-index")]
-                    let dset =
-                        hs::h5r::H5Rdereference2(id, hs::h5p::H5P_DEFAULT, hs::h5r::H5R_OBJECT1, p);
+                    let dset = hs::h5r::H5Rdereference2(
+                        id,
+                        hs::h5p::H5P_DEFAULT,
+                        hs::h5r::H5R_OBJECT1,
+                        r.p,
+                    );
 
                     #[cfg(not(feature = "fast-index"))]
-                    let dset =
-                        hs::h5r::H5Rdereference2(id, hs::h5p::H5P_DEFAULT, hs::h5r::H5R_OBJECT, p);
+                    let dset = hs::h5r::H5Rdereference2(
+                        id,
+                        hs::h5p::H5P_DEFAULT,
+                        hs::h5r::H5R_OBJECT,
+                        r.p,
+                    );
 
                     let sz = 1 + hs::h5i::H5Iget_name(dset, std::ptr::null_mut(), 0);
                     let sz: usize = sz.try_into().unwrap();
-                    let name = libc::malloc(sz + 1);
-                    hs::h5i::H5Iget_name(dset, name as *mut _, sz);
+                    let mut name = vec![0_u8; sz + 1];
+                    hs::h5i::H5Iget_name(dset, name.as_mut_ptr().cast(), sz);
 
-                    let name_s = std::slice::from_raw_parts(name as *const u8, sz);
-                    let name_s = String::from_utf8((&name_s[..name_s.len() - 1]).to_vec());
+                    let name = std::str::from_utf8(&name[..name.len() - 2]).unwrap();
 
-                    libc::free(name);
-
-                    let name = name_s.unwrap();
-                    dims.push((&name[1..]).to_string()); // remove leading '/'
+                    dims.push((&name[1..]).to_owned()); // remove leading '/'
 
                     hs::h5d::H5Dclose(dset);
                 }
 
-                libc::free(rdata as *mut _);
+                let space = dim_list.space().unwrap();
+                hs::h5t::H5Treclaim(
+                    tid,
+                    space.id(),
+                    hs::h5p::H5P_DEFAULT,
+                    rdata.as_mut_ptr().cast(),
+                );
                 hs::h5t::H5Tclose(tid);
 
                 dims
@@ -118,7 +125,7 @@ impl dds::ToDds for &HDF5File {
                     m.clone(),
                     hdf5_vartype(&d.dtype().unwrap()),
                     hdf5_dimensions(m, &d),
-                    d.shape().clone(),
+                    d.shape(),
                 )
             })
             .collect()

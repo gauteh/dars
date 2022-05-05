@@ -387,7 +387,7 @@ dependencies = [
  "bytemuck",
  "bytes",
  "futures",
- "itertools 0.9.0",
+ "itertools",
  "log",
  "percent-encoding",
 ]
@@ -411,11 +411,11 @@ dependencies = [
  "hdf5-sys",
  "hexyl",
  "hidefix",
- "itertools 0.10.3",
+ "itertools",
  "jemallocator",
  "libc",
  "log",
- "ndarray 0.14.0",
+ "ndarray",
  "num_cpus",
  "rayon",
  "reqwest",
@@ -771,7 +771,7 @@ dependencies = [
 [[package]]
 name = "hdf5"
 version = "0.8.1"
-source = "git+https://github.com/mulimoen/hdf5-rust?branch=feature/chunks-iter#84fa692fc532c0c7e07435e66678f3eaea5b871f"
+source = "git+https://github.com/magnusuMET/hdf5-rust?branch=hidefix#038eb65aea4cc52cad26d176e3b17b796c749da3"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -780,15 +780,15 @@ dependencies = [
  "hdf5-types",
  "lazy_static",
  "libc",
- "ndarray 0.15.4",
- "parking_lot 0.11.2",
+ "ndarray",
+ "parking_lot 0.12.0",
  "paste",
 ]
 
 [[package]]
 name = "hdf5-derive"
 version = "0.8.1"
-source = "git+https://github.com/mulimoen/hdf5-rust?branch=feature/chunks-iter#84fa692fc532c0c7e07435e66678f3eaea5b871f"
+source = "git+https://github.com/magnusuMET/hdf5-rust?branch=hidefix#038eb65aea4cc52cad26d176e3b17b796c749da3"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -799,7 +799,7 @@ dependencies = [
 [[package]]
 name = "hdf5-src"
 version = "0.8.1"
-source = "git+https://github.com/mulimoen/hdf5-rust?branch=feature/chunks-iter#84fa692fc532c0c7e07435e66678f3eaea5b871f"
+source = "git+https://github.com/magnusuMET/hdf5-rust?branch=hidefix#038eb65aea4cc52cad26d176e3b17b796c749da3"
 dependencies = [
  "cmake",
  "libz-sys",
@@ -808,7 +808,7 @@ dependencies = [
 [[package]]
 name = "hdf5-sys"
 version = "0.8.1"
-source = "git+https://github.com/mulimoen/hdf5-rust?branch=feature/chunks-iter#84fa692fc532c0c7e07435e66678f3eaea5b871f"
+source = "git+https://github.com/magnusuMET/hdf5-rust?branch=hidefix#038eb65aea4cc52cad26d176e3b17b796c749da3"
 dependencies = [
  "hdf5-src",
  "libc",
@@ -824,7 +824,7 @@ dependencies = [
 [[package]]
 name = "hdf5-types"
 version = "0.8.1"
-source = "git+https://github.com/mulimoen/hdf5-rust?branch=feature/chunks-iter#84fa692fc532c0c7e07435e66678f3eaea5b871f"
+source = "git+https://github.com/magnusuMET/hdf5-rust?branch=hidefix#038eb65aea4cc52cad26d176e3b17b796c749da3"
 dependencies = [
  "ascii",
  "cfg-if",
@@ -883,7 +883,7 @@ dependencies = [
 [[package]]
 name = "hidefix"
 version = "0.5.2"
-source = "git+https://github.com/gauteh/hidefix#e0cbd59a1833c6166be3414b02b1fbeb81bc4808"
+source = "git+https://github.com/gauteh/hidefix#459f9eae2cb40bc731c3ead58700ca1c1cd9b389"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -898,10 +898,9 @@ dependencies = [
  "hdf5",
  "hdf5-src",
  "hdf5-sys",
- "itertools 0.10.3",
+ "itertools",
  "libc",
  "libdeflater",
- "libz-sys",
  "log",
  "lru",
  "serde",
@@ -1061,15 +1060,6 @@ checksum = "879d54834c8c76457ef4293a689b2a8c59b076067ad77b15efafbb05f92a592b"
 
 [[package]]
 name = "itertools"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9a9d19fa1e79b6215ff29b9d6880b706147f16e9b1dbb1e4e5947b5b02bc5e3"
@@ -1160,7 +1150,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92e7e15d7610cce1d9752e137625f14e61a28cd45929b6e12e47b50fe154ee2e"
 dependencies = [
  "cc",
- "cmake",
  "libc",
  "pkg-config",
  "vcpkg",
@@ -1205,15 +1194,6 @@ name = "matches"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a3e378b66a060d48947b590737b30a1be76706c8dd7b8ba0f2fe3989c68a853f"
-
-[[package]]
-name = "matrixmultiply"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "916806ba0031cd542105d916a97c8572e1fa6dd79c9c51e7eb43a09ec2dd84c1"
-dependencies = [
- "rawpointer",
-]
 
 [[package]]
 name = "matrixmultiply"
@@ -1316,25 +1296,12 @@ dependencies = [
 
 [[package]]
 name = "ndarray"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c0d5c9540a691d153064dc47a4db2504587a75eae07bf1d73f7a596ebc73c04"
-dependencies = [
- "matrixmultiply 0.2.4",
- "num-complex 0.3.1",
- "num-integer",
- "num-traits",
- "rawpointer",
-]
-
-[[package]]
-name = "ndarray"
 version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dec23e6762830658d2b3d385a75aa212af2f67a4586d4442907144f3bb6a1ca8"
 dependencies = [
- "matrixmultiply 0.3.2",
- "num-complex 0.4.1",
+ "matrixmultiply",
+ "num-complex",
  "num-integer",
  "num-traits",
  "rawpointer",
@@ -1347,15 +1314,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c28774a7fd2fbb4f0babd8237ce554b73af68021b5f695a3cebd6c59bac0980f"
 dependencies = [
  "winapi",
-]
-
-[[package]]
-name = "num-complex"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "747d632c0c558b87dbabbe6a82f3b4ae03720d0646ac5b7b4dae89394be5f2c5"
-dependencies = [
- "num-traits",
 ]
 
 [[package]]
@@ -1437,9 +1395,9 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "openssl"
-version = "0.10.39"
+version = "0.10.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28f3916d46d9d813a62d7b7d2724d7b14785ac999fb623d990ee4603f9122742"
+checksum = "fb81a6430ac911acb25fe5ac8f1d2af1b4ea8a4fdfda0f1ee4292af2e2d8eb0e"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -2003,9 +1961,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.80"
+version = "1.0.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f972498cf015f7c0746cac89ebe1d6ef10c293b94175a243a2d9442c163d9944"
+checksum = "9b7ce2b32a1aed03c558dc61a5cd328f15aff2dbc17daad8fb8af04d2100e15c"
 dependencies = [
  "itoa",
  "ryu",

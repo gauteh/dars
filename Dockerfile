@@ -10,6 +10,9 @@ ARG RUSTFLAGS
 RUN cargo install --path dars
 
 FROM debian:stable-20220418-slim
+
+RUN apt-get update && apt-get -y install tini && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /work/
 COPY --from=builder /usr/local/cargo/bin/dars /usr/bin/dars
 ADD ./entrypoint.sh .
@@ -19,5 +22,5 @@ ENV DARS_PORT=${DARS_PORT:-8001}
 EXPOSE ${DARS_PORT}
 ENV RUST_LOG=${RUST_LOG:-info}
 
-ENTRYPOINT [ "./entrypoint.sh" ]
+ENTRYPOINT [ "/usr/bin/tini", "-g", "--", "./entrypoint.sh" ]
 CMD [ "/data/" ]

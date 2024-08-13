@@ -1,20 +1,13 @@
 [workspace]
 members = ["dars", "dap2", "dars-catalog"]
+resolver = "2"
 
 [profile.release]
 #lto = "fat"
 #codegen-units = 1
 
-[patch.crates-io]
-hdf5 = { git = "https://github.com/magnusuMET/hdf5-rust", branch = "hidefix" }
-hdf5-sys = { git = "https://github.com/magnusuMET/hdf5-rust", branch = "hidefix" }
-hdf5-src = { git = "https://github.com/magnusuMET/hdf5-rust", branch = "hidefix" }
-# hidefix = { git = "https://github.com/gauteh/hidefix", branch = "master" }
-
+[workspace.dependencies]
+hdf5 = { package = "hdf5-metno", version = "0.9" }
+hdf5-sys = { package = "hdf5-metno-sys", version = "0.9" }
+hidefix = "0.11"
 # hidefix = { path = "../hidefix" }
-# hdf5 = { path = "../hdf5-rust" }
-# hdf5-sys = { path = "../hdf5-rust/hdf5-sys" }
-
-# [patch.'https://github.com/gauteh/hidefix']
-# hidefix = { path = "../hidefix" }
-

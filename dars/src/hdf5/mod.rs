@@ -141,9 +141,8 @@ impl dap2::DodsXdr for Hdf5Dataset {
         let indices: Vec<u64> = variable.indices.iter().map(|c| *c as u64).collect();
         let counts: Vec<u64> = variable.counts.iter().map(|c| *c as u64).collect();
 
-        Ok(reader
-            .stream_xdr(Some(indices.as_slice()), Some(counts.as_slice()))
-            .boxed())
+        let ex = crate::make_extents((indices.as_slice(), counts.as_slice()))?;
+        Ok(reader.stream_xdr(&ex).boxed())
     }
 }
 

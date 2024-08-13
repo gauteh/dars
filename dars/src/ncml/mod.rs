@@ -15,6 +15,7 @@ use walkdir::WalkDir;
 use crate::hdf5::HDF5File;
 use dap2::dds::DdsVariableDetails;
 use hidefix::idx;
+use hidefix::idx::DatasetExt;
 
 mod dds;
 mod member;
@@ -361,7 +362,7 @@ impl CoordinateVariable {
                 .dataset(dimension)
                 .ok_or_else(|| anyhow!("dimension dataset not found."))?;
             let reader = ds.as_streamer(&m.path)?;
-            let reader = reader.stream_xdr(None, None);
+            let reader = reader.stream_xdr(&hidefix::extent::Extents::All);
 
             pin_mut!(reader);
 

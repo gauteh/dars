@@ -1,7 +1,7 @@
 [package]
 authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
 description = "OPeNDAP DAP/2 server-side protocol implementation"
-edition = "2018"
+edition = "2021"
 license = "MIT"
 name = "dap2"
 repository = "https://github.com/gauteh/dars"
@@ -11,7 +11,7 @@ version = "0.2.0"
 anyhow = "1.0.35"
 async-stream = "0.3.0"
 async-trait = "0.1.42"
-bytemuck =  "1.5"
+bytemuck = "1.5"
 bytes = "1"
 futures = "0.3.8"
 itertools = "0.10.3"

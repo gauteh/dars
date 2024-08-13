@@ -1,6 +1,6 @@
 [package]
 authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
-edition = "2018"
+edition = "2021"
 name = "dars"
 version = "0.1.0"
 repository = "https://github.com/gauteh/dars"
@@ -33,7 +33,7 @@ tokio-util = { version = "0.7", features = ["codec"] }
 toml = "0.5.7"
 walkdir = "2.3.1"
 warp = "0.3"
-hdf5 = "0.8.1"
+hdf5 = { workspace = true }
 rayon = "1.5.1"
 
 [dependencies.dap2]
@@ -47,13 +47,11 @@ optional = true
 
 [dependencies.hdf5-sys]
 features = ["static", "zlib"]
-version = "0.8.1"
+workspace = true
 
 [dependencies.hidefix]
 features = ["static"]
-version = "0.5.2"
-git = "https://github.com/gauteh/hidefix"
-
+workspace = true
 
 [dependencies.serde]
 features = ["derive"]
@@ -75,4 +73,3 @@ path = "src/lib.rs"
 default = ["catalog", "fast-index"]
 catalog = ["dars-catalog"]
 fast-index = ["hidefix/fast-index"]
-

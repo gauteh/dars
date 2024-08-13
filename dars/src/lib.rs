@@ -1,8 +1,3 @@
-#![recursion_limit = "512"]
-#![feature(async_closure)]
-#![feature(test)]
-extern crate test;
-
 #[macro_use]
 extern crate log;
 #[macro_use]

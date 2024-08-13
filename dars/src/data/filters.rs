@@ -122,7 +122,8 @@ fn ends_with(
     })
 }
 
-fn constraint() -> impl Filter<Extract = (Constraint,), Error = warp::reject::Rejection> + Clone {
+pub fn constraint() -> impl Filter<Extract = (Constraint,), Error = warp::reject::Rejection> + Clone
+{
     warp::any()
         .and(warp::query::raw().and_then(move |s: String| async move {
             Constraint::parse(s.as_str()).map_err(|_| warp::reject::reject())
@@ -151,7 +152,6 @@ mod tests {
     use super::*;
     use crate::data::test_state;
     use futures::executor::block_on;
-    use test::Bencher;
 
     #[tokio::test]
     async fn dap_methods() {
@@ -211,37 +211,6 @@ mod tests {
         );
     }
 
-    #[bench]
-    fn coads_das(b: &mut Bencher) {
-        let state = test_state();
-        let das = das(state.clone());
-
-        b.iter(|| {
-            let res = block_on(
-                warp::test::request()
-                    .path("/data/coads_climatology.nc4.das")
-                    .reply(&das),
-            );
-
-            assert_eq!(res.status(), 200);
-            test::black_box(res.body());
-        });
-    }
-
-    #[bench]
-    fn dds_constraint(b: &mut Bencher) {
-        let filter = constraint();
-
-        b.iter(|| {
-            block_on(
-                warp::test::request()
-                    .path("/data/coads_climatology.nc4.dds?SST[0:5][0:70][0:70],TIME,COADSX,COADSY")
-                    .filter(&filter),
-            )
-            .unwrap()
-        })
-    }
-
     #[test]
     fn dds_strides_unsupported() {
         let state = test_state();
@@ -254,40 +223,6 @@ mod tests {
         );
 
         assert_eq!(res.status(), 400);
-    }
-
-    #[bench]
-    fn coads_dds_constrained(b: &mut Bencher) {
-        let state = test_state();
-        let dds = dds(state.clone());
-
-        b.iter(|| {
-            let res = block_on(
-                warp::test::request()
-                    .path("/data/coads_climatology.nc4.dds?SST[0:5][0:70][0:70],TIME,COADSX,COADSY")
-                    .reply(&dds),
-            );
-
-            assert_eq!(res.status(), 200);
-            test::black_box(res.body());
-        })
-    }
-
-    #[bench]
-    fn coads_dds_unconstrained(b: &mut Bencher) {
-        let state = test_state();
-        let dds = dds(state.clone());
-
-        b.iter(|| {
-            let res = block_on(
-                warp::test::request()
-                    .path("/data/coads_climatology.nc4.dds")
-                    .reply(&dds),
-            );
-
-            assert_eq!(res.status(), 200);
-            test::black_box(res.body());
-        })
     }
 
     #[test]

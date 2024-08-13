@@ -16,8 +16,8 @@ pub(crate) mod dds;
 pub struct Hdf5Dataset {
     path: PathBuf,
     idxkey: String,
-    das: dap2::Das,
-    dds: dap2::Dds,
+    pub das: dap2::Das,
+    pub dds: dap2::Dds,
     modified: std::time::SystemTime,
     db: sled::Db,
 }
@@ -68,6 +68,10 @@ impl Hdf5Dataset {
             modified,
             db: db.clone(),
         })
+    }
+
+    pub fn get_dds(&self) -> &dap2::Dds {
+        &self.dds
     }
 }
 
@@ -150,48 +154,10 @@ impl dap2::DodsXdr for Hdf5Dataset {
 mod tests {
     use super::*;
     use crate::data::test_db;
-    use dap2::constraint::Constraint;
-    use dap2::dds::ConstrainedVariable;
-    use dap2::DodsXdr;
-    use futures::executor::{block_on, block_on_stream};
-    use futures::pin_mut;
-    use test::Bencher;
 
     #[test]
     fn open_coads() {
         let db = test_db();
         Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
-    }
-
-    #[bench]
-    fn coads_stream_sst_struct(b: &mut Bencher) {
-        let db = test_db();
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
-
-        let c = Constraint::parse("SST.SST").unwrap();
-        let dds = hd.dds.dds(&c).unwrap();
-
-        assert_eq!(dds.variables.len(), 1);
-        if let ConstrainedVariable::Structure {
-            variable: _,
-            member,
-        } = &dds.variables[0]
-        {
-            b.iter(|| {
-                let reader = block_on(hd.variable_xdr(&member)).unwrap();
-                pin_mut!(reader);
-                block_on_stream(reader).for_each(drop);
-            });
-        } else {
-            panic!("wrong constrained variable");
-        }
-    }
-
-    #[bench]
-    fn coads_get_modified_time(b: &mut Bencher) {
-        b.iter(|| {
-            let m = std::fs::metadata("../data/coads_climatology.nc4").unwrap();
-            test::black_box(m.modified().unwrap());
-        })
     }
 }

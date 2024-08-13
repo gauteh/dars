@@ -62,6 +62,7 @@ features = ["full"]
 version = "1"
 
 [dev-dependencies]
+divan = "0.1.14"
 reqwest = "*"
 hexyl = "*"
 
@@ -73,3 +74,11 @@ path = "src/lib.rs"
 default = ["catalog", "fast-index"]
 catalog = ["dars-catalog"]
 fast-index = ["hidefix/fast-index"]
+
+[[bench]]
+name = "hdf5"
+harness = false
+
+[[bench]]
+name = "data"
+harness = false

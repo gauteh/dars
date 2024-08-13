@@ -64,7 +64,7 @@ version = "1"
 [dev-dependencies]
 divan = "0.1.14"
 reqwest = "*"
-hexyl = "*"
+hexyl = "0.9"
 
 [lib]
 name = "dars"

@@ -86,7 +86,7 @@ pub(crate) fn hdf5_dimensions(m: &str, dataset: &hdf5::Dataset) -> Vec<String> {
 
                     let name = std::str::from_utf8(&name[..name.len() - 2]).unwrap();
 
-                    dims.push((&name[1..]).to_owned()); // remove leading '/'
+                    dims.push(name[1..].to_owned()); // remove leading '/'
 
                     hs::h5d::H5Dclose(dset);
                 }

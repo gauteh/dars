@@ -38,9 +38,9 @@ impl Hdf5Dataset {
     ) -> anyhow::Result<Hdf5Dataset> {
         let path = path.as_ref();
 
-        let modified = std::fs::metadata(&path)?.modified()?;
+        let modified = std::fs::metadata(path)?.modified()?;
 
-        let hf = HDF5File(hdf5::File::open(&path)?, key);
+        let hf = HDF5File(hdf5::File::open(path)?, key);
 
         trace!("Building DAS of {:?}..", path);
         let das = (&hf).into();

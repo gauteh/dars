@@ -228,15 +228,15 @@ impl Dds {
             file_name: self.file_name.clone(),
             variables: self
                 .variables
-                .iter()
-                .map(|(_, var)| {
+                .values()
+                .map(|var| {
                     // If not all dimensions have corresponding variables, return as variable and
                     // not a gridded variable.
                     if var.dimensions.len() > 1
                         && var
                             .dimensions
                             .iter()
-                            .all(|d| self.variables.get(d).is_some())
+                            .all(|d| self.variables.contains_key(d))
                     {
                         ConstrainedVariable::Grid {
                             variable: DdsVariableDetails {
@@ -320,7 +320,7 @@ impl Dds {
                                         && var
                                             .dimensions
                                             .iter()
-                                            .all(|d| self.variables.get(d).is_some())
+                                            .all(|d| self.variables.contains_key(d))
                                     {
                                         Ok(ConstrainedVariable::Grid {
                                             variable: DdsVariableDetails {

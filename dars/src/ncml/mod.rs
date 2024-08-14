@@ -59,7 +59,7 @@ impl NcmlDataset {
         info!("Loading {:?}..", path);
 
         // Parse NCML file.
-        let xml = std::fs::read_to_string(&path)?;
+        let xml = std::fs::read_to_string(path)?;
         let xml = roxmltree::Document::parse(&xml)?;
         let root = xml.root_element();
 
@@ -260,7 +260,7 @@ impl dap2::DodsXdr for NcmlDataset {
                 .boxed()
         } else if variable
             .dimensions
-            .get(0)
+            .first()
             .map(|d| d.0 != self.dimension)
             .unwrap_or(true)
         {

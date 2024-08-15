@@ -83,13 +83,11 @@ impl Datasets {
                 }
             })
             .filter_map(|path| {
-                let key = if datadir.to_string_lossy().ends_with('/') {
-                    path.strip_prefix(&datadir).ok()?.to_string_lossy()
-                } else {
-                    path.to_string_lossy()
-                };
-
-                let key = key.trim_start_matches('/').to_string();
+                let key = path
+                    .strip_prefix(&datadir)
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string();
 
                 debug!(
                     "Loading {}: {}..",

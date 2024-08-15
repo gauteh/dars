@@ -83,7 +83,7 @@ impl NcmlMember {
             Some(ds) => ds.as_streamer(&self.path),
             None => Err(anyhow!("dataset does not exist")),
         }?;
-        let bytes = reader.stream_xdr(Some(indices), Some(counts));
+        let bytes = reader.stream_xdr(&crate::make_extents((indices, counts))?);
 
         Ok(stream! {
             pin_mut!(bytes);

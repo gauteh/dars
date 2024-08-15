@@ -85,7 +85,7 @@ fn h5attr_to_das(n: &str, a: hdf5::Attribute) -> das::Attribute {
                     h5t::Integer(IntSize::U4) => Int(a.read_scalar().unwrap()),
                     h5t::Float(FloatSize::U4) => Float(a.read_scalar().unwrap()),
                     h5t::Float(FloatSize::U8) => Double(a.read_scalar().unwrap()),
-                    h5t::FixedAscii(n) => fixedascii_to_string(&*a).map(Str).unwrap_or_else(|_| {
+                    h5t::FixedAscii(n) => fixedascii_to_string(&a).map(Str).unwrap_or_else(|_| {
                         Unimplemented(format!("(fixed ascii) unsupported: {:?}", n))
                     }),
                     dtype => Unimplemented(format!("(scalar) {:?}", dtype)),
@@ -146,17 +146,6 @@ fn fixedascii_attr_value<const N: usize>(c: &hdf5::Container) -> Result<String, 
 mod tests {
     use super::super::Hdf5Dataset;
     use crate::data::test_db;
-    use test::Bencher;
-
-    #[bench]
-    fn coads(b: &mut Bencher) {
-        let db = test_db();
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
-
-        b.iter(|| hd.das.to_string());
-
-        println!("DAS:\n{}", hd.das);
-    }
 
     #[test]
     fn coads_das() {

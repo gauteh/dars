@@ -1,9 +1,9 @@
-///! HDF5 files have dimensions defined through various special attributes, linking them using ID's
-///! reference lists.
-///!
-///! String and char type datasets are not supported.
-///!
-///! There are some types of datasets that apparently should be ignored.
+//! HDF5 files have dimensions defined through various special attributes, linking them using ID's
+//! reference lists.
+//!
+//! String and char type datasets are not supported.
+//!
+//! There are some types of datasets that apparently should be ignored.
 use hdf5_sys as hs;
 use hdf5_sys::h5t::hvl_t;
 use std::convert::TryInto;
@@ -86,7 +86,7 @@ pub(crate) fn hdf5_dimensions(m: &str, dataset: &hdf5::Dataset) -> Vec<String> {
 
                     let name = std::str::from_utf8(&name[..name.len() - 2]).unwrap();
 
-                    dims.push((&name[1..]).to_owned()); // remove leading '/'
+                    dims.push(name[1..].to_owned()); // remove leading '/'
 
                     hs::h5d::H5Dclose(dset);
                 }
@@ -141,63 +141,6 @@ mod tests {
     use super::super::Hdf5Dataset;
     use crate::data::test_db;
     use dap2::constraint::Constraint;
-    use test::Bencher;
-
-    #[bench]
-    fn coads(b: &mut Bencher) {
-        let db = test_db();
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
-
-        b.iter(|| hd.dds.all().to_string());
-
-        let dds = hd.dds.all().to_string();
-        println!("dds: {}", dds);
-
-        // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds
-        //
-        // filename updated
-        // keys sorted by name
-
-        let tds = r#"Dataset {
-    Grid {
-     ARRAY:
-        Float32 AIRT[TIME = 12][COADSY = 90][COADSX = 180];
-     MAPS:
-        Float64 TIME[TIME = 12];
-        Float64 COADSY[COADSY = 90];
-        Float64 COADSX[COADSX = 180];
-    } AIRT;
-    Float64 COADSX[COADSX = 180];
-    Float64 COADSY[COADSY = 90];
-    Grid {
-     ARRAY:
-        Float32 SST[TIME = 12][COADSY = 90][COADSX = 180];
-     MAPS:
-        Float64 TIME[TIME = 12];
-        Float64 COADSY[COADSY = 90];
-        Float64 COADSX[COADSX = 180];
-    } SST;
-    Float64 TIME[TIME = 12];
-    Grid {
-     ARRAY:
-        Float32 UWND[TIME = 12][COADSY = 90][COADSX = 180];
-     MAPS:
-        Float64 TIME[TIME = 12];
-        Float64 COADSY[COADSY = 90];
-        Float64 COADSX[COADSX = 180];
-    } UWND;
-    Grid {
-     ARRAY:
-        Float32 VWND[TIME = 12][COADSY = 90][COADSX = 180];
-     MAPS:
-        Float64 TIME[TIME = 12];
-        Float64 COADSY[COADSY = 90];
-        Float64 COADSX[COADSX = 180];
-    } VWND;
-} coads;"#;
-
-        assert_eq!(hd.dds.all().to_string(), tds);
-    }
 
     #[test]
     fn coads_time() {
@@ -228,31 +171,6 @@ mod tests {
         // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds?TIME[0:5]
         let tds = r#"Dataset {
     Float64 TIME[TIME = 6];
-} coads;"#;
-
-        assert_eq!(dds.to_string(), tds);
-    }
-
-    #[bench]
-    fn coads_sst_grid(b: &mut Bencher) {
-        let db = test_db();
-        let hd = Hdf5Dataset::open("../data/coads_climatology.nc4", "coads".into(), &db).unwrap();
-
-        let c = Constraint::parse("SST").unwrap();
-        b.iter(|| hd.dds.dds(&c).unwrap().to_string());
-        let dds = hd.dds.dds(&c).unwrap();
-        println!("{}", dds);
-
-        // from: https://remotetest.unidata.ucar.edu/thredds/dodsC/testdods/coads_climatology.nc.dds?SST
-        let tds = r#"Dataset {
-    Grid {
-     ARRAY:
-        Float32 SST[TIME = 12][COADSY = 90][COADSX = 180];
-     MAPS:
-        Float64 TIME[TIME = 12];
-        Float64 COADSY[COADSY = 90];
-        Float64 COADSX[COADSX = 180];
-    } SST;
 } coads;"#;
 
         assert_eq!(dds.to_string(), tds);

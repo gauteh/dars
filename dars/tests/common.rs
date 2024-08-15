@@ -20,8 +20,13 @@ pub async fn dars_test() -> impl Filter<Extract = impl warp::Reply, Error = warp
 {
     let config = config::Config::default();
     let db = sled::Config::default().temporary(true).open().unwrap();
+    let test_data = match std::env::var("CARGO_MANIFEST_DIR") {
+        Ok(path) => std::path::Path::new(&path).join("..").join("data"),
+        Err(_) => std::path::Path::new("../data").to_owned(),
+    };
+    let root_url = config.root_url.clone();
     let data = Arc::new(
-        data::Datasets::new_with_datadir(config.root_url.clone(), "../data/".into(), db)
+        data::Datasets::new_with_datadir(root_url, test_data, db)
             .await
             .unwrap(),
     );

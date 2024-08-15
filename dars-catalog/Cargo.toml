@@ -1,11 +1,12 @@
 [package]
 authors = ["Gaute Hope <eg@gaute.vetsj.com>"]
-edition = "2018"
+edition = "2021"
 name = "dars-catalog"
 repository = "https://github.com/gauteh/dars"
 license = "MIT"
 description = "Catalog for dars-dap"
 version = "0.1.0"
+readme = "../README.md"
 
 [dependencies]
 warp = "0.3"
@@ -20,4 +21,3 @@ version = "1.0.118"
 
 [dev-dependencies]
 futures = "0.3.8"
-

@@ -23,7 +23,7 @@ pub fn xdr_serialize(v: &DdsVariableDetails, b: Bytes) -> Bytes {
 
     match v.vartype {
         UInt16 => {
-            let b: &[u8] = &*b;
+            let b: &[u8] = &b;
             let u: &[u16] = bytemuck::cast_slice(b);
 
             u.iter()
@@ -38,7 +38,7 @@ pub fn xdr_serialize(v: &DdsVariableDetails, b: Bytes) -> Bytes {
                 .collect()
         }
         Int16 => {
-            let b: &[u8] = &*b;
+            let b: &[u8] = &b;
             let u: &[i16] = bytemuck::cast_slice(b);
 
             u.iter()

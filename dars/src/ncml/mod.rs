@@ -15,6 +15,7 @@ use walkdir::WalkDir;
 use crate::hdf5::HDF5File;
 use dap2::dds::DdsVariableDetails;
 use hidefix::idx;
+use hidefix::idx::DatasetExt;
 
 mod dds;
 mod member;
@@ -58,7 +59,7 @@ impl NcmlDataset {
         info!("Loading {:?}..", path);
 
         // Parse NCML file.
-        let xml = std::fs::read_to_string(&path)?;
+        let xml = std::fs::read_to_string(path)?;
         let xml = roxmltree::Document::parse(&xml)?;
         let root = xml.root_element();
 
@@ -259,7 +260,7 @@ impl dap2::DodsXdr for NcmlDataset {
                 .boxed()
         } else if variable
             .dimensions
-            .get(0)
+            .first()
             .map(|d| d.0 != self.dimension)
             .unwrap_or(true)
         {
@@ -361,7 +362,7 @@ impl CoordinateVariable {
                 .dataset(dimension)
                 .ok_or_else(|| anyhow!("dimension dataset not found."))?;
             let reader = ds.as_streamer(&m.path)?;
-            let reader = reader.stream_xdr(None, None);
+            let reader = reader.stream_xdr(&hidefix::extent::Extents::All);
 
             pin_mut!(reader);
 

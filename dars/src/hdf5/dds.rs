@@ -1,9 +1,9 @@
-///! HDF5 files have dimensions defined through various special attributes, linking them using ID's
-///! reference lists.
-///!
-///! String and char type datasets are not supported.
-///!
-///! There are some types of datasets that apparently should be ignored.
+//! HDF5 files have dimensions defined through various special attributes, linking them using ID's
+//! reference lists.
+//!
+//! String and char type datasets are not supported.
+//!
+//! There are some types of datasets that apparently should be ignored.
 use hdf5_sys as hs;
 use hdf5_sys::h5t::hvl_t;
 use std::convert::TryInto;

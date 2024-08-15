@@ -1,7 +1,7 @@
+//! This module holds the collection of datasets which are available. It utilizes the `dap2`
+//! module to parse queries and dispatch metadata or data requests to the `Dataset` implementation
+//! on each dataset-source.
 use std::convert::Infallible;
-///! This module holds the collection of datasets which are available. It utilizes the `dap2`
-///! module to parse queries and dispatch metadata or data requests to the `Dataset` implementation
-///! on each dataset-source.
 use std::sync::Arc;
 use warp::Filter;
 

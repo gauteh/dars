@@ -6,6 +6,7 @@ license = "MIT"
 name = "dap2"
 repository = "https://github.com/gauteh/dars"
 version = "0.2.0"
+readme = "../README.md"
 
 [dependencies]
 anyhow = "1.0.35"

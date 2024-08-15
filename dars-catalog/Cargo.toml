@@ -6,6 +6,7 @@ repository = "https://github.com/gauteh/dars"
 license = "MIT"
 description = "Catalog for dars-dap"
 version = "0.1.0"
+readme = "../README.md"
 
 [dependencies]
 warp = "0.3"
